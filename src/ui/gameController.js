@@ -46,9 +46,8 @@ export class GameController {
       symbolTextureMap: LUCKY_ESCAPE_CONFIG?.assets?.symbols || {},
       randomRotationSymbolIds:
         LUCKY_ESCAPE_CONFIG?.visuals?.randomRotationSymbolIds || [],
-      randomRotationAnglesDeg:
-        LUCKY_ESCAPE_CONFIG?.visuals?.randomRotationAnglesDeg ||
-        [0, 90, 180, 270],
+      randomRotationAnglesDeg: LUCKY_ESCAPE_CONFIG?.visuals
+        ?.randomRotationAnglesDeg || [0, 90, 180, 270],
     });
 
     this.bonusTotalOverlay = document.createElement("div");

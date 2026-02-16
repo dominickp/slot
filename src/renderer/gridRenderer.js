@@ -79,6 +79,9 @@ const REVEAL_SYMBOLS = {
   POT: SYMBOLS.BUCKET,
 };
 
+const TILE_SYMBOL_PADDING = 7;
+const MAX_RENDER_RESOLUTION = 2;
+
 export class GridRenderer {
   constructor(containerElement, options = {}) {
     this.container = containerElement;
@@ -278,7 +281,15 @@ export class GridRenderer {
 
     const image = new Image();
     image.onload = () => {
-      this.symbolTextureCache.set(key, PIXI.Texture.from(image));
+      const texture = PIXI.Texture.from(image);
+      if (texture?.source) {
+        texture.source.scaleMode = "linear";
+        texture.source.autoGenerateMipmaps = true;
+        if (typeof texture.source.updateMipmaps === "function") {
+          texture.source.updateMipmaps();
+        }
+      }
+      this.symbolTextureCache.set(key, texture);
       this.symbolTextureLoadState.set(key, "ready");
       this.render(this.lastRenderedGrid, new Set(), {
         showBonusOverlays: true,
@@ -487,11 +498,18 @@ export class GridRenderer {
   }
 
   async _initApp() {
+    const deviceResolution =
+      typeof window !== "undefined" ? Number(window.devicePixelRatio || 1) : 1;
     const appOptions = {
       width: this.cols * this.cellSize + this.padding * 2,
       height: this.rows * this.cellSize + this.padding * 2,
       backgroundColor: 0x1a1a2e,
       antialias: true,
+      resolution: Math.min(
+        MAX_RENDER_RESOLUTION,
+        Math.max(1, deviceResolution),
+      ),
+      autoDensity: true,
     };
 
     const app = new PIXI.Application();
@@ -592,7 +610,7 @@ export class GridRenderer {
           const symbol = this._createSymbolSprite(symbolId, { rotation });
 
           // Position symbol
-          const padding = 5;
+          const padding = TILE_SYMBOL_PADDING;
           symbol.position.set(padding, padding);
           symbol.width = this.cellSize - padding * 2;
           symbol.height = this.cellSize - padding * 2;
@@ -631,7 +649,11 @@ export class GridRenderer {
     this._renderBonusLabel(showBonusOverlays);
   }
 
-  _createCellSizedSprite(symbolId, padding = 5, options = {}) {
+  _createCellSizedSprite(
+    symbolId,
+    padding = TILE_SYMBOL_PADDING,
+    options = {},
+  ) {
     const sprite = this._createSymbolSprite(symbolId, options);
     sprite.width = this.cellSize - padding * 2;
     sprite.height = this.cellSize - padding * 2;
@@ -1509,7 +1531,7 @@ export class GridRenderer {
         showBonusOverlays = false,
       } = options;
 
-      const padding = 5;
+      const padding = TILE_SYMBOL_PADDING;
       const outDistance = this.rows * this.cellSize + this.cellSize * 0.85;
       const startTime = Date.now();
       const totalDuration = duration + (this.cols - 1) * columnStaggerMs;
@@ -1643,7 +1665,7 @@ export class GridRenderer {
     await this.ready;
 
     return new Promise((resolve) => {
-      const padding = 5;
+      const padding = TILE_SYMBOL_PADDING;
 
       const {
         changedKeys = null,
