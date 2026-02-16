@@ -43,6 +43,7 @@ export class GameController {
       padding: 15,
       rows: Number(LUCKY_ESCAPE_CONFIG.gridHeight || 5),
       cols: Number(LUCKY_ESCAPE_CONFIG.gridWidth || 6),
+      symbolTextureMap: LUCKY_ESCAPE_CONFIG?.assets?.symbols || {},
     });
 
     this.bonusTotalOverlay = document.createElement("div");
@@ -70,6 +71,9 @@ export class GameController {
     this.bonusIntroOpen = false;
     this.bonusIntroResolver = null;
     this.soundManager = new SoundManager();
+    this.soundManager.setSoundAssetMap(
+      LUCKY_ESCAPE_CONFIG?.assets?.sounds || {},
+    );
     this.timings = {
       spinDrop: ANIMATION_TIMING.controller.spinFlow.spinDropMs,
       cascade: ANIMATION_TIMING.controller.spinFlow.cascadeMs,
@@ -86,6 +90,7 @@ export class GameController {
 
   async _initialize() {
     this._initializeUI();
+    this._validateConfiguredAssets();
     await this.renderer.ready;
     this._renderInitialGrid();
     this.ui.spinBtn.disabled = false;
@@ -1135,6 +1140,81 @@ export class GameController {
     }
 
     this.bonusTotalOverlay.classList.remove("show");
+  }
+
+  async _validateConfiguredAssets() {
+    if (typeof window === "undefined" || typeof fetch !== "function") {
+      return;
+    }
+
+    const symbolAssets = this.game?.config?.assets?.symbols || {};
+    const soundAssets = this.game?.config?.assets?.sounds || {};
+
+    const entries = [
+      ...Object.entries(symbolAssets).map(([key, path]) => ({
+        group: "symbol",
+        key,
+        path,
+      })),
+      ...Object.entries(soundAssets).map(([key, path]) => ({
+        group: "sound",
+        key,
+        path,
+      })),
+    ];
+
+    if (entries.length === 0) {
+      return;
+    }
+
+    const exists = async (path) => {
+      const normalizedPath = String(path || "").trim();
+      if (!normalizedPath) {
+        return false;
+      }
+
+      try {
+        let response = await fetch(normalizedPath, { method: "HEAD" });
+        if (response.status === 405 || response.status === 501) {
+          response = await fetch(normalizedPath, { method: "GET" });
+        }
+        return response.ok;
+      } catch {
+        return false;
+      }
+    };
+
+    const missing = [];
+
+    await Promise.all(
+      entries.map(async ({ group, key, path }) => {
+        const found = await exists(path);
+        if (!found) {
+          missing.push({ group, key, path });
+        }
+      }),
+    );
+
+    if (missing.length === 0) {
+      return;
+    }
+
+    const missingSymbols = missing.filter((entry) => entry.group === "symbol");
+    const missingSounds = missing.filter((entry) => entry.group === "sound");
+
+    if (missingSymbols.length > 0) {
+      console.warn(
+        "[Assets] Missing symbol files (renderer will use placeholders):",
+        missingSymbols,
+      );
+    }
+
+    if (missingSounds.length > 0) {
+      console.warn(
+        "[Assets] Missing sound files (sound manager will use synth fallback/silence):",
+        missingSounds,
+      );
+    }
   }
 }
 

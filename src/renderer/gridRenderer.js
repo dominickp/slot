@@ -86,6 +86,12 @@ export class GridRenderer {
     this.padding = options.padding || 10;
     this.rows = options.rows || 5;
     this.cols = options.cols || 6;
+    this.symbolTextureMap = this._normalizeSymbolTextureMap(
+      options.symbolTextureMap || {},
+    );
+    this.symbolTextureCache = new Map();
+    this.symbolTextureLoadState = new Map();
+    this.assetCacheBustToken = Date.now();
 
     this.app = null;
     this.gridContainer = null;
@@ -112,6 +118,66 @@ export class GridRenderer {
     };
 
     this.ready = this._initApp();
+  }
+
+  _normalizeSymbolTextureMap(map) {
+    const normalized = new Map();
+
+    for (const [rawId, rawPath] of Object.entries(map || {})) {
+      const symbolId = Number(rawId);
+      const assetPath = typeof rawPath === "string" ? rawPath.trim() : "";
+
+      if (!Number.isFinite(symbolId) || assetPath.length === 0) {
+        continue;
+      }
+
+      normalized.set(symbolId, assetPath);
+    }
+
+    return normalized;
+  }
+
+  _getSymbolTexturePath(symbolId) {
+    if (!(this.symbolTextureMap instanceof Map)) {
+      return null;
+    }
+
+    return this.symbolTextureMap.get(Number(symbolId)) || null;
+  }
+
+  _withCacheBust(assetPath) {
+    if (typeof assetPath !== "string" || assetPath.length === 0) {
+      return assetPath;
+    }
+
+    const separator = assetPath.includes("?") ? "&" : "?";
+    return `${assetPath}${separator}v=${this.assetCacheBustToken}`;
+  }
+
+  _primeSymbolTexture(symbolId, texturePath) {
+    const key = Number(symbolId);
+    const loadState = this.symbolTextureLoadState.get(key);
+    if (loadState === "loading") {
+      return;
+    }
+
+    this.symbolTextureLoadState.set(key, "loading");
+
+    const image = new Image();
+    image.onload = () => {
+      this.symbolTextureCache.set(key, PIXI.Texture.from(image));
+      this.symbolTextureLoadState.set(key, "ready");
+      this.render(this.lastRenderedGrid, new Set(), {
+        showBonusOverlays: true,
+      });
+    };
+    image.onerror = () => {
+      this.symbolTextureLoadState.set(key, "error");
+      console.warn(
+        `[Assets] Failed to load symbol texture for id ${key}: ${texturePath}`,
+      );
+    };
+    image.src = this._withCacheBust(texturePath);
   }
 
   _normalizePosKey(posKey) {
@@ -331,7 +397,21 @@ export class GridRenderer {
     this.animationContainer.position.set(this.padding, this.padding);
     this.app.stage.addChild(this.animationContainer);
 
+    await this._preloadSymbolTextures();
+
     this._createGrid();
+  }
+
+  async _preloadSymbolTextures() {
+    if (!(this.symbolTextureMap instanceof Map) || this.symbolTextureMap.size === 0) {
+      return;
+    }
+
+    for (const [symbolId, texturePath] of this.symbolTextureMap.entries()) {
+      this._primeSymbolTexture(symbolId, texturePath);
+    }
+
+    await Promise.resolve();
   }
 
   /**
@@ -1585,6 +1665,23 @@ export class GridRenderer {
    * Create a visual symbol sprite
    */
   _createSymbolSprite(symbolId) {
+    const numericSymbolId = Number(symbolId);
+    const texturePath = this._getSymbolTexturePath(numericSymbolId);
+    const cachedTexture = this.symbolTextureCache.get(numericSymbolId);
+    if (cachedTexture) {
+      const sprite = new PIXI.Sprite(cachedTexture);
+      sprite.width = 100;
+      sprite.height = 100;
+      return sprite;
+    }
+
+    if (texturePath) {
+      const loadState = this.symbolTextureLoadState.get(numericSymbolId);
+      if (loadState !== "loading") {
+        this._primeSymbolTexture(numericSymbolId, texturePath);
+      }
+    }
+
     const baseColor = SYMBOL_COLORS[symbolId] || 0x888888;
     const isBonusPalette = Boolean(this.bonusVisuals?.modeName);
     const color = isBonusPalette ? this._boostColor(baseColor, 1.2) : baseColor;

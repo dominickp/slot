@@ -11,6 +11,20 @@ export class SoundManager {
     this.masterGain = null;
     this.volume = 0.75;
     this.soundHooks = new Map();
+    this.soundAssetMap = {};
+    this.soundAssetTemplates = new Map();
+    this.soundAssetStatus = new Map();
+    this.backgroundMusic = null;
+    this.backgroundMusicVolumeScale = 0.35;
+    this.backgroundMusicPathStatus = new Map();
+  }
+
+  setSoundAssetMap(assetMap = {}) {
+    this.soundAssetMap = { ...assetMap };
+    this.soundAssetTemplates.clear();
+    this.soundAssetStatus.clear();
+    this.backgroundMusicPathStatus.clear();
+    this._stopBackgroundMusic();
   }
 
   setSoundHook(key, handler) {
@@ -30,6 +44,72 @@ export class SoundManager {
     }
 
     fallback();
+  }
+
+  _playAsset(key) {
+    if (!this.enabled) {
+      return false;
+    }
+
+    const assetPath = this.soundAssetMap?.[key];
+    if (typeof assetPath !== "string" || assetPath.trim().length === 0) {
+      return false;
+    }
+
+    const status = this.soundAssetStatus.get(key);
+    if (status === "error") {
+      return false;
+    }
+
+    if (status !== "ready") {
+      this._primeSoundAsset(key, assetPath);
+      return false;
+    }
+
+    try {
+      let template = this.soundAssetTemplates.get(key);
+      if (!template) {
+        return false;
+      }
+
+      const player = template.cloneNode();
+      player.volume = Math.max(0, Math.min(1, this.volume));
+      player.play().catch(() => {});
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  _primeSoundAsset(key, assetPath) {
+    if (this.soundAssetStatus.has(key)) {
+      return;
+    }
+
+    try {
+      const audio = new Audio(assetPath);
+      audio.preload = "auto";
+      this.soundAssetStatus.set(key, "loading");
+
+      const markReady = () => {
+        this.soundAssetStatus.set(key, "ready");
+        this.soundAssetTemplates.set(key, audio);
+        audio.removeEventListener("canplaythrough", markReady);
+        audio.removeEventListener("error", markError);
+      };
+
+      const markError = () => {
+        this.soundAssetStatus.set(key, "error");
+        audio.removeEventListener("canplaythrough", markReady);
+        audio.removeEventListener("error", markError);
+      };
+
+      audio.addEventListener("canplaythrough", markReady, { once: true });
+      audio.addEventListener("error", markError, { once: true });
+      audio.load();
+    } catch {
+      this.soundAssetStatus.set(key, "error");
+    }
   }
 
   async init() {
@@ -63,6 +143,8 @@ export class SoundManager {
     if (this.audioContext.state === "suspended") {
       await this.audioContext.resume();
     }
+
+    this._startBackgroundMusicIfAvailable();
 
     return true;
   }
@@ -105,6 +187,9 @@ export class SoundManager {
 
   playButton() {
     this._playHookOrFallback("button", () => {
+      if (this._playAsset("button")) {
+        return;
+      }
       this.playTone({
         frequency: 420,
         type: "triangle",
@@ -116,6 +201,9 @@ export class SoundManager {
 
   playSpinStart() {
     this._playHookOrFallback("spin-start", () => {
+      if (this._playAsset("spin-start")) {
+        return;
+      }
       this.playTone({
         frequency: 196,
         type: "sawtooth",
@@ -128,6 +216,9 @@ export class SoundManager {
 
   playCascade() {
     this._playHookOrFallback("cascade", () => {
+      if (this._playAsset("cascade")) {
+        return;
+      }
       this.playTone({
         frequency: 300,
         type: "square",
@@ -146,6 +237,9 @@ export class SoundManager {
 
   playWin(winAmount = 0) {
     this._playHookOrFallback("win", () => {
+      if (this._playAsset("win")) {
+        return;
+      }
       const boost = Math.min(1.5, 1 + winAmount / 100);
       this.playTone({
         frequency: 520 * boost,
@@ -172,6 +266,9 @@ export class SoundManager {
 
   playBonus() {
     this._playHookOrFallback("bonus-start", () => {
+      if (this._playAsset("bonus-start")) {
+        return;
+      }
       this.playTone({
         frequency: 440,
         type: "sawtooth",
@@ -197,6 +294,9 @@ export class SoundManager {
 
   playFreeSpinStart(index = 1) {
     this._playHookOrFallback("free-spin-start", () => {
+      if (this._playAsset("free-spin-start")) {
+        return;
+      }
       const base = 350 + Math.min(index, 8) * 15;
       this.playTone({
         frequency: base,
@@ -209,6 +309,9 @@ export class SoundManager {
 
   playRainbow() {
     this._playHookOrFallback("rainbow", () => {
+      if (this._playAsset("rainbow")) {
+        return;
+      }
       this.playTone({
         frequency: 500,
         type: "triangle",
@@ -234,6 +337,9 @@ export class SoundManager {
 
   playCloverMultiply() {
     this._playHookOrFallback("clover-multiply", () => {
+      if (this._playAsset("clover-multiply")) {
+        return;
+      }
       this.playTone({
         frequency: 720,
         type: "triangle",
@@ -252,6 +358,9 @@ export class SoundManager {
 
   playCollectorCollect() {
     this._playHookOrFallback("collector-collect", () => {
+      if (this._playAsset("collector-collect")) {
+        return;
+      }
       this.playTone({
         frequency: 220,
         type: "sawtooth",
@@ -271,6 +380,9 @@ export class SoundManager {
 
   playBigWin() {
     this._playHookOrFallback("big-win", () => {
+      if (this._playAsset("big-win")) {
+        return;
+      }
       this.playTone({
         frequency: 392,
         type: "sawtooth",
@@ -301,11 +413,110 @@ export class SoundManager {
 
   _applyMasterGain() {
     if (!this.masterGain) {
+      this._syncBackgroundMusicVolume();
       return;
     }
 
     const targetGain = this.enabled ? this._volumeToGain(this.volume) : 0.0001;
     this.masterGain.gain.value = targetGain;
+    this._syncBackgroundMusicVolume();
+
+    if (!this.enabled) {
+      this._stopBackgroundMusic();
+      return;
+    }
+
+    this._startBackgroundMusicIfAvailable();
+  }
+
+  _startBackgroundMusicIfAvailable() {
+    if (!this.enabled) {
+      return;
+    }
+
+    const musicPath = this.soundAssetMap?.["bg-music"];
+    if (typeof musicPath !== "string" || musicPath.trim().length === 0) {
+      return;
+    }
+
+    const pathStatus = this.backgroundMusicPathStatus.get(musicPath);
+    if (pathStatus === "checking") {
+      return;
+    }
+
+    if (pathStatus === "invalid") {
+      return;
+    }
+
+    if (!pathStatus) {
+      this.backgroundMusicPathStatus.set(musicPath, "checking");
+      this._probeAudioPath(musicPath).then((isValid) => {
+        this.backgroundMusicPathStatus.set(musicPath, isValid ? "valid" : "invalid");
+        if (isValid) {
+          this._startBackgroundMusicIfAvailable();
+        }
+      });
+      return;
+    }
+
+    if (!this.backgroundMusic) {
+      this.backgroundMusic = new Audio(musicPath);
+      this.backgroundMusic.loop = true;
+      this.backgroundMusic.preload = "auto";
+      this._syncBackgroundMusicVolume();
+    }
+
+    if (this.backgroundMusic.paused) {
+      this.backgroundMusic.play().catch(() => {});
+    }
+  }
+
+  async _probeAudioPath(path) {
+    if (typeof fetch !== "function") {
+      return true;
+    }
+
+    try {
+      let response = await fetch(path, { method: "HEAD" });
+      if (response.status === 405 || response.status === 501) {
+        response = await fetch(path, { method: "GET" });
+      }
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const contentType = String(response.headers.get("content-type") || "")
+        .toLowerCase()
+        .trim();
+      if (!contentType) {
+        return true;
+      }
+
+      return contentType.startsWith("audio/");
+    } catch {
+      return false;
+    }
+  }
+
+  _stopBackgroundMusic() {
+    if (!this.backgroundMusic) {
+      return;
+    }
+
+    this.backgroundMusic.pause();
+    this.backgroundMusic.currentTime = 0;
+  }
+
+  _syncBackgroundMusicVolume() {
+    if (!this.backgroundMusic) {
+      return;
+    }
+
+    const target = this.enabled
+      ? Math.max(0, Math.min(1, this.volume * this.backgroundMusicVolumeScale))
+      : 0;
+    this.backgroundMusic.volume = target;
   }
 }
 

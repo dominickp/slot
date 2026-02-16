@@ -46,6 +46,43 @@ export const LUCKY_ESCAPE_CONFIG = {
     },
   ],
 
+  // External art/audio asset manifest (replace these files with your own)
+  assets: {
+    symbols: {
+      1: "/assets/symbols/10.png",
+      2: "/assets/symbols/J.png",
+      3: "/assets/symbols/Q.png",
+      4: "/assets/symbols/K.png",
+      5: "/assets/symbols/A.png",
+      6: "/assets/symbols/wild.png",
+      7: "/assets/symbols/scatter_fs.png",
+      8: "/assets/symbols/reveal_clover.png",
+      9: "/assets/symbols/rainbow.png",
+      10: "/assets/symbols/reveal_pot.png",
+      11: "/assets/symbols/trap.png",
+      12: "/assets/symbols/cheese.png",
+      13: "/assets/symbols/beer.png",
+      14: "/assets/symbols/bread.png",
+      15: "/assets/symbols/top_hat.png",
+      101: "/assets/symbols/coin_bronze.png",
+      102: "/assets/symbols/coin_silver.png",
+      103: "/assets/symbols/coin_gold.png",
+    },
+    sounds: {
+      button: "/assets/audio/ui_button.ogg",
+      "spin-start": "/assets/audio/spin_start.ogg",
+      cascade: "/assets/audio/cascade.ogg",
+      win: "/assets/audio/win.ogg",
+      "bonus-start": "/assets/audio/bonus_start.ogg",
+      "free-spin-start": "/assets/audio/free_spin_start.ogg",
+      rainbow: "/assets/audio/rainbow.ogg",
+      "clover-multiply": "/assets/audio/clover_multiply.ogg",
+      "collector-collect": "/assets/audio/collector_collect.ogg",
+      "big-win": "/assets/audio/big_win.ogg",
+      "bg-music": "/assets/audio/background_music.ogg",
+    },
+  },
+
   // Win mechanics
   winMechanic: "cluster_pays",
   minClusterSize: 5,
