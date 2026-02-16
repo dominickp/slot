@@ -30,6 +30,8 @@ export class GameController {
       background: #0a0a0f;
       border-radius: 10px;
       padding: 20px;
+      position: relative;
+      overflow: hidden;
     `;
     this.container.insertBefore(
       rendererContainer,
@@ -43,6 +45,18 @@ export class GameController {
       cols: Number(LUCKY_ESCAPE_CONFIG.gridWidth || 6),
     });
 
+    this.bonusTotalOverlay = document.createElement("div");
+    this.bonusTotalOverlay.className = "bonus-total-overlay";
+    this.bonusTotalOverlay.innerHTML = `
+      <div class="bonus-total-content">
+        <div class="bonus-total-label">Bonus Total Win</div>
+        <div class="bonus-total-value" id="bonusTotalValue">0</div>
+      </div>
+    `;
+    rendererContainer.appendChild(this.bonusTotalOverlay);
+    this.bonusTotalValueEl =
+      this.bonusTotalOverlay.querySelector("#bonusTotalValue");
+
     // Game state
     this.isSpinning = false;
     this.currentBalance = 1000;
@@ -51,6 +65,7 @@ export class GameController {
     this.autoPlayEnabled = false;
     this.autoPlayTimer = null;
     this.isConfirmOpen = false;
+    this.isBuyOptionsOpen = false;
     this.confirmResolver = null;
     this.bonusIntroOpen = false;
     this.bonusIntroResolver = null;
@@ -74,15 +89,8 @@ export class GameController {
     await this.renderer.ready;
     this._renderInitialGrid();
     this.ui.spinBtn.disabled = false;
-    this.ui.stateEl.textContent = "READY";
-    this._showResult("Ready to spin", "info");
-    this._updateHud({
-      mode: "BASE GAME",
-      freeSpinsRemaining: 0,
-      lastWin: 0,
-      cascades: 0,
-      scatters: 0,
-    });
+    this._updateTotalWinDisplay();
+    this._updateBonusSpinProgress();
   }
 
   /**
@@ -94,11 +102,15 @@ export class GameController {
     const soundBtn = document.getElementById("soundBtn");
     const volumeSlider = document.getElementById("volumeSlider");
     const volumeValue = document.getElementById("volumeValue");
-    const buyLeprechaunBtn = document.getElementById("buyLeprechaunBtn");
-    const buyGlitterGoldBtn = document.getElementById("buyGlitterGoldBtn");
-    const buyTreasureRainbowBtn = document.getElementById(
-      "buyTreasureRainbowBtn",
+    const buyBonusBtn = document.getElementById("buyBonusBtn");
+    const buyOptionsModal = document.getElementById("buyOptionsModal");
+    const buyOptionLeprechaunBtn = document.getElementById(
+      "buyOptionLeprechaunBtn",
     );
+    const buyOptionGlitterGoldBtn = document.getElementById(
+      "buyOptionGlitterGoldBtn",
+    );
+    const buyOptionsCancel = document.getElementById("buyOptionsCancel");
     const buyConfirmModal = document.getElementById("buyConfirmModal");
     const buyConfirmTitle = document.getElementById("buyConfirmTitle");
     const buyConfirmText = document.getElementById("buyConfirmText");
@@ -110,7 +122,6 @@ export class GameController {
     const bonusIntroContinue = document.getElementById("bonusIntroContinue");
     const bonusIntroGraphic = document.getElementById("bonusIntroGraphic");
     const balanceEl = document.getElementById("balance");
-    const stateEl = document.getElementById("state");
     const betInput = document.getElementById("betInput");
     if (betInput) {
       const minBet = Number(this.game.config?.minBet ?? 0.1);
@@ -124,45 +135,14 @@ export class GameController {
     }
     const resultEl = document.getElementById("result");
     const resultText = document.getElementById("resultText");
+    const bonusSpinStat = document.getElementById("bonusSpinStat");
+    const bonusSpinProgress = document.getElementById("bonusSpinProgress");
+    const totalWinEl = document.getElementById("totalWin");
     const gameContainer = document.querySelector(".game-container");
 
     if (gameContainer) {
       gameContainer.style.display = "none";
     }
-
-    const hud = document.createElement("div");
-    hud.className = "stats";
-    hud.style.marginTop = "-8px";
-    hud.style.marginBottom = "20px";
-    hud.innerHTML = `
-      <div class="stat">
-        <div class="stat-label">Mode</div>
-        <div class="stat-value state" id="hudMode">BASE GAME</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Free Spins</div>
-        <div class="stat-value" id="hudFreeSpins">0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Last Win</div>
-        <div class="stat-value balance" id="hudLastWin">0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Cascades</div>
-        <div class="stat-value" id="hudCascades">0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Scatters</div>
-        <div class="stat-value" id="hudScatters">0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Total Spins</div>
-        <div class="stat-value" id="hudTotalSpins">0</div>
-      </div>
-    `;
-
-    const controls = this.container.querySelector(".controls");
-    this.container.insertBefore(hud, controls);
 
     // Bind spin button
     spinBtn.addEventListener("click", () => this.handleSpin("manual"));
@@ -184,15 +164,23 @@ export class GameController {
         await this.soundManager.ensureReady();
       }
     });
-    buyLeprechaunBtn.addEventListener("click", () =>
-      this.handleBonusBuy("LEPRECHAUN"),
+    buyBonusBtn.addEventListener("click", () => this._openBuyOptionsModal());
+    buyOptionLeprechaunBtn.addEventListener("click", async () => {
+      this._closeBuyOptionsModal();
+      await this.handleBonusBuy("LEPRECHAUN");
+    });
+    buyOptionGlitterGoldBtn.addEventListener("click", async () => {
+      this._closeBuyOptionsModal();
+      await this.handleBonusBuy("GLITTER_GOLD");
+    });
+    buyOptionsCancel.addEventListener("click", () =>
+      this._closeBuyOptionsModal(),
     );
-    buyGlitterGoldBtn.addEventListener("click", () =>
-      this.handleBonusBuy("GLITTER_GOLD"),
-    );
-    buyTreasureRainbowBtn.addEventListener("click", () =>
-      this.handleBonusBuy("TREASURE_RAINBOW"),
-    );
+    buyOptionsModal.addEventListener("click", (event) => {
+      if (event.target === buyOptionsModal) {
+        this._closeBuyOptionsModal();
+      }
+    });
     buyConfirmCancel.addEventListener("click", () =>
       this._resolveBonusBuyConfirm(false),
     );
@@ -216,7 +204,9 @@ export class GameController {
 
     // Update initial display
     balanceEl.textContent = this._formatCredits(this.currentBalance);
-    stateEl.textContent = "LOADING";
+    if (totalWinEl) {
+      totalWinEl.textContent = this._formatCredits(this.totalWins);
+    }
     volumeSlider.value = String(Math.round(this.soundManager.volume * 100));
     volumeValue.textContent = `${Math.round(this.soundManager.volume * 100)}%`;
 
@@ -227,9 +217,11 @@ export class GameController {
       soundBtn,
       volumeSlider,
       volumeValue,
-      buyLeprechaunBtn,
-      buyGlitterGoldBtn,
-      buyTreasureRainbowBtn,
+      buyBonusBtn,
+      buyOptionsModal,
+      buyOptionLeprechaunBtn,
+      buyOptionGlitterGoldBtn,
+      buyOptionsCancel,
       buyConfirmModal,
       buyConfirmTitle,
       buyConfirmText,
@@ -241,16 +233,12 @@ export class GameController {
       bonusIntroContinue,
       bonusIntroGraphic,
       balanceEl,
-      stateEl,
       betInput,
       resultEl,
       resultText,
-      hudMode: document.getElementById("hudMode"),
-      hudFreeSpins: document.getElementById("hudFreeSpins"),
-      hudLastWin: document.getElementById("hudLastWin"),
-      hudCascades: document.getElementById("hudCascades"),
-      hudScatters: document.getElementById("hudScatters"),
-      hudTotalSpins: document.getElementById("hudTotalSpins"),
+      bonusSpinStat,
+      bonusSpinProgress,
+      totalWinEl,
     };
 
     this._updateControlButtons();
@@ -280,6 +268,8 @@ export class GameController {
       this.soundManager.playButton();
     }
 
+    this._hideBonusTotalOverlay();
+
     const betAmount = Number.parseFloat(this.ui.betInput.value);
 
     if (!this.game.validateBet(betAmount)) {
@@ -306,7 +296,6 @@ export class GameController {
 
     this.isSpinning = true;
     this.ui.spinBtn.disabled = true;
-    this.ui.stateEl.textContent = "BASE SPIN";
 
     try {
       this.soundManager.playSpinStart();
@@ -319,7 +308,6 @@ export class GameController {
 
       if (spinResult.bonusMode) {
         this.soundManager.playBonus();
-        this.ui.stateEl.textContent = "BONUS TRIGGERED";
 
         const scatterPositions = Array.isArray(spinResult.scatterPositions)
           ? spinResult.scatterPositions
@@ -338,15 +326,13 @@ export class GameController {
           spinResult.bonusMode,
           spinResult.scatterCount,
         );
-        await this._playFreeSpins(betAmount);
+        const bonusTotalWin = await this._playFreeSpins(betAmount);
+        this._showBonusTotalOverlay(bonusTotalWin);
       }
 
       await this._delay(ANIMATION_TIMING.controller.pauses.postBaseSpinMs);
-      this.ui.stateEl.textContent = "READY";
-      this._showResult("Ready for next spin", "info");
     } catch (error) {
       console.error("Spin error:", error);
-      this.ui.stateEl.textContent = "ERROR";
       this._showResult(`Error: ${error.message}`, "loss");
     } finally {
       this.isSpinning = false;
@@ -366,6 +352,8 @@ export class GameController {
       return;
     }
 
+    this._hideBonusTotalOverlay();
+
     await this.soundManager.ensureReady();
     this.soundManager.playButton();
 
@@ -374,6 +362,12 @@ export class GameController {
     }
 
     const betAmount = Number.parseFloat(this.ui.betInput.value);
+    const scatterCount = this._getScatterCountForBonusMode(modeType);
+
+    if (!scatterCount) {
+      this._showResult("Selected bonus buy is not available", "loss");
+      return;
+    }
 
     if (!this.game.validateBet(betAmount)) {
       const minBet = Number(this.game.config?.minBet ?? 0.1);
@@ -402,7 +396,6 @@ export class GameController {
 
     this.isSpinning = true;
     this.ui.spinBtn.disabled = true;
-    this.ui.stateEl.textContent = "BONUS BUY";
     this._updateControlButtons();
 
     try {
@@ -411,27 +404,31 @@ export class GameController {
       );
       this._updateBalance();
 
+      await this._playBonusBuyTriggerSpin({
+        modeType,
+        modeName: this._getBonusModeName(modeType),
+        scatterCount,
+        cost: offer.cost,
+      });
+
       const bonusMeta = this.game.startBonusMode(modeType);
       this._syncBonusVisuals();
       this.soundManager.playBonus();
       this._showResult(
-        `Bought ${bonusMeta.name} (${this._formatCount(bonusMeta.initialSpins)} Free Spins) for ${this._formatCredits(offer.cost)}`,
+        `${this._formatCount(scatterCount)} scatters landed — ${bonusMeta.name} unlocked (${this._formatCount(bonusMeta.initialSpins)} Free Spins)`,
         "win",
       );
 
-      await this._showBonusIntro(bonusMeta, null, {
+      await this._showBonusIntro(bonusMeta, scatterCount, {
         source: "buy",
         cost: offer.cost,
         multiplier: offer.multiplier,
         betAmount,
       });
-      await this._playFreeSpins(betAmount);
-
-      this.ui.stateEl.textContent = "READY";
-      this._showResult("Ready for next spin", "info");
+      const bonusTotalWin = await this._playFreeSpins(betAmount);
+      this._showBonusTotalOverlay(bonusTotalWin);
     } catch (error) {
       console.error("Bonus buy error:", error);
-      this.ui.stateEl.textContent = "ERROR";
       this._showResult(`Error: ${error.message}`, "loss");
     } finally {
       this.isSpinning = false;
@@ -442,19 +439,15 @@ export class GameController {
 
   async _playSingleSpin({ betAmount, isFreeSpin, freeSpinIndex }) {
     this.totalSpins += 1;
-    this.ui.hudTotalSpins.textContent = this._formatCount(this.totalSpins);
 
     if (!isFreeSpin) {
       this.currentBalance = this._roundCredits(this.currentBalance - betAmount);
       this._updateBalance();
-      this.ui.stateEl.textContent = "BASE SPIN";
     } else {
-      const spinProgress = this._getFreeSpinProgress();
-      this.ui.stateEl.textContent = spinProgress
-        ? `FREE SPIN ${spinProgress}`
-        : `FREE SPIN ${this._formatCount(freeSpinIndex)}`;
       this.soundManager.playFreeSpinStart(freeSpinIndex);
     }
+
+    this._updateBonusSpinProgress();
 
     const previousGrid = this.game.currentGrid.map((row) => [...row]);
 
@@ -568,6 +561,7 @@ export class GameController {
       );
       this.totalWins = this._roundCredits(this.totalWins + spinResult.totalWin);
       this._updateBalance();
+      this._updateTotalWinDisplay();
       await this.renderer.animateWin(
         spinResult.totalWin,
         spinResult.winPositions,
@@ -583,33 +577,20 @@ export class GameController {
         "win",
       );
     } else {
-      const noWinMessage = isFreeSpin ? "Free spin: no win" : "No win";
-      this._showResult(
-        collectorSummary
-          ? `${noWinMessage} • ${collectorSummary}`
-          : noWinMessage,
-        "loss",
-      );
+      this._hideResult();
     }
-
-    this._updateHud({
-      mode: this.game.isInFreeSpins
-        ? this.game.bonusMode?.name || "FREE SPINS"
-        : "BASE GAME",
-      freeSpinsRemaining: this.game.freeSpinsRemaining,
-      lastWin: spinResult.totalWin,
-      cascades: spinResult.cascadeCount,
-      scatters: spinResult.scatterCount,
-    });
 
     if (!this.game.isInFreeSpins) {
       this.renderer.clearBonusVisuals();
     }
 
+    this._updateBonusSpinProgress();
+
     return spinResult;
   }
 
   async _playFreeSpins(betAmount) {
+    let bonusTotalWin = 0;
     let guard = 0;
     while (this.game.isInFreeSpins && guard < 200) {
       guard += 1;
@@ -620,6 +601,7 @@ export class GameController {
         isFreeSpin: true,
         freeSpinIndex,
       });
+      bonusTotalWin = this._roundCredits(bonusTotalWin + result.totalWin);
 
       let retriggerSpinsAwarded = 0;
       if (result.scatterCount >= 2) {
@@ -630,7 +612,6 @@ export class GameController {
 
       if (retriggerSpinsAwarded > 0) {
         this.soundManager.playBonus();
-        this.ui.stateEl.textContent = `RETRIGGER +${this._formatCount(retriggerSpinsAwarded)}`;
         const retriggerScatterPositions = Array.isArray(result.scatterPositions)
           ? result.scatterPositions
           : [];
@@ -659,19 +640,14 @@ export class GameController {
 
       this.game.advanceFreeSpins();
       this._syncBonusVisuals();
-
-      this._updateHud({
-        mode: this.game.isInFreeSpins
-          ? this.game.bonusMode?.name || "FREE SPINS"
-          : "BASE GAME",
-        freeSpinsRemaining: this.game.freeSpinsRemaining,
-        lastWin: result.totalWin,
-        cascades: result.cascadeCount,
-        scatters: result.scatterCount,
-      });
+      this._updateBonusSpinProgress();
 
       await this._delay(ANIMATION_TIMING.controller.pauses.betweenFreeSpinsMs);
     }
+
+    this._updateBonusSpinProgress();
+
+    return bonusTotalWin;
   }
 
   _syncBonusVisuals() {
@@ -702,17 +678,11 @@ export class GameController {
     }
   }
 
-  _updateHud({ mode, freeSpinsRemaining, lastWin, cascades, scatters }) {
-    this.ui.hudMode.textContent = mode;
-    this.ui.hudFreeSpins.textContent = this.game.isInFreeSpins
-      ? this._getFreeSpinProgress() || this._formatCount(freeSpinsRemaining)
-      : this._formatCount(0);
-    this.ui.hudLastWin.textContent = this._formatCredits(lastWin);
-    this.ui.hudCascades.textContent = this._formatCount(cascades);
-    this.ui.hudScatters.textContent = this._formatCount(scatters);
-  }
-
   _showResult(text, type = "info") {
+    if (!this.ui?.resultEl || !this.ui?.resultText) {
+      return;
+    }
+
     this.ui.resultText.textContent = text;
     this.ui.resultEl.classList.add("show");
     this.ui.resultEl.classList.remove("win", "loss");
@@ -724,6 +694,23 @@ export class GameController {
     if (type === "loss") {
       this.ui.resultEl.classList.add("loss");
     }
+  }
+
+  _hideResult() {
+    if (!this.ui?.resultEl || !this.ui?.resultText) {
+      return;
+    }
+
+    this.ui.resultEl.classList.remove("show", "win", "loss");
+    this.ui.resultText.textContent = "";
+  }
+
+  _updateTotalWinDisplay() {
+    if (!this.ui?.totalWinEl) {
+      return;
+    }
+
+    this.ui.totalWinEl.textContent = this._formatCredits(this.totalWins);
   }
 
   _showBonusIntro(bonusMode, scatterCount, options = {}) {
@@ -738,7 +725,8 @@ export class GameController {
     if (isBonusBuy) {
       const costText = this._formatCredits(options?.cost || 0);
       const spinsText = this._formatCount(bonusMode?.initialSpins || 0);
-      this.ui.bonusIntroCopy.textContent = `Bonus Buy purchased for ${costText}. ${spinsText} free spins ready — press continue to start.`;
+      const landedScatters = this._formatCount(scatterCount || 0);
+      this.ui.bonusIntroCopy.textContent = `Bonus Buy purchased for ${costText}. You landed ${landedScatters} scatters and unlocked ${spinsText} free spins — press continue to start.`;
     } else {
       this.ui.bonusIntroCopy.textContent = `${this._formatCount(scatterCount)} FS landed. ${this._formatCount(bonusMode?.initialSpins || 0)} free spins ready — press continue to start.`;
     }
@@ -815,6 +803,7 @@ export class GameController {
       this.isSpinning ||
       this.game.isInFreeSpins ||
       this.isConfirmOpen ||
+      this.isBuyOptionsOpen ||
       !offers.enabled;
 
     this.ui.autoplayBtn.textContent = `AUTOPLAY: ${this.autoPlayEnabled ? "ON" : "OFF"}`;
@@ -823,28 +812,30 @@ export class GameController {
 
     const leprechaunOffer = byMode.LEPRECHAUN;
     const glitterGoldOffer = byMode.GLITTER_GOLD;
-    const treasureRainbowOffer = byMode.TREASURE_RAINBOW;
-    this.ui.buyLeprechaunBtn.textContent = leprechaunOffer
-      ? `BUY LEPRECHAUN (${this._formatCredits(leprechaunOffer.cost)})`
-      : "BUY LEPRECHAUN";
-    this.ui.buyGlitterGoldBtn.textContent = glitterGoldOffer
-      ? `BUY GLITTER GOLD (${this._formatCredits(glitterGoldOffer.cost)})`
-      : "BUY GLITTER GOLD";
-    this.ui.buyTreasureRainbowBtn.textContent = treasureRainbowOffer
-      ? `BUY TREASURE RAINBOW (${this._formatCredits(treasureRainbowOffer.cost)})`
-      : "BUY TREASURE RAINBOW";
 
-    this.ui.buyLeprechaunBtn.disabled =
-      disableBonusBuys ||
-      (leprechaunOffer ? leprechaunOffer.cost > this.currentBalance : true);
-    this.ui.buyGlitterGoldBtn.disabled =
-      disableBonusBuys ||
-      (glitterGoldOffer ? glitterGoldOffer.cost > this.currentBalance : true);
-    this.ui.buyTreasureRainbowBtn.disabled =
-      disableBonusBuys ||
-      (treasureRainbowOffer
-        ? treasureRainbowOffer.cost > this.currentBalance
-        : true);
+    this.ui.buyBonusBtn.disabled =
+      disableBonusBuys || (!leprechaunOffer && !glitterGoldOffer);
+
+    this.ui.buyBonusBtn.textContent =
+      leprechaunOffer && glitterGoldOffer
+        ? `BUY BONUS (${this._formatCredits(leprechaunOffer.cost)} / ${this._formatCredits(glitterGoldOffer.cost)})`
+        : "BUY BONUS";
+
+    if (this.ui.buyOptionLeprechaunBtn) {
+      this.ui.buyOptionLeprechaunBtn.textContent = leprechaunOffer
+        ? `BUY 3 SCATTER BONUS (${this._formatCredits(leprechaunOffer.cost)})`
+        : "BUY 3 SCATTER BONUS";
+      this.ui.buyOptionLeprechaunBtn.disabled =
+        !leprechaunOffer || leprechaunOffer.cost > this.currentBalance;
+    }
+
+    if (this.ui.buyOptionGlitterGoldBtn) {
+      this.ui.buyOptionGlitterGoldBtn.textContent = glitterGoldOffer
+        ? `BUY 4 SCATTER BONUS (${this._formatCredits(glitterGoldOffer.cost)})`
+        : "BUY 4 SCATTER BONUS";
+      this.ui.buyOptionGlitterGoldBtn.disabled =
+        !glitterGoldOffer || glitterGoldOffer.cost > this.currentBalance;
+    }
   }
 
   /**
@@ -899,6 +890,27 @@ export class GameController {
     return `${this._formatCount(completed)} of ${this._formatCount(total)}`;
   }
 
+  _updateBonusSpinProgress() {
+    if (!this.ui?.bonusSpinStat || !this.ui?.bonusSpinProgress) {
+      return;
+    }
+
+    if (!this.game?.isInFreeSpins || !this.game?.bonusMode) {
+      this.ui.bonusSpinStat.classList.add("hidden");
+      return;
+    }
+
+    const remaining = Math.max(0, Number(this.game.freeSpinsRemaining || 0));
+    const completed = Math.max(
+      0,
+      Number(this.game.bonusMode.spinsCompleted || 0),
+    );
+    const total = Math.max(remaining + completed, 0);
+
+    this.ui.bonusSpinProgress.textContent = `${this._formatCount(completed)}/${this._formatCount(total)} spins`;
+    this.ui.bonusSpinStat.classList.remove("hidden");
+  }
+
   _getCollectorSummary(spinResult, betAmount) {
     const features = spinResult?.bonusFeatures;
     if (!features) {
@@ -920,6 +932,120 @@ export class GameController {
     const roundLabel = `${this._formatCount(chainRounds)} round${chainRounds === 1 ? "" : "s"}`;
 
     return `${bucketLabel} resolved in ${roundLabel}, collected ${this._formatCredits(collectedCredits)}`;
+  }
+
+  _getScatterCountForBonusMode(modeType) {
+    if (modeType === "LEPRECHAUN") {
+      return 3;
+    }
+
+    if (modeType === "GLITTER_GOLD") {
+      return 4;
+    }
+
+    return null;
+  }
+
+  _getBonusModeName(modeType) {
+    if (modeType === "LEPRECHAUN") {
+      return "Luck of the Leprechaun";
+    }
+
+    if (modeType === "GLITTER_GOLD") {
+      return "All That Glitters Is Gold";
+    }
+
+    return modeType;
+  }
+
+  async _playBonusBuyTriggerSpin({ modeType, modeName, scatterCount, cost }) {
+    const previousGrid = this.game.currentGrid.map((row) => [...row]);
+    const triggerGrid = this._buildBonusBuyTriggerGrid(scatterCount);
+    const scatterPositions = [];
+
+    for (let y = 0; y < triggerGrid.length; y++) {
+      for (let x = 0; x < triggerGrid[y].length; x++) {
+        if (triggerGrid[y][x] === 7) {
+          scatterPositions.push({ x, y });
+        }
+      }
+    }
+
+    this.totalSpins += 1;
+    this.soundManager.playSpinStart();
+    await this.renderer.animateSpinStart(160);
+    await this.renderer.animateSpinTransition(
+      previousGrid,
+      triggerGrid,
+      this.timings.spinDrop,
+      {
+        columnStaggerMs: 26,
+        showBonusOverlays: false,
+      },
+    );
+
+    this.renderer.setPersistentConnectionHighlights(new Set());
+    this.renderer.render(triggerGrid, new Set(), {
+      showBonusOverlays: false,
+    });
+    this.game.currentGrid = triggerGrid.map((row) => [...row]);
+
+    await this.renderer.animateScatterTrigger(scatterPositions, {
+      duration: ANIMATION_TIMING.controller.triggerEffects.bonusScatterPulseMs,
+    });
+
+    this._showResult(
+      `Bought ${modeName} for ${this._formatCredits(cost)} — landed ${this._formatCount(scatterCount)} scatters`,
+      "win",
+    );
+  }
+
+  _buildBonusBuyTriggerGrid(scatterCount) {
+    const rows = Number(this.game.gridHeight || 5);
+    const cols = Number(this.game.gridWidth || 6);
+    const excludedIds = new Set([7, 8, 9, 10]);
+    const regularIds = (this.game.config?.symbols || [])
+      .filter((symbol) => !excludedIds.has(Number(symbol.id)))
+      .map((symbol) => Number(symbol.id));
+    const fallbackRegulars = [1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 6];
+    const sourceIds = regularIds.length > 0 ? regularIds : fallbackRegulars;
+    const rng = this.game?.rng;
+
+    const grid = Array.from({ length: rows }, () =>
+      Array.from({ length: cols }, () => {
+        const index = rng?.nextInt
+          ? rng.nextInt(0, sourceIds.length - 1)
+          : Math.floor(Math.random() * sourceIds.length);
+        return sourceIds[index];
+      }),
+    );
+
+    const allCells = [];
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        allCells.push({ x, y });
+      }
+    }
+
+    for (let i = allCells.length - 1; i > 0; i--) {
+      const swapIndex = rng?.nextInt
+        ? rng.nextInt(0, i)
+        : Math.floor(Math.random() * (i + 1));
+      const temp = allCells[i];
+      allCells[i] = allCells[swapIndex];
+      allCells[swapIndex] = temp;
+    }
+
+    const count = Math.min(
+      Math.max(0, Number(scatterCount || 0)),
+      allCells.length,
+    );
+    for (let i = 0; i < count; i++) {
+      const cell = allCells[i];
+      grid[cell.y][cell.x] = 7;
+    }
+
+    return grid;
   }
 
   /**
@@ -960,6 +1086,47 @@ export class GameController {
     if (resolver) {
       resolver(Boolean(confirmed));
     }
+  }
+
+  _openBuyOptionsModal() {
+    if (!this.ui?.buyOptionsModal) {
+      return;
+    }
+
+    if (this.isSpinning || this.game.isInFreeSpins) {
+      return;
+    }
+
+    this.isBuyOptionsOpen = true;
+    this.ui.buyOptionsModal.classList.add("show");
+    this._updateControlButtons();
+  }
+
+  _closeBuyOptionsModal() {
+    if (!this.ui?.buyOptionsModal) {
+      return;
+    }
+
+    this.isBuyOptionsOpen = false;
+    this.ui.buyOptionsModal.classList.remove("show");
+    this._updateControlButtons();
+  }
+
+  _showBonusTotalOverlay(totalWin) {
+    if (!this.bonusTotalOverlay || !this.bonusTotalValueEl) {
+      return;
+    }
+
+    this.bonusTotalValueEl.textContent = this._formatCredits(totalWin || 0);
+    this.bonusTotalOverlay.classList.add("show");
+  }
+
+  _hideBonusTotalOverlay() {
+    if (!this.bonusTotalOverlay) {
+      return;
+    }
+
+    this.bonusTotalOverlay.classList.remove("show");
   }
 }
 

@@ -96,9 +96,8 @@ export const LUCKY_ESCAPE_CONFIG = {
   bonusBuy: {
     enabled: true,
     multipliers: {
-      LEPRECHAUN: 60,
-      GLITTER_GOLD: 90,
-      TREASURE_RAINBOW: 120,
+      LEPRECHAUN: 100,
+      GLITTER_GOLD: 250,
     },
   },
 

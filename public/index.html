@@ -158,6 +158,67 @@
             color: var(--accent);
         }
 
+        .stats.primary {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .stats.primary .stat {
+            text-align: left;
+        }
+
+        .stats.primary .stat-value {
+            font-size: 24px;
+        }
+
+        .stat-value.bonus-spins {
+            color: #c2a9ff;
+            font-size: 22px;
+        }
+
+        .stat.hidden {
+            visibility: hidden;
+        }
+
+        .bonus-total-overlay {
+            position: absolute;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            pointer-events: none;
+            z-index: 30;
+            background: radial-gradient(circle at center, rgba(8, 18, 34, 0.18) 0%, rgba(5, 11, 23, 0.48) 58%, rgba(5, 11, 23, 0.62) 100%);
+        }
+
+        .bonus-total-overlay.show {
+            display: flex;
+        }
+
+        .bonus-total-content {
+            padding: 18px 22px;
+            border: 1px solid rgba(140, 180, 255, 0.5);
+            border-radius: 14px;
+            background: rgba(10, 20, 38, 0.8);
+            box-shadow: 0 12px 38px rgba(0, 0, 0, 0.42);
+        }
+
+        .bonus-total-label {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .bonus-total-value {
+            font-size: clamp(34px, 7.5vw, 64px);
+            line-height: 1;
+            font-weight: 800;
+            color: var(--good);
+            text-shadow: 0 0 18px rgba(124, 240, 181, 0.32);
+        }
+
         .stat-value.state {
             color: #c2a9ff;
             font-size: 14px;
@@ -395,14 +456,18 @@
             <div>🔧 Game loader initializing...</div>
         </div>
 
-        <div class="stats">
+        <div class="stats primary">
             <div class="stat">
                 <div class="stat-label">Balance</div>
                 <div class="stat-value balance" id="balance">1000</div>
             </div>
             <div class="stat">
-                <div class="stat-label">Game State</div>
-                <div class="stat-value state" id="state">IDLE</div>
+                <div class="stat-label">Total Win</div>
+                <div class="stat-value balance" id="totalWin">0</div>
+            </div>
+            <div class="stat hidden" id="bonusSpinStat">
+                <div class="stat-label">Spins</div>
+                <div class="stat-value bonus-spins" id="bonusSpinProgress">0/0 spins</div>
             </div>
         </div>
 
@@ -427,14 +492,8 @@
             <button class="btn-secondary" id="soundBtn">SOUND: ON</button>
         </div>
 
-        <div class="controls" style="grid-template-columns: repeat(3, 1fr); margin-top: 12px;">
-            <button class="btn-secondary" id="buyLeprechaunBtn">BUY LEPRECHAUN</button>
-            <button class="btn-secondary" id="buyGlitterGoldBtn">BUY GLITTER GOLD</button>
-            <button class="btn-secondary" id="buyTreasureRainbowBtn">BUY TREASURE RAINBOW</button>
-        </div>
-
-        <div class="result" id="result">
-            <div class="result-text" id="resultText"></div>
+        <div class="controls" style="grid-template-columns: 1fr; margin-top: 12px;">
+            <button class="btn-secondary" id="buyBonusBtn">BUY BONUS</button>
         </div>
 
         <div class="footer">
@@ -449,6 +508,18 @@
             <div class="modal-actions">
                 <button class="btn-secondary" id="buyConfirmCancel">Cancel</button>
                 <button class="btn-primary" id="buyConfirmAccept">Confirm Buy</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="buyOptionsModal" role="dialog" aria-modal="true" aria-labelledby="buyOptionsTitle">
+        <div class="modal-card">
+            <div class="modal-title" id="buyOptionsTitle">Choose Bonus Buy</div>
+            <div class="modal-copy" id="buyOptionsText">Pick a bonus option. Higher tier has the higher buy cost.</div>
+            <div class="modal-actions" style="grid-template-columns: 1fr;">
+                <button class="btn-secondary" id="buyOptionLeprechaunBtn">BUY 3 SCATTER BONUS</button>
+                <button class="btn-secondary" id="buyOptionGlitterGoldBtn">BUY 4 SCATTER BONUS</button>
+                <button class="btn-primary" id="buyOptionsCancel">CANCEL</button>
             </div>
         </div>
     </div>
