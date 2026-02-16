@@ -214,14 +214,14 @@ export class GridRenderer {
     }
 
     const background = new PIXI.Graphics();
-    background.roundRect(0, 0, this.cellSize, this.cellSize, 12);
+    background.rect(0, 0, this.cellSize, this.cellSize);
 
     if (highlighted || bonusGolden) {
       background.fill({ color: 0x8a6a24, alpha: 1 });
       background.stroke({ color: 0xffdc78, width: highlighted ? 4 : 3 });
 
       const innerGlow = new PIXI.Graphics();
-      innerGlow.roundRect(4, 4, this.cellSize - 8, this.cellSize - 8, 10);
+      innerGlow.rect(4, 4, this.cellSize - 8, this.cellSize - 8);
       innerGlow.fill({ color: 0xe6bc5a, alpha: highlighted ? 0.42 : 0.28 });
       background.addChild(innerGlow);
     } else {
@@ -231,7 +231,7 @@ export class GridRenderer {
 
     if (activeRainbow && (highlighted || bonusGolden)) {
       const rainbowPulse = new PIXI.Graphics();
-      rainbowPulse.roundRect(6, 6, this.cellSize - 12, this.cellSize - 12, 9);
+      rainbowPulse.rect(6, 6, this.cellSize - 12, this.cellSize - 12);
       rainbowPulse.stroke({ color: 0x93d1ff, width: 2, alpha: 0.65 });
       background.addChild(rainbowPulse);
     }
