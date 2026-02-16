@@ -403,7 +403,10 @@ export class GridRenderer {
   }
 
   async _preloadSymbolTextures() {
-    if (!(this.symbolTextureMap instanceof Map) || this.symbolTextureMap.size === 0) {
+    if (
+      !(this.symbolTextureMap instanceof Map) ||
+      this.symbolTextureMap.size === 0
+    ) {
       return;
     }
 

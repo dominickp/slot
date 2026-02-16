@@ -451,7 +451,10 @@ export class SoundManager {
     if (!pathStatus) {
       this.backgroundMusicPathStatus.set(musicPath, "checking");
       this._probeAudioPath(musicPath).then((isValid) => {
-        this.backgroundMusicPathStatus.set(musicPath, isValid ? "valid" : "invalid");
+        this.backgroundMusicPathStatus.set(
+          musicPath,
+          isValid ? "valid" : "invalid",
+        );
         if (isValid) {
           this._startBackgroundMusicIfAvailable();
         }
