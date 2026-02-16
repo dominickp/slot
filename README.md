@@ -105,7 +105,7 @@ This repo is configured to deploy automatically to GitHub Pages on every push to
 - Workflow file: `.github/workflows/deploy.yml`
 - Trigger: push to `main` (or manual run from Actions tab)
 - Build command: `npm run build`
-- Publish directory: `dist`
+- Publish directory: `public/dist`
 
 The workflow sets `VITE_BASE_PATH` to `/<repo-name>/` so static assets resolve correctly on GitHub Pages project sites.
 
