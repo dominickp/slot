@@ -232,6 +232,43 @@ export class SoundManager {
     });
   }
 
+  playCloverMultiply() {
+    this._playHookOrFallback("clover-multiply", () => {
+      this.playTone({
+        frequency: 720,
+        type: "triangle",
+        duration: 0.08,
+        volume: 0.12,
+      });
+      this.playTone({
+        frequency: 980,
+        type: "triangle",
+        duration: 0.11,
+        volume: 0.1,
+        delay: 0.045,
+      });
+    });
+  }
+
+  playCollectorCollect() {
+    this._playHookOrFallback("collector-collect", () => {
+      this.playTone({
+        frequency: 220,
+        type: "sawtooth",
+        duration: 0.08,
+        volume: 0.14,
+        sweepTo: 180,
+      });
+      this.playTone({
+        frequency: 300,
+        type: "square",
+        duration: 0.09,
+        volume: 0.1,
+        delay: 0.03,
+      });
+    });
+  }
+
   playBigWin() {
     this._playHookOrFallback("big-win", () => {
       this.playTone({

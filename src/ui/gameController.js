@@ -198,6 +198,12 @@ export class GameController {
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && this.isConfirmOpen) {
         this._resolveBonusBuyConfirm(false);
+        return;
+      }
+
+      if (event.key === "Enter" && this.bonusIntroOpen) {
+        event.preventDefault();
+        this._resolveBonusIntroContinue();
       }
     });
     betInput.addEventListener("input", () => this._updateControlButtons());
@@ -536,6 +542,8 @@ export class GameController {
     if (eventRounds.length > 0) {
       await this.renderer.animateBonusFeatureSequence(eventRounds, {
         betAmount,
+        onCloverMultiply: () => this.soundManager.playCloverMultiply(),
+        onCollectorCollect: () => this.soundManager.playCollectorCollect(),
       });
     }
 

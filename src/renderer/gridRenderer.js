@@ -1885,7 +1885,11 @@ export class GridRenderer {
   async animateBonusFeatureSequence(eventRounds = [], options = {}) {
     await this.ready;
 
-    const { betAmount = 1 } = options;
+    const {
+      betAmount = 1,
+      onCloverMultiply = null,
+      onCollectorCollect = null,
+    } = options;
     if (!Array.isArray(eventRounds) || eventRounds.length === 0) {
       return;
     }
@@ -1963,6 +1967,10 @@ export class GridRenderer {
 
       if (cloverHits.length > 0) {
         for (const cloverHit of cloverHits) {
+          if (typeof onCloverMultiply === "function") {
+            onCloverMultiply(cloverHit);
+          }
+
           const coinTargets = cloverHit.targets.filter(
             (target) => target.type === "coin",
           );
@@ -2050,6 +2058,10 @@ export class GridRenderer {
 
       if (collectorSteps.length > 0) {
         for (const step of collectorSteps) {
+          if (typeof onCollectorCollect === "function") {
+            onCollectorCollect(step);
+          }
+
           const sources = Array.isArray(step.suckedSources)
             ? step.suckedSources.map((source) => ({
                 ...source,
@@ -2186,6 +2198,10 @@ export class GridRenderer {
             : [];
 
           for (const cloverHit of postCollectCloverHits) {
+            if (typeof onCloverMultiply === "function") {
+              onCloverMultiply(cloverHit);
+            }
+
             const coinTargets = (cloverHit.targets || []).filter(
               (target) => target.type === "coin",
             );
