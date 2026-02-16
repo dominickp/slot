@@ -435,7 +435,8 @@ export class LuckyScapeSlot extends BaseSlot {
       return true;
     }
 
-    return this.rng.nextFloat() < 0.35;
+    const chance = Number(this.config?.balance?.freeSpinRainbowChance ?? 0.35);
+    return this.rng.nextFloat() < chance;
   }
 
   _prepareSpinGoldenSquareState() {
@@ -556,38 +557,46 @@ export class LuckyScapeSlot extends BaseSlot {
     allowRainbow = true,
     includeScatter = true,
   } = {}) {
-    // Connection-biased profiles: free spins intentionally lean heavier to low regulars
-    // so 5+ adjacency occurs more frequently while preserving symbol variety.
+    const fallbackBaseProfile = {
+      ten: 30,
+      jack: 27,
+      queen: 24,
+      king: 20,
+      ace: 17,
+      trap: 9,
+      cheese: 8,
+      beer: 6,
+      bread: 5,
+      topHat: 4,
+      wild: 3,
+      scatter: 2,
+      rainbow: 2,
+    };
+    const fallbackFreeSpinsProfile = {
+      ten: 36,
+      jack: 32,
+      queen: 28,
+      king: 24,
+      ace: 20,
+      trap: 9,
+      cheese: 8,
+      beer: 6,
+      bread: 5,
+      topHat: 4,
+      wild: 2,
+      scatter: 1,
+      rainbow: 2,
+    };
+
+    const configuredProfiles = this.config?.balance?.symbolWeightProfiles || {};
     const profile = this.isInFreeSpins
       ? {
-          ten: 36,
-          jack: 32,
-          queen: 28,
-          king: 24,
-          ace: 20,
-          trap: 9,
-          cheese: 8,
-          beer: 6,
-          bread: 5,
-          topHat: 4,
-          wild: 2,
-          scatter: 1,
-          rainbow: 2,
+          ...fallbackFreeSpinsProfile,
+          ...(configuredProfiles.freeSpins || {}),
         }
       : {
-          ten: 30,
-          jack: 27,
-          queen: 24,
-          king: 20,
-          ace: 17,
-          trap: 9,
-          cheese: 8,
-          beer: 6,
-          bread: 5,
-          topHat: 4,
-          wild: 3,
-          scatter: 2,
-          rainbow: 2,
+          ...fallbackBaseProfile,
+          ...(configuredProfiles.base || {}),
         };
 
     return [
@@ -1009,19 +1018,16 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   _getGoldenSquareOutcomeChances() {
-    if (this.bonusMode?.id === "TREASURE_RAINBOW") {
-      return { coin: 0.83, clover: 0.12, pot: 0.05 };
-    }
+    const fallback = { coin: 0.9, clover: 0.08, pot: 0.02 };
+    const byMode = this.config?.balance?.goldenSquareOutcomeChances || {};
+    const modeId = this.bonusMode?.id;
+    const configured = modeId ? byMode[modeId] : null;
 
-    if (this.bonusMode?.id === "GLITTER_GOLD") {
-      return { coin: 0.86, clover: 0.1, pot: 0.04 };
-    }
-
-    if (this.bonusMode?.id === "LEPRECHAUN") {
-      return { coin: 0.88, clover: 0.09, pot: 0.03 };
-    }
-
-    return { coin: 0.9, clover: 0.08, pot: 0.02 };
+    return {
+      ...fallback,
+      ...(byMode.default || {}),
+      ...(configured || {}),
+    };
   }
 
   _getAdjustedPotChance(basePotChance, collectorCount) {
@@ -1030,9 +1036,13 @@ export class LuckyScapeSlot extends BaseSlot {
       return 0;
     }
 
-    const globalReduction = 0.75;
-    const perCollectorDecay = 0.65;
-    return chance * globalReduction * Math.pow(perCollectorDecay, collectorCount);
+    const adjustments = this.config?.balance?.potChanceAdjustment || {};
+    const globalReduction = Number(adjustments.globalReduction ?? 0.75);
+    const perCollectorDecay = Number(adjustments.perCollectorDecay ?? 0.65);
+
+    return (
+      chance * globalReduction * Math.pow(perCollectorDecay, collectorCount)
+    );
   }
 
   _pickRandomRegularPosition() {
@@ -1057,36 +1067,43 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   _rollCoinValue() {
-    const isTreasureMode = this.bonusMode?.id === "TREASURE_RAINBOW";
-    const table = isTreasureMode
-      ? [
-          { value: 5, weight: 14 },
-          { value: 10, weight: 12 },
-          { value: 15, weight: 10 },
-          { value: 20, weight: 8 },
-          { value: 25, weight: 4 },
-          { value: 50, weight: 3 },
-          { value: 100, weight: 2 },
-          { value: 250, weight: 1 },
-          { value: 500, weight: 1 },
-        ]
-      : [
-          { value: 0.2, weight: 18 },
-          { value: 0.5, weight: 16 },
-          { value: 1, weight: 14 },
-          { value: 2, weight: 12 },
-          { value: 3, weight: 10 },
-          { value: 4, weight: 9 },
-          { value: 5, weight: 7 },
-          { value: 10, weight: 5 },
-          { value: 15, weight: 4 },
-          { value: 20, weight: 3 },
-          { value: 25, weight: 2 },
-          { value: 50, weight: 2 },
-          { value: 100, weight: 1 },
-          { value: 250, weight: 1 },
-          { value: 500, weight: 1 },
-        ];
+    const fallbackDefaultTable = [
+      { value: 0.2, weight: 18 },
+      { value: 0.5, weight: 16 },
+      { value: 1, weight: 14 },
+      { value: 2, weight: 12 },
+      { value: 3, weight: 10 },
+      { value: 4, weight: 9 },
+      { value: 5, weight: 7 },
+      { value: 10, weight: 5 },
+      { value: 15, weight: 4 },
+      { value: 20, weight: 3 },
+      { value: 25, weight: 2 },
+      { value: 50, weight: 2 },
+      { value: 100, weight: 1 },
+      { value: 250, weight: 1 },
+      { value: 500, weight: 1 },
+    ];
+    const fallbackTreasureTable = [
+      { value: 5, weight: 14 },
+      { value: 10, weight: 12 },
+      { value: 15, weight: 10 },
+      { value: 20, weight: 8 },
+      { value: 25, weight: 4 },
+      { value: 50, weight: 3 },
+      { value: 100, weight: 2 },
+      { value: 250, weight: 1 },
+      { value: 500, weight: 1 },
+    ];
+
+    const modeId = this.bonusMode?.id;
+    const configuredTables = this.config?.balance?.coinValueWeights || {};
+    const table =
+      configuredTables[modeId] ||
+      configuredTables.default ||
+      (modeId === "TREASURE_RAINBOW"
+        ? fallbackTreasureTable
+        : fallbackDefaultTable);
 
     const total = table.reduce((sum, entry) => sum + entry.weight, 0);
     let roll = this.rng.nextInt(0, total - 1);
@@ -1098,7 +1115,7 @@ export class LuckyScapeSlot extends BaseSlot {
       }
     }
 
-    return isTreasureMode ? 5 : 0.2;
+    return modeId === "TREASURE_RAINBOW" ? 5 : 0.2;
   }
 
   _getCoinTier(value) {
@@ -1114,13 +1131,15 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   _rollCloverMultiplierValue() {
-    const table = [
+    const fallbackTable = [
       { multiplier: 2, weight: 40 },
       { multiplier: 3, weight: 28 },
       { multiplier: 4, weight: 16 },
       { multiplier: 5, weight: 10 },
       { multiplier: 10, weight: 6 },
     ];
+    const table =
+      this.config?.balance?.cloverMultiplierWeights || fallbackTable;
 
     const total = table.reduce((sum, entry) => sum + entry.weight, 0);
     let roll = this.rng.nextInt(0, total - 1);

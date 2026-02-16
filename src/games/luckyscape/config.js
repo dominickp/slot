@@ -119,6 +119,101 @@ export const LUCKY_ESCAPE_CONFIG = {
     majorWin: 0.005,
   },
 
+  // Balance/tuning knobs used by LuckyScapeSlot runtime logic
+  balance: {
+    // Chance to allow rainbow symbol generation during free spins (unless guaranteed)
+    freeSpinRainbowChance: 0.35,
+
+    // Weighted symbol profiles used for grid generation and cascade refills
+    symbolWeightProfiles: {
+      base: {
+        ten: 30,
+        jack: 27,
+        queen: 24,
+        king: 20,
+        ace: 17,
+        trap: 9,
+        cheese: 8,
+        beer: 6,
+        bread: 5,
+        topHat: 4,
+        wild: 3,
+        scatter: 2,
+        rainbow: 2,
+      },
+      freeSpins: {
+        ten: 36,
+        jack: 32,
+        queen: 28,
+        king: 24,
+        ace: 20,
+        trap: 9,
+        cheese: 8,
+        beer: 6,
+        bread: 5,
+        topHat: 4,
+        wild: 2,
+        scatter: 1,
+        rainbow: 2,
+      },
+    },
+
+    // Golden square reveal outcomes by mode
+    goldenSquareOutcomeChances: {
+      default: { coin: 0.9, clover: 0.08, pot: 0.02 },
+      LEPRECHAUN: { coin: 0.88, clover: 0.09, pot: 0.03 },
+      GLITTER_GOLD: { coin: 0.86, clover: 0.1, pot: 0.04 },
+      TREASURE_RAINBOW: { coin: 0.83, clover: 0.12, pot: 0.05 },
+    },
+
+    // Pot spawn chance shaping: lower global rate + decay per existing collector
+    potChanceAdjustment: {
+      globalReduction: 0.75,
+      perCollectorDecay: 0.65,
+    },
+
+    // Coin value weighted tables
+    coinValueWeights: {
+      default: [
+        { value: 0.2, weight: 18 },
+        { value: 0.5, weight: 16 },
+        { value: 1, weight: 14 },
+        { value: 2, weight: 12 },
+        { value: 3, weight: 10 },
+        { value: 4, weight: 9 },
+        { value: 5, weight: 7 },
+        { value: 10, weight: 5 },
+        { value: 15, weight: 4 },
+        { value: 20, weight: 3 },
+        { value: 25, weight: 2 },
+        { value: 50, weight: 2 },
+        { value: 100, weight: 1 },
+        { value: 250, weight: 1 },
+        { value: 500, weight: 1 },
+      ],
+      TREASURE_RAINBOW: [
+        { value: 5, weight: 14 },
+        { value: 10, weight: 12 },
+        { value: 15, weight: 10 },
+        { value: 20, weight: 8 },
+        { value: 25, weight: 4 },
+        { value: 50, weight: 3 },
+        { value: 100, weight: 2 },
+        { value: 250, weight: 1 },
+        { value: 500, weight: 1 },
+      ],
+    },
+
+    // Clover multiplier weighted table
+    cloverMultiplierWeights: [
+      { multiplier: 2, weight: 40 },
+      { multiplier: 3, weight: 28 },
+      { multiplier: 4, weight: 16 },
+      { multiplier: 5, weight: 10 },
+      { multiplier: 10, weight: 6 },
+    ],
+  },
+
   // Animation timing (in milliseconds)
   timing: {
     spinDuration: 1200,
