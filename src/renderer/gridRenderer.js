@@ -157,6 +157,53 @@ export class GridRenderer {
     return changedKeys;
   }
 
+  _buildCascadeStartRows(beforeGrid, afterGrid, winPositions) {
+    const startRows = new Map();
+
+    for (let x = 0; x < this.cols; x++) {
+      const survivors = [];
+
+      for (let y = 0; y < this.rows; y++) {
+        const symbol = beforeGrid?.[y]?.[x] ?? SYMBOLS.EMPTY;
+        if (symbol === SYMBOLS.EMPTY) {
+          continue;
+        }
+
+        const key = `${x}_${y}`;
+        if (this._isWinningPosition(winPositions, key)) {
+          continue;
+        }
+
+        survivors.push({ symbol, y });
+      }
+
+      let survivorIndex = survivors.length - 1;
+      let spawnedCount = 0;
+
+      for (let y = this.rows - 1; y >= 0; y--) {
+        const symbol = afterGrid?.[y]?.[x] ?? SYMBOLS.EMPTY;
+        if (symbol === SYMBOLS.EMPTY) {
+          continue;
+        }
+
+        const key = `${x}_${y}`;
+        const survivor =
+          survivorIndex >= 0 ? survivors[survivorIndex] : null;
+
+        if (survivor && survivor.symbol === symbol) {
+          startRows.set(key, survivor.y);
+          survivorIndex -= 1;
+          continue;
+        }
+
+        startRows.set(key, -1 - spawnedCount * 0.55);
+        spawnedCount += 1;
+      }
+    }
+
+    return startRows;
+  }
+
   _hasBonusPosition(source, x, y) {
     if (!source) {
       return false;
@@ -218,7 +265,6 @@ export class GridRenderer {
 
     if (highlighted || bonusGolden) {
       background.fill({ color: 0x8a6a24, alpha: 1 });
-      background.stroke({ color: 0xffdc78, width: highlighted ? 4 : 3 });
 
       const innerGlow = new PIXI.Graphics();
       innerGlow.rect(4, 4, this.cellSize - 8, this.cellSize - 8);
@@ -583,11 +629,7 @@ export class GridRenderer {
     });
   }
 
-  async _animateMultiplierBurstFromClover(
-    cloverHit,
-    targets,
-    duration = 380,
-  ) {
+  async _animateMultiplierBurstFromClover(cloverHit, targets, duration = 380) {
     await this.ready;
 
     if (!Array.isArray(targets) || targets.length === 0) {
@@ -638,8 +680,7 @@ export class GridRenderer {
         const eased = 1 - Math.pow(1 - progress, 3);
 
         for (const item of packets) {
-          item.packet.x =
-            start.x + (item.destination.x - start.x) * eased;
+          item.packet.x = start.x + (item.destination.x - start.x) * eased;
           item.packet.y =
             start.y +
             (item.destination.y - start.y) * eased -
@@ -1057,27 +1098,44 @@ export class GridRenderer {
       return;
     }
 
-    const duration = Number(options.duration || 1000);
+    const duration = Number(options.duration || 900);
     const intensity = Math.max(
       0.2,
       Math.min(1, Number(options.intensity ?? 1)),
     );
-    const overlays = [];
+    const activeSymbols = [];
 
     for (const position of scatterPositions) {
-      const center = this._cellCenter(position.x, position.y);
-      const sprite = this._createCellSizedSprite(SYMBOLS.SCATTER, 5);
-      sprite.pivot.set(sprite.width / 2, sprite.height / 2);
-      sprite.position.set(center.x, center.y);
+      const key = `${position.x}_${position.y}`;
+      const cellContainer = this.symbolCells[key];
+      if (!cellContainer || cellContainer.children.length <= 1) {
+        continue;
+      }
 
-      const ring = new PIXI.Graphics();
-      ring.circle(0, 0, this.cellSize * 0.42);
-      ring.stroke({ color: 0xffd16a, width: 4, alpha: 0.82 });
-      ring.position.set(center.x, center.y);
+      const symbolNode = cellContainer.children[1];
+      if (!symbolNode?.scale || !symbolNode?.pivot || !symbolNode?.position) {
+        continue;
+      }
 
-      this.animationContainer.addChild(ring);
-      this.animationContainer.addChild(sprite);
-      overlays.push({ sprite, ring });
+      const width = symbolNode.width || this.cellSize - 10;
+      const height = symbolNode.height || this.cellSize - 10;
+      const centerX = symbolNode.x + width / 2;
+      const centerY = symbolNode.y + height / 2;
+
+      activeSymbols.push({
+        symbolNode,
+        baseScaleX: symbolNode.scale.x,
+        baseScaleY: symbolNode.scale.y,
+        baseRotation: symbolNode.rotation || 0,
+        baseX: symbolNode.x,
+        baseY: symbolNode.y,
+        width,
+        height,
+      });
+    }
+
+    if (activeSymbols.length === 0) {
+      return;
     }
 
     await new Promise((resolve) => {
@@ -1086,13 +1144,20 @@ export class GridRenderer {
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
 
-        for (const item of overlays) {
-          const pulse = Math.sin(progress * Math.PI * 3);
-          const wiggle = Math.sin(progress * Math.PI * 4.5);
-          item.sprite.scale.set(1 + pulse * (0.1 * intensity));
-          item.sprite.rotation = wiggle * (0.055 * intensity);
-          item.ring.scale.set(1 + pulse * (0.06 * intensity));
-          item.ring.alpha = 0.36 + (pulse + 1) * (0.18 * intensity);
+        for (const item of activeSymbols) {
+          const pulse = Math.max(0, Math.sin(progress * Math.PI * 2.4));
+          const scaleFactor = 1 + pulse * (0.08 * intensity);
+          const scaledWidth = item.width * scaleFactor;
+          const scaledHeight = item.height * scaleFactor;
+          const offsetX = (scaledWidth - item.width) / 2;
+          const offsetY = (scaledHeight - item.height) / 2;
+
+          item.symbolNode.scale.set(
+            item.baseScaleX * scaleFactor,
+            item.baseScaleY * scaleFactor,
+          );
+          item.symbolNode.position.set(item.baseX - offsetX, item.baseY - offsetY);
+          item.symbolNode.rotation = item.baseRotation;
         }
 
         if (progress < 1) {
@@ -1106,11 +1171,10 @@ export class GridRenderer {
       animate();
     });
 
-    for (const item of overlays) {
-      this.animationContainer.removeChild(item.sprite);
-      this.animationContainer.removeChild(item.ring);
-      item.sprite.destroy({ children: true });
-      item.ring.destroy({ children: true });
+    for (const item of activeSymbols) {
+      item.symbolNode.scale.set(item.baseScaleX, item.baseScaleY);
+      item.symbolNode.rotation = item.baseRotation;
+      item.symbolNode.position.set(item.baseX, item.baseY);
     }
   }
 
@@ -1242,6 +1306,7 @@ export class GridRenderer {
       const {
         changedKeys = null,
         baseGrid = null,
+        startRowByKey = null,
         columnStaggerMs = 16,
         rowStaggerMs = 0,
         showBonusOverlays = false,
@@ -1277,7 +1342,14 @@ export class GridRenderer {
 
           const targetX = x * this.cellSize + padding;
           const targetY = y * this.cellSize + padding;
-          const startY = -this.cellSize * 1.6;
+          const startRow =
+            startRowByKey && startRowByKey.has(key)
+              ? startRowByKey.get(key)
+              : null;
+          const startY =
+            typeof startRow === "number"
+              ? startRow * this.cellSize + padding
+              : -this.cellSize * 1.6;
           const startDelay = x * columnStaggerMs + y * rowStaggerMs;
 
           sprite.x = targetX;
@@ -1438,14 +1510,69 @@ export class GridRenderer {
 
       const highlightMs = Math.min(120, Math.max(40, duration * 0.35));
       const fadeMs = Math.max(120, duration * 0.75);
-      const fallDistance = this.cellSize * 1.15;
 
       setTimeout(() => {
+        const burstOverlays = [];
+
+        for (const posKey of winPositions) {
+          const normalizedKey = this._normalizePosKey(posKey);
+          const [x, y] = normalizedKey.split("_").map(Number);
+          if (!Number.isFinite(x) || !Number.isFinite(y)) {
+            continue;
+          }
+
+          const center = this._cellCenter(x, y);
+          const burst = new PIXI.Container();
+          burst.position.set(center.x, center.y);
+
+          const flash = new PIXI.Graphics();
+          flash.circle(0, 0, this.cellSize * 0.18);
+          flash.fill({ color: 0xffd88a, alpha: 0.95 });
+          burst.addChild(flash);
+
+          const ring = new PIXI.Graphics();
+          ring.circle(0, 0, this.cellSize * 0.2);
+          ring.stroke({ color: 0xffefba, width: 3, alpha: 0.9 });
+          burst.addChild(ring);
+
+          const sparks = [];
+          const sparkCount = 8;
+          for (let i = 0; i < sparkCount; i++) {
+            const spark = new PIXI.Graphics();
+            spark.circle(0, 0, 2.2);
+            spark.fill({ color: i % 2 === 0 ? 0xfff1c7 : 0xffc16a, alpha: 0.95 });
+            spark.__angle = (Math.PI * 2 * i) / sparkCount + (Math.PI / 12) * (i % 3);
+            spark.__distance = this.cellSize * (0.26 + (i % 4) * 0.035);
+            burst.addChild(spark);
+            sparks.push(spark);
+          }
+
+          this.animationContainer.addChild(burst);
+          burstOverlays.push({ burst, flash, ring, sparks });
+        }
+
         // 2. Animate removal (fade out)
         const startTime = Date.now();
         const animateRemoval = () => {
           const elapsed = Date.now() - startTime;
           const progress = Math.min(elapsed / fadeMs, 1);
+
+          for (const overlay of burstOverlays) {
+            const burstProgress = Math.min(1, progress * 1.08);
+            overlay.flash.scale.set(1 + burstProgress * 1.25);
+            overlay.flash.alpha = Math.max(0, 0.9 - burstProgress * 1.35);
+
+            overlay.ring.scale.set(1 + burstProgress * 1.95);
+            overlay.ring.alpha = Math.max(0, 0.92 - burstProgress * 1.28);
+
+            for (const spark of overlay.sparks) {
+              const distance = spark.__distance * burstProgress;
+              spark.x = Math.cos(spark.__angle) * distance;
+              spark.y = Math.sin(spark.__angle) * distance;
+              spark.alpha = Math.max(0, 1 - burstProgress * 1.25);
+              spark.scale.set(Math.max(0.25, 1 - burstProgress * 0.55));
+            }
+          }
 
           for (const posKey of winPositions) {
             const normalizedKey = this._normalizePosKey(posKey);
@@ -1460,11 +1587,25 @@ export class GridRenderer {
               index++
             ) {
               const child = cellContainer.children[index];
+              if (typeof child.__baseScaleX !== "number") {
+                child.__baseScaleX = child.scale?.x ?? 1;
+              }
+              if (typeof child.__baseScaleY !== "number") {
+                child.__baseScaleY = child.scale?.y ?? 1;
+              }
               if (typeof child.__baseY !== "number") {
-                child.__baseY = child.y;
+                child.__baseY = child.y ?? 0;
               }
 
-              child.y = child.__baseY + fallDistance * progress;
+              const pop = Math.sin(Math.PI * Math.min(progress / 0.45, 1)) * 0.12;
+              const shrink = 1 - Math.pow(progress, 1.2) * 0.34;
+              const scale = Math.max(0.45, shrink + pop);
+
+              child.scale.set(
+                child.__baseScaleX * scale,
+                child.__baseScaleY * scale,
+              );
+              child.y = child.__baseY - Math.sin(progress * Math.PI) * (this.cellSize * 0.06);
               child.alpha = 1 - progress;
             }
           }
@@ -1472,8 +1613,18 @@ export class GridRenderer {
           if (progress < 1) {
             requestAnimationFrame(animateRemoval);
           } else {
+            for (const overlay of burstOverlays) {
+              this.animationContainer.removeChild(overlay.burst);
+              overlay.burst.destroy({ children: true });
+            }
+
             // 3. Drop only changed cells to avoid full-grid flicker
             const changedKeys = this._getChangedKeys(beforeGrid, afterGrid);
+            const startRowByKey = this._buildCascadeStartRows(
+              beforeGrid,
+              afterGrid,
+              winPositions,
+            );
             const baseGrid = beforeGrid.map((row) => [...row]);
 
             for (const key of changedKeys) {
@@ -1484,6 +1635,7 @@ export class GridRenderer {
             this.animateGridDrop(afterGrid, Math.max(160, duration * 1.1), {
               changedKeys,
               baseGrid,
+              startRowByKey,
               columnStaggerMs: 12,
               rowStaggerMs: 0,
               showBonusOverlays: false,
@@ -1607,6 +1759,23 @@ export class GridRenderer {
       }
 
       if (reveals.length > 0) {
+        const rainbowFocusPromise =
+          this.bonusVisuals?.rainbowTriggered &&
+          Array.isArray(this.bonusVisuals?.rainbowPositions) &&
+          this.bonusVisuals.rainbowPositions.length > 0
+            ? this._animateFocusedTileAtCell(
+                this.bonusVisuals.rainbowPositions[0].x,
+                this.bonusVisuals.rainbowPositions[0].y,
+                Math.max(560, reveals.length * 28 + 420),
+                {
+                  accentColor: 0x93d1ff,
+                  maxScale: 1.16,
+                  growMs: 150,
+                  shrinkMs: 170,
+                },
+              )
+            : null;
+
         const sortedReveals = [...reveals].sort((left, right) => {
           if (left.y === right.y) {
             return left.x - right.x;
@@ -1636,6 +1805,10 @@ export class GridRenderer {
               }),
           ),
         );
+
+        if (rainbowFocusPromise) {
+          await rainbowFocusPromise;
+        }
       }
 
       if (cloverHits.length > 0) {
@@ -1646,13 +1819,14 @@ export class GridRenderer {
           const collectorTargets = cloverHit.targets.filter(
             (target) => target.type === "collector",
           );
+          const allTargets = [...coinTargets, ...collectorTargets];
 
           const cloverFocusDuration =
-            560 + coinTargets.length * 620 + collectorTargets.length * 360;
+            520 + Math.max(0, allTargets.length - 1) * 45;
           const cloverFocusPromise = this._animateFocusedTileAtCell(
             cloverHit.x,
             cloverHit.y,
-            Math.max(620, cloverFocusDuration),
+            Math.max(560, cloverFocusDuration),
             {
               accentColor: 0x67e07f,
               maxScale: 1.18,
@@ -1673,26 +1847,13 @@ export class GridRenderer {
 
           await this._animateMultiplierBurstFromClover(
             cloverHit,
-            [...coinTargets, ...collectorTargets],
+            allTargets,
             360,
           );
-
-          await this._wait(70);
 
           for (const target of coinTargets) {
             const key = `${target.x}_${target.y}`;
             const existing = this.revealedSymbolMap.get(key);
-
-            await this._animateCellUpgradePulse(
-              target.x,
-              target.y,
-              target.before,
-              target.after,
-              340,
-              {
-                valueColor: existing?.accentColor ?? 0x2e2418,
-              },
-            );
 
             if (existing) {
               this.revealedSymbolMap.set(key, {
@@ -1700,11 +1861,6 @@ export class GridRenderer {
                 label: this._formatBonusValue(target.after),
               });
             }
-
-            this.render(this.lastRenderedGrid, new Set(), {
-              showBonusOverlays: true,
-            });
-            await this._wait(90);
           }
 
           for (const target of collectorTargets) {
@@ -1716,12 +1872,11 @@ export class GridRenderer {
                 label: `x${this._formatBonusValue(target.after)}`,
               });
             }
-
-            this.render(this.lastRenderedGrid, new Set(), {
-              showBonusOverlays: true,
-            });
-            await this._wait(100);
           }
+
+          this.render(this.lastRenderedGrid, new Set(), {
+            showBonusOverlays: true,
+          });
 
           await this._wait(80);
           await cloverFocusPromise;
@@ -1729,38 +1884,13 @@ export class GridRenderer {
       }
 
       if (collectorSteps.length > 0) {
-        const coinValues = new Map();
-
-        for (const reveal of reveals) {
-          if (reveal.type === "coin") {
-            coinValues.set(`${reveal.x},${reveal.y}`, reveal.value);
-          }
-        }
-
-        for (const cloverHit of cloverHits) {
-          for (const target of cloverHit.targets || []) {
-            if (target.type === "coin") {
-              coinValues.set(`${target.x},${target.y}`, target.after);
-            }
-          }
-        }
-
-        const collectibleSources = Array.from(coinValues.entries()).map(
-          ([key, value]) => {
-            const [x, y] = key.split(",").map(Number);
-            return {
-              x,
-              y,
-              value,
-              label: this._formatBonusValue(value),
-            };
-          },
-        );
-
         for (const step of collectorSteps) {
-          const sources = collectibleSources.filter(
-            (source) => source.x !== step.x || source.y !== step.y,
-          );
+          const sources = Array.isArray(step.suckedSources)
+            ? step.suckedSources.map((source) => ({
+                ...source,
+                label: this._formatBonusValue(source.value ?? 0),
+              }))
+            : [];
 
           const potFocusDuration = sources.length > 0 ? 1320 : 760;
           const potFocusPromise = this._animateFocusedTileAtCell(
@@ -1776,6 +1906,19 @@ export class GridRenderer {
           );
 
           await this._animateCollectFlowToPot(sources, step, betAmount);
+
+          for (const source of sources) {
+            const sourceKey = `${source.x}_${source.y}`;
+            if (sourceKey === `${step.x}_${step.y}`) {
+              continue;
+            }
+            this.revealedSymbolMap.delete(sourceKey);
+          }
+
+          this.render(this.lastRenderedGrid, new Set(), {
+            showBonusOverlays: true,
+          });
+
           await potFocusPromise;
 
           const collectorKey = `${step.x}_${step.y}`;
@@ -1790,6 +1933,117 @@ export class GridRenderer {
           this.render(this.lastRenderedGrid, new Set(), {
             showBonusOverlays: true,
           });
+
+          const postCollectReveals = Array.isArray(step.postCollectReveals)
+            ? step.postCollectReveals
+            : [];
+
+          if (postCollectReveals.length > 0) {
+            const sortedPostReveals = [...postCollectReveals].sort((left, right) => {
+              if (left.y === right.y) {
+                return left.x - right.x;
+              }
+              return left.y - right.y;
+            });
+
+            const revealCount = sortedPostReveals.length;
+            const revealDuration =
+              revealCount > 20 ? 220 : revealCount > 12 ? 250 : 290;
+            const revealStagger =
+              revealCount > 20 ? 12 : revealCount > 12 ? 16 : 24;
+
+            await Promise.all(
+              sortedPostReveals.map(
+                (reveal, index) =>
+                  new Promise((resolve) => {
+                    setTimeout(() => {
+                      const revealData = this._buildRevealTileData(reveal);
+                      this._animateTileSpinRevealAtCell(
+                        reveal.x,
+                        reveal.y,
+                        revealData,
+                        revealDuration,
+                      ).then(resolve);
+                    }, index * revealStagger);
+                  }),
+              ),
+            );
+          }
+
+          const postCollectCloverHits = Array.isArray(step.postCollectCloverHits)
+            ? step.postCollectCloverHits
+            : [];
+
+          for (const cloverHit of postCollectCloverHits) {
+            const coinTargets = (cloverHit.targets || []).filter(
+              (target) => target.type === "coin",
+            );
+            const collectorTargets = (cloverHit.targets || []).filter(
+              (target) => target.type === "collector",
+            );
+            const allTargets = [...coinTargets, ...collectorTargets];
+
+            const cloverFocusPromise = this._animateFocusedTileAtCell(
+              cloverHit.x,
+              cloverHit.y,
+              Math.max(520, 520 + Math.max(0, allTargets.length - 1) * 45),
+              {
+                accentColor: 0x67e07f,
+                maxScale: 1.18,
+                growMs: 170,
+                shrinkMs: 170,
+              },
+            );
+
+            await this._animateBadgeAtCell(
+              cloverHit.x,
+              cloverHit.y,
+              `x${this._formatBonusValue(cloverHit.multiplier)}`,
+              0x67e07f,
+              320,
+            );
+
+            await this._wait(90);
+
+            await this._animateMultiplierBurstFromClover(
+              cloverHit,
+              allTargets,
+              320,
+            );
+
+            for (const target of coinTargets) {
+              const key = `${target.x}_${target.y}`;
+              const existingTarget = this.revealedSymbolMap.get(key);
+              if (existingTarget) {
+                this.revealedSymbolMap.set(key, {
+                  ...existingTarget,
+                  label: this._formatBonusValue(target.after),
+                });
+              }
+            }
+
+            for (const target of collectorTargets) {
+              const key = `${target.x}_${target.y}`;
+              const existingTarget = this.revealedSymbolMap.get(key);
+              if (existingTarget) {
+                const isFullPot = target.collectorState === "full";
+                this.revealedSymbolMap.set(key, {
+                  ...existingTarget,
+                  label: isFullPot
+                    ? this._formatBonusValue(target.after)
+                    : `x${this._formatBonusValue(target.after)}`,
+                });
+              }
+            }
+
+            this.render(this.lastRenderedGrid, new Set(), {
+              showBonusOverlays: true,
+            });
+
+            await this._wait(80);
+            await cloverFocusPromise;
+          }
+
           await this._wait(180);
         }
 

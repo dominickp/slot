@@ -339,7 +339,23 @@ export class LuckyScapeSlot extends BaseSlot {
           ...entry,
           targets: entry.targets.map((target) => ({ ...target })),
         })),
-        collectorSteps: round.collectorSteps.map((entry) => ({ ...entry })),
+        collectorSteps: round.collectorSteps.map((entry) => ({
+          ...entry,
+          suckedSources: Array.isArray(entry.suckedSources)
+            ? entry.suckedSources.map((source) => ({ ...source }))
+            : [],
+          postCollectReveals: Array.isArray(entry.postCollectReveals)
+            ? entry.postCollectReveals.map((reveal) => ({ ...reveal }))
+            : [],
+          postCollectCloverHits: Array.isArray(entry.postCollectCloverHits)
+            ? entry.postCollectCloverHits.map((hit) => ({
+                ...hit,
+                targets: Array.isArray(hit.targets)
+                  ? hit.targets.map((target) => ({ ...target }))
+                  : [],
+              }))
+            : [],
+        })),
       })),
     };
   }
@@ -603,11 +619,6 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   _executeSingleChainRound(roundIndex) {
-    const coinValues = new Map();
-    const clovers = [];
-    const pots = [];
-    const potMultipliers = new Map();
-
     const eventRound = {
       roundIndex,
       reveals: [],
@@ -617,126 +628,277 @@ export class LuckyScapeSlot extends BaseSlot {
       potCount: 0,
     };
 
-    for (const key of this.goldenSquares) {
+    const tileState = new Map();
+    const collectorQueue = [];
+    const queuedCollectors = new Set();
+
+    const parseKey = (key) => {
       const [x, y] = key.split(",").map(Number);
+      return { x, y };
+    };
+
+    const queueCollector = (key) => {
+      if (queuedCollectors.has(key)) {
+        return;
+      }
+      collectorQueue.push(key);
+      queuedCollectors.add(key);
+    };
+
+    const revealAtKey = (key, targetList) => {
+      const { x, y } = parseKey(key);
       const roll = this.rng.nextFloat();
       const chances = this._getGoldenSquareOutcomeChances();
 
       if (roll < chances.coin) {
         const value = this._rollCoinValue();
-        coinValues.set(key, value);
-        eventRound.reveals.push({
+        const tile = {
+          key,
           x,
           y,
           type: "coin",
           value,
           tier: this._getCoinTier(value),
-        });
-        continue;
+        };
+        tileState.set(key, tile);
+        targetList.push({ x, y, type: "coin", value, tier: tile.tier });
+        return tile;
       }
 
       if (roll < chances.coin + chances.clover) {
         const multiplier = this._rollCloverMultiplierValue();
-        clovers.push({ x, y, value: multiplier });
+        const tile = {
+          key,
+          x,
+          y,
+          type: "clover",
+          value: multiplier,
+        };
+        tileState.set(key, tile);
         this.cloverSymbolsHit.push(multiplier);
-        eventRound.reveals.push({ x, y, type: "clover", value: multiplier });
+        targetList.push({ x, y, type: "clover", value: multiplier });
+        return tile;
+      }
+
+      const tile = {
+        key,
+        x,
+        y,
+        type: "collector_empty",
+        value: 1,
+      };
+      tileState.set(key, tile);
+      this.potSymbolsHit.push(1);
+      targetList.push({ x, y, type: "collector", value: 1 });
+      queueCollector(key);
+      return tile;
+    };
+
+    const applyCloverMultipliers = (cloverKeys, roundTargetList, stepTargetList) => {
+      for (const cloverKey of cloverKeys) {
+        const cloverTile = tileState.get(cloverKey);
+        if (!cloverTile || cloverTile.type !== "clover") {
+          continue;
+        }
+
+        const targets = [];
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) {
+              continue;
+            }
+
+            const tx = cloverTile.x + dx;
+            const ty = cloverTile.y + dy;
+            if (
+              tx < 0 ||
+              tx >= this.gridWidth ||
+              ty < 0 ||
+              ty >= this.gridHeight
+            ) {
+              continue;
+            }
+
+            const targetKey = `${tx},${ty}`;
+            const targetTile = tileState.get(targetKey);
+            if (!targetTile) {
+              continue;
+            }
+
+            if (targetTile.type === "coin") {
+              const before = targetTile.value;
+              const after = before * cloverTile.value;
+              targetTile.value = after;
+              targetTile.tier = this._getCoinTier(after);
+              targets.push({ x: tx, y: ty, type: "coin", before, after });
+              continue;
+            }
+
+            if (
+              targetTile.type === "collector_empty" ||
+              targetTile.type === "collector_full"
+            ) {
+              const before = targetTile.value;
+              const after = before * cloverTile.value;
+              targetTile.value = after;
+              targets.push({
+                x: tx,
+                y: ty,
+                type: "collector",
+                collectorState:
+                  targetTile.type === "collector_full" ? "full" : "empty",
+                before,
+                after,
+              });
+            }
+          }
+        }
+
+        if (targets.length === 0) {
+          continue;
+        }
+
+        const cloverHit = {
+          x: cloverTile.x,
+          y: cloverTile.y,
+          multiplier: cloverTile.value,
+          targets,
+        };
+
+        if (Array.isArray(roundTargetList)) {
+          roundTargetList.push(cloverHit);
+        }
+        if (Array.isArray(stepTargetList)) {
+          stepTargetList.push(cloverHit);
+        }
+      }
+    };
+
+    const initialCloverKeys = [];
+    const sortedGoldenKeys = [...this.goldenSquares].sort((left, right) => {
+      const [lx, ly] = left.split(",").map(Number);
+      const [rx, ry] = right.split(",").map(Number);
+      return ly === ry ? lx - rx : ly - ry;
+    });
+
+    for (const key of sortedGoldenKeys) {
+      const revealedTile = revealAtKey(key, eventRound.reveals);
+      if (revealedTile?.type === "clover") {
+        initialCloverKeys.push(key);
+      }
+    }
+
+    applyCloverMultipliers(initialCloverKeys, eventRound.cloverHits);
+
+    let runningCollectedTotal = 0;
+    const processedCollectors = new Set();
+
+    while (collectorQueue.length > 0) {
+      const collectorKey = collectorQueue.shift();
+      if (processedCollectors.has(collectorKey)) {
         continue;
       }
 
-      pots.push({ x, y, key });
-      potMultipliers.set(key, 1);
-      this.potSymbolsHit.push(1);
-      eventRound.reveals.push({ x, y, type: "collector", value: 1 });
-    }
+      const collectorTile = tileState.get(collectorKey);
+      if (
+        !collectorTile ||
+        (collectorTile.type !== "collector_empty" &&
+          collectorTile.type !== "collector_full")
+      ) {
+        processedCollectors.add(collectorKey);
+        continue;
+      }
 
-    const adjustedCoinValues = new Map(coinValues);
-    for (const clover of clovers) {
-      const targets = [];
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          if (dx === 0 && dy === 0) {
-            continue;
-          }
+      const suckedSources = [];
+      for (const [key, tile] of tileState.entries()) {
+        if (key === collectorKey) {
+          continue;
+        }
 
-          const tx = clover.x + dx;
-          const ty = clover.y + dy;
-          if (
-            tx < 0 ||
-            tx >= this.gridWidth ||
-            ty < 0 ||
-            ty >= this.gridHeight
-          ) {
-            continue;
-          }
-
-          const targetKey = `${tx},${ty}`;
-          if (adjustedCoinValues.has(targetKey)) {
-            const before = adjustedCoinValues.get(targetKey);
-            const after = before * clover.value;
-            adjustedCoinValues.set(targetKey, after);
-            targets.push({ x: tx, y: ty, type: "coin", before, after });
-          }
-
-          if (potMultipliers.has(targetKey)) {
-            const before = potMultipliers.get(targetKey);
-            const after = before * clover.value;
-            potMultipliers.set(targetKey, after);
-            targets.push({ x: tx, y: ty, type: "collector", before, after });
-          }
+        if (tile.type === "coin" || tile.type === "collector_full") {
+          suckedSources.push({
+            x: tile.x,
+            y: tile.y,
+            type: tile.type === "coin" ? "coin" : "collector",
+            value: tile.value,
+          });
         }
       }
 
-      if (targets.length > 0) {
-        eventRound.cloverHits.push({
-          x: clover.x,
-          y: clover.y,
-          multiplier: clover.value,
-          targets,
-        });
-      }
-    }
+      suckedSources.sort((left, right) =>
+        left.y === right.y ? left.x - right.x : left.y - right.y,
+      );
 
-    pots.sort((left, right) =>
-      left.y === right.y ? left.x - right.x : left.y - right.y,
-    );
-
-    let runningTotal = Array.from(adjustedCoinValues.values()).reduce(
-      (sum, value) => sum + value,
-      0,
-    );
-
-    for (const pot of pots) {
-      const multiplier = potMultipliers.get(pot.key) || 1;
-      const collectedBeforeMultiplier = runningTotal;
+      const collectedBeforeMultiplier = suckedSources.reduce(
+        (sum, source) => sum + source.value,
+        0,
+      );
+      const multiplier = collectorTile.value;
       const collectedValue = collectedBeforeMultiplier * multiplier;
-      runningTotal += collectedValue;
+      runningCollectedTotal += collectedValue;
 
-      eventRound.collectorSteps.push({
-        x: pot.x,
-        y: pot.y,
+      collectorTile.type = "collector_full";
+      collectorTile.value = collectedValue;
+      tileState.set(collectorKey, collectorTile);
+
+      const sourceKeys = suckedSources.map((entry) => `${entry.x},${entry.y}`);
+      for (const sourceKey of sourceKeys) {
+        tileState.delete(sourceKey);
+      }
+
+      const step = {
+        x: collectorTile.x,
+        y: collectorTile.y,
         multiplier,
         collectedBeforeMultiplier,
         collectedValue,
-        runningTotalAfter: runningTotal,
-      });
+        runningTotalAfter: runningCollectedTotal,
+        suckedSources,
+        postCollectReveals: [],
+        postCollectCloverHits: [],
+      };
+
+      const postCollectCloverKeys = [];
+      for (const sourceKey of sourceKeys) {
+        if (sourceKey === collectorKey) {
+          continue;
+        }
+
+        const revealedTile = revealAtKey(sourceKey, step.postCollectReveals);
+        if (revealedTile?.type === "clover") {
+          postCollectCloverKeys.push(sourceKey);
+        }
+      }
+
+      applyCloverMultipliers(
+        postCollectCloverKeys,
+        null,
+        step.postCollectCloverHits,
+      );
+
+      eventRound.collectorSteps.push(step);
+      processedCollectors.add(collectorKey);
     }
 
-    const totalCoins = Array.from(adjustedCoinValues.values()).reduce(
-      (sum, value) => sum + value,
-      0,
-    );
-    const totalPots = eventRound.collectorSteps.reduce(
+    const finalCoins = [...tileState.values()]
+      .filter((tile) => tile.type === "coin")
+      .reduce((sum, tile) => sum + tile.value, 0);
+    const totalCollectedByCollectors = eventRound.collectorSteps.reduce(
       (sum, step) => sum + step.collectedValue,
       0,
     );
 
-    eventRound.roundCollectionValue = Math.min(10000, totalCoins + totalPots);
-    eventRound.potCount = pots.length;
+    eventRound.roundCollectionValue = Math.min(
+      10000,
+      totalCollectedByCollectors +
+        (eventRound.collectorSteps.length === 0 ? finalCoins : 0),
+    );
+    eventRound.potCount = eventRound.collectorSteps.length;
 
     this.bonusEventTimeline.push(eventRound);
 
     return {
-      potCount: pots.length,
+      potCount: eventRound.potCount,
       roundCollectionValue: eventRound.roundCollectionValue,
     };
   }
