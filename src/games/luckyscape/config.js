@@ -83,6 +83,11 @@ export const LUCKY_ESCAPE_CONFIG = {
     },
   },
 
+  visuals: {
+    randomRotationSymbolIds: [1, 2, 3, 4, 5],
+    randomRotationAnglesDeg: [0, 90, 180, 270],
+  },
+
   // Win mechanics
   winMechanic: "cluster_pays",
   minClusterSize: 5,

@@ -91,6 +91,13 @@ export class GridRenderer {
     );
     this.symbolTextureCache = new Map();
     this.symbolTextureLoadState = new Map();
+    this.randomRotationSymbolIds = this._normalizeSymbolIdSet(
+      options.randomRotationSymbolIds || [],
+    );
+    this.randomRotationAnglesDeg = this._normalizeRotationAngles(
+      options.randomRotationAnglesDeg || [0, 90, 180, 270],
+    );
+    this.rotationByCell = new Map();
     this.assetCacheBustToken = Date.now();
 
     this.app = null;
@@ -118,6 +125,112 @@ export class GridRenderer {
     };
 
     this.ready = this._initApp();
+  }
+
+  _normalizeSymbolIdSet(ids) {
+    const normalized = new Set();
+
+    for (const rawId of Array.isArray(ids) ? ids : []) {
+      const symbolId = Number(rawId);
+      if (Number.isFinite(symbolId)) {
+        normalized.add(symbolId);
+      }
+    }
+
+    return normalized;
+  }
+
+  _normalizeRotationAngles(anglesDeg) {
+    const normalized = [];
+
+    for (const rawAngle of Array.isArray(anglesDeg) ? anglesDeg : []) {
+      const angle = Number(rawAngle);
+      if (!Number.isFinite(angle)) {
+        continue;
+      }
+
+      const normalizedDeg = ((angle % 360) + 360) % 360;
+      normalized.push(normalizedDeg);
+    }
+
+    if (normalized.length === 0) {
+      return [0];
+    }
+
+    return normalized;
+  }
+
+  _pickRandomRotationRadians() {
+    const angles = this.randomRotationAnglesDeg;
+    const index = Math.floor(Math.random() * angles.length);
+    const selectedDeg = angles[index] ?? 0;
+    return (selectedDeg * Math.PI) / 180;
+  }
+
+  _getStoredRotationForCellSymbol(
+    cellKey,
+    symbolId,
+    sourceMap = this.rotationByCell,
+  ) {
+    if (!(sourceMap instanceof Map)) {
+      return null;
+    }
+
+    const numericSymbolId = Number(symbolId);
+    const stored = sourceMap.get(cellKey);
+    if (!stored || stored.symbolId !== numericSymbolId) {
+      return null;
+    }
+
+    return typeof stored.rotation === "number" ? stored.rotation : null;
+  }
+
+  _getRotationForCellSymbol(cellKey, symbolId, options = {}) {
+    const { preferredRotation = null } = options;
+    const numericSymbolId = Number(symbolId);
+    if (!this.randomRotationSymbolIds.has(numericSymbolId)) {
+      this.rotationByCell.delete(cellKey);
+      return 0;
+    }
+
+    if (typeof preferredRotation === "number") {
+      this.rotationByCell.set(cellKey, {
+        symbolId: numericSymbolId,
+        rotation: preferredRotation,
+      });
+      return preferredRotation;
+    }
+
+    const existing = this.rotationByCell.get(cellKey);
+    if (existing && existing.symbolId === numericSymbolId) {
+      return existing.rotation;
+    }
+
+    const rotation = this._pickRandomRotationRadians();
+    this.rotationByCell.set(cellKey, {
+      symbolId: numericSymbolId,
+      rotation,
+    });
+    return rotation;
+  }
+
+  _applyRotationToSymbolNode(symbolNode, rotation) {
+    if (!symbolNode || typeof rotation !== "number") {
+      return;
+    }
+
+    if ("anchor" in symbolNode && symbolNode.anchor) {
+      symbolNode.anchor.set(0.5, 0.5);
+      symbolNode.position.set(50, 50);
+      symbolNode.rotation = rotation;
+      return;
+    }
+
+    if (symbolNode.pivot && symbolNode.position) {
+      symbolNode.pivot.set(50, 50);
+      symbolNode.position.set(50, 50);
+      symbolNode.rotation = rotation;
+    }
   }
 
   _normalizeSymbolTextureMap(map) {
@@ -475,7 +588,8 @@ export class GridRenderer {
         }
 
         if (symbolId !== SYMBOLS.EMPTY) {
-          const symbol = this._createSymbolSprite(symbolId);
+          const rotation = this._getRotationForCellSymbol(key, symbolId);
+          const symbol = this._createSymbolSprite(symbolId, { rotation });
 
           // Position symbol
           const padding = 5;
@@ -496,7 +610,7 @@ export class GridRenderer {
                 fontWeight: "bold",
                 fill: revealData.accentColor ?? 0x132235,
                 align: "center",
-                stroke: { color: 0xfdf5dc, width: 4, join: "round" },
+                stroke: { color: 0x000000, width: 4, join: "round" },
               },
             });
 
@@ -504,6 +618,8 @@ export class GridRenderer {
             label.position.set(this.cellSize / 2, this.cellSize - 10);
             cellContainer.addChild(label);
           }
+        } else {
+          this.rotationByCell.delete(key);
         }
 
         if (showBonusOverlays) {
@@ -515,8 +631,8 @@ export class GridRenderer {
     this._renderBonusLabel(showBonusOverlays);
   }
 
-  _createCellSizedSprite(symbolId, padding = 5) {
-    const sprite = this._createSymbolSprite(symbolId);
+  _createCellSizedSprite(symbolId, padding = 5, options = {}) {
+    const sprite = this._createSymbolSprite(symbolId, options);
     sprite.width = this.cellSize - padding * 2;
     sprite.height = this.cellSize - padding * 2;
     sprite.__baseScaleX = sprite.scale.x;
@@ -863,7 +979,7 @@ export class GridRenderer {
           fontWeight: "bold",
           fill: options.valueColor ?? 0x2e2418,
           align: "center",
-          stroke: { color: 0xf7ffe0, width: 5, join: "round" },
+          stroke: { color: 0x000000, width: 5, join: "round" },
         },
       });
       valueText.anchor.set(0.5, 1);
@@ -1061,7 +1177,7 @@ export class GridRenderer {
             fontWeight: "bold",
             fill: revealData.accentColor ?? 0x132235,
             align: "center",
-            stroke: { color: 0xfef6e0, width: 5, join: "round" },
+            stroke: { color: 0x000000, width: 5, join: "round" },
           },
         });
         revealLabel.anchor.set(0.5, 1);
@@ -1398,6 +1514,7 @@ export class GridRenderer {
       const startTime = Date.now();
       const totalDuration = duration + (this.cols - 1) * columnStaggerMs;
       const landingPhase = 0.2;
+      const previousRotationByCell = new Map(this.rotationByCell);
 
       this._clearAnimationLayer();
       this.persistentConnectionHighlights.clear();
@@ -1425,7 +1542,11 @@ export class GridRenderer {
           let outgoing = null;
 
           if (toSymbol !== SYMBOLS.EMPTY) {
-            incoming = this._createCellSizedSprite(toSymbol, padding);
+            const key = `${x}_${y}`;
+            const rotation = this._getRotationForCellSymbol(key, toSymbol);
+            incoming = this._createCellSizedSprite(toSymbol, padding, {
+              rotation,
+            });
             incoming.x = targetX;
             incoming.y = -this.cellSize * 1.5;
             incoming.alpha = 0.95;
@@ -1433,7 +1554,15 @@ export class GridRenderer {
           }
 
           if (fromSymbol !== SYMBOLS.EMPTY) {
-            outgoing = this._createCellSizedSprite(fromSymbol, padding);
+            const key = `${x}_${y}`;
+            const outgoingRotation = this._getStoredRotationForCellSymbol(
+              key,
+              fromSymbol,
+              previousRotationByCell,
+            );
+            outgoing = this._createCellSizedSprite(fromSymbol, padding, {
+              rotation: outgoingRotation ?? 0,
+            });
             outgoing.x = targetX;
             outgoing.y = targetY;
             this.animationContainer.addChild(outgoing);
@@ -1534,6 +1663,7 @@ export class GridRenderer {
         Array.from({ length: this.rows }, () =>
           Array(this.cols).fill(SYMBOLS.EMPTY),
         );
+      const previousRotationByCell = new Map(this.rotationByCell);
 
       this.render(initialGrid, new Set(), { showBonusOverlays });
 
@@ -1551,14 +1681,31 @@ export class GridRenderer {
             continue;
           }
 
-          const sprite = this._createCellSizedSprite(symbolId, padding);
-
-          const targetX = x * this.cellSize + padding;
-          const targetY = y * this.cellSize + padding;
           const startRow =
             startRowByKey && startRowByKey.has(key)
               ? startRowByKey.get(key)
               : null;
+          const sourceKey =
+            typeof startRow === "number" && startRow >= 0
+              ? `${x}_${Math.round(startRow)}`
+              : null;
+          const preferredRotation = sourceKey
+            ? this._getStoredRotationForCellSymbol(
+                sourceKey,
+                symbolId,
+                previousRotationByCell,
+              )
+            : null;
+
+          const rotation = this._getRotationForCellSymbol(key, symbolId, {
+            preferredRotation,
+          });
+          const sprite = this._createCellSizedSprite(symbolId, padding, {
+            rotation,
+          });
+
+          const targetX = x * this.cellSize + padding;
+          const targetY = y * this.cellSize + padding;
           const startY =
             typeof startRow === "number"
               ? startRow * this.cellSize + padding
@@ -1667,15 +1814,19 @@ export class GridRenderer {
   /**
    * Create a visual symbol sprite
    */
-  _createSymbolSprite(symbolId) {
+  _createSymbolSprite(symbolId, options = {}) {
     const numericSymbolId = Number(symbolId);
+    const { rotation = 0 } = options;
     const texturePath = this._getSymbolTexturePath(numericSymbolId);
     const cachedTexture = this.symbolTextureCache.get(numericSymbolId);
     if (cachedTexture) {
+      const root = new PIXI.Container();
       const sprite = new PIXI.Sprite(cachedTexture);
       sprite.width = 100;
       sprite.height = 100;
-      return sprite;
+      this._applyRotationToSymbolNode(sprite, rotation);
+      root.addChild(sprite);
+      return root;
     }
 
     if (texturePath) {
@@ -1691,6 +1842,7 @@ export class GridRenderer {
     const label = SYMBOL_LABELS[symbolId] || "?";
 
     // Create symbol background
+    const root = new PIXI.Container();
     const sprite = new PIXI.Graphics();
     sprite.roundRect(0, 0, 100, 100, 16);
     sprite.fill(color);
@@ -1710,8 +1862,10 @@ export class GridRenderer {
     text.anchor.set(0.5, 0.5);
     text.position.set(50, 50);
     sprite.addChild(text);
+    this._applyRotationToSymbolNode(sprite, rotation);
+    root.addChild(sprite);
 
-    return sprite;
+    return root;
   }
 
   _boostColor(color, factor) {
