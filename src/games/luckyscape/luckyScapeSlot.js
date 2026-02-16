@@ -102,15 +102,8 @@ export class LuckyScapeSlot extends BaseSlot {
       this._trackGoldenSquaresFromWins(winResult);
       finalWinPositions = new Set(winResult.winPositions);
 
-      if (this._shouldHoldBoardForRainbowActivation()) {
-        break;
-      }
-
       const beforeGrid = CascadeEngine.cloneGrid(this.currentGrid);
-      const removePositions = this.detector.getSuperCascadeRemovalPositions(
-        this.currentGrid,
-        winResult,
-      );
+      const removePositions = new Set(winResult.winPositions);
 
       this.totalWinFromSpin += winResult.totalWin;
 
@@ -251,27 +244,33 @@ export class LuckyScapeSlot extends BaseSlot {
 
   handleFreeSpinsRetrigger(newScatterCount) {
     if (!this.isInFreeSpins || !this.bonusMode) {
-      return;
+      return 0;
     }
 
-    if (newScatterCount < 3) {
-      return;
+    if (newScatterCount < 2) {
+      return 0;
     }
 
     const currentModeId = this.bonusMode.id;
 
-    if (newScatterCount >= 5 && currentModeId !== "TREASURE_RAINBOW") {
-      this._upgradeBonusMode("TREASURE_RAINBOW", 4);
-      return;
-    }
-
-    if (newScatterCount >= 4 && currentModeId === "LEPRECHAUN") {
+    if (currentModeId === "LEPRECHAUN" && newScatterCount >= 4) {
       this._upgradeBonusMode("GLITTER_GOLD", 4);
-      return;
+      return 4;
     }
 
-    this.bonusMode.remaining += 2;
-    this.freeSpinsRemaining = this.bonusMode.remaining;
+    if (newScatterCount >= 3) {
+      this.bonusMode.remaining += 4;
+      this.freeSpinsRemaining = this.bonusMode.remaining;
+      return 4;
+    }
+
+    if (newScatterCount === 2) {
+      this.bonusMode.remaining += 2;
+      this.freeSpinsRemaining = this.bonusMode.remaining;
+      return 2;
+    }
+
+    return 0;
   }
 
   _upgradeBonusMode(modeType, additionalSpins) {
@@ -343,6 +342,9 @@ export class LuckyScapeSlot extends BaseSlot {
           ...entry,
           suckedSources: Array.isArray(entry.suckedSources)
             ? entry.suckedSources.map((source) => ({ ...source }))
+            : [],
+          clearedSources: Array.isArray(entry.clearedSources)
+            ? entry.clearedSources.map((source) => ({ ...source }))
             : [],
           postCollectReveals: Array.isArray(entry.postCollectReveals)
             ? entry.postCollectReveals.map((reveal) => ({ ...reveal }))
@@ -575,10 +577,7 @@ export class LuckyScapeSlot extends BaseSlot {
 
     this.rainbowTriggered = true;
 
-    const maxRounds = this.bonusMode?.persistGoldenSquaresAfterActivation
-      ? 3
-      : 2;
-    this.chainRoundsTriggered = this._runGoldenSquareChainRounds(maxRounds);
+    this.chainRoundsTriggered = this._runGoldenSquareChainRounds(1);
 
     this._resolveGoldenSquarePostSpinCleanup(true);
   }
@@ -734,10 +733,7 @@ export class LuckyScapeSlot extends BaseSlot {
               continue;
             }
 
-            if (
-              targetTile.type === "collector_empty" ||
-              targetTile.type === "collector_full"
-            ) {
+            if (targetTile.type === "collector_full") {
               const before = targetTile.value;
               const after = before * cloverTile.value;
               targetTile.value = after;
@@ -745,8 +741,7 @@ export class LuckyScapeSlot extends BaseSlot {
                 x: tx,
                 y: ty,
                 type: "collector",
-                collectorState:
-                  targetTile.type === "collector_full" ? "full" : "empty",
+                collectorState: "full",
                 before,
                 after,
               });
@@ -810,6 +805,7 @@ export class LuckyScapeSlot extends BaseSlot {
       }
 
       const suckedSources = [];
+      const spentClovers = [];
       for (const [key, tile] of tileState.entries()) {
         if (key === collectorKey) {
           continue;
@@ -822,12 +818,26 @@ export class LuckyScapeSlot extends BaseSlot {
             type: tile.type === "coin" ? "coin" : "collector",
             value: tile.value,
           });
+          continue;
+        }
+
+        if (tile.type === "clover") {
+          spentClovers.push({
+            x: tile.x,
+            y: tile.y,
+            type: "clover",
+            value: tile.value,
+          });
         }
       }
 
       suckedSources.sort((left, right) =>
         left.y === right.y ? left.x - right.x : left.y - right.y,
       );
+      spentClovers.sort((left, right) =>
+        left.y === right.y ? left.x - right.x : left.y - right.y,
+      );
+      const clearedSources = [...suckedSources, ...spentClovers];
 
       const collectedBeforeMultiplier = suckedSources.reduce(
         (sum, source) => sum + source.value,
@@ -841,7 +851,7 @@ export class LuckyScapeSlot extends BaseSlot {
       collectorTile.value = collectedValue;
       tileState.set(collectorKey, collectorTile);
 
-      const sourceKeys = suckedSources.map((entry) => `${entry.x},${entry.y}`);
+      const sourceKeys = clearedSources.map((entry) => `${entry.x},${entry.y}`);
       for (const sourceKey of sourceKeys) {
         tileState.delete(sourceKey);
       }
@@ -854,6 +864,7 @@ export class LuckyScapeSlot extends BaseSlot {
         collectedValue,
         runningTotalAfter: runningCollectedTotal,
         suckedSources,
+        clearedSources,
         postCollectReveals: [],
         postCollectCloverHits: [],
       };
@@ -940,23 +951,36 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   _rollCoinValue() {
-    const table = [
-      { value: 0.2, weight: 18 },
-      { value: 0.5, weight: 16 },
-      { value: 1, weight: 14 },
-      { value: 2, weight: 12 },
-      { value: 3, weight: 9 },
-      { value: 4, weight: 8 },
-      { value: 5, weight: 7 },
-      { value: 7, weight: 4 },
-      { value: 10, weight: 4 },
-      { value: 15, weight: 3 },
-      { value: 20, weight: 2 },
-      { value: 50, weight: 1 },
-      { value: 100, weight: 1 },
-      { value: 200, weight: 1 },
-      { value: 500, weight: 1 },
-    ];
+    const isTreasureMode = this.bonusMode?.id === "TREASURE_RAINBOW";
+    const table = isTreasureMode
+      ? [
+          { value: 5, weight: 12 },
+          { value: 7, weight: 10 },
+          { value: 10, weight: 10 },
+          { value: 15, weight: 8 },
+          { value: 20, weight: 7 },
+          { value: 50, weight: 3 },
+          { value: 100, weight: 2 },
+          { value: 200, weight: 1 },
+          { value: 500, weight: 1 },
+        ]
+      : [
+          { value: 0.2, weight: 18 },
+          { value: 0.5, weight: 16 },
+          { value: 1, weight: 14 },
+          { value: 2, weight: 12 },
+          { value: 3, weight: 9 },
+          { value: 4, weight: 8 },
+          { value: 5, weight: 7 },
+          { value: 7, weight: 4 },
+          { value: 10, weight: 4 },
+          { value: 15, weight: 3 },
+          { value: 20, weight: 2 },
+          { value: 50, weight: 1 },
+          { value: 100, weight: 1 },
+          { value: 200, weight: 1 },
+          { value: 500, weight: 1 },
+        ];
 
     const total = table.reduce((sum, entry) => sum + entry.weight, 0);
     let roll = this.rng.nextInt(0, total - 1);
@@ -968,7 +992,7 @@ export class LuckyScapeSlot extends BaseSlot {
       }
     }
 
-    return 0.2;
+    return isTreasureMode ? 5 : 0.2;
   }
 
   _getCoinTier(value) {

@@ -51,6 +51,8 @@ export class GameController {
     this.autoPlayTimer = null;
     this.isConfirmOpen = false;
     this.confirmResolver = null;
+    this.bonusIntroOpen = false;
+    this.bonusIntroResolver = null;
     this.soundManager = new SoundManager();
     this.timings = {
       spinDrop: 520,
@@ -123,6 +125,11 @@ export class GameController {
     const buyConfirmText = document.getElementById("buyConfirmText");
     const buyConfirmCancel = document.getElementById("buyConfirmCancel");
     const buyConfirmAccept = document.getElementById("buyConfirmAccept");
+    const bonusIntroModal = document.getElementById("bonusIntroModal");
+    const bonusIntroTitle = document.getElementById("bonusIntroTitle");
+    const bonusIntroCopy = document.getElementById("bonusIntroCopy");
+    const bonusIntroContinue = document.getElementById("bonusIntroContinue");
+    const bonusIntroGraphic = document.getElementById("bonusIntroGraphic");
     const balanceEl = document.getElementById("balance");
     const stateEl = document.getElementById("state");
     const betInput = document.getElementById("betInput");
@@ -208,6 +215,9 @@ export class GameController {
         this._resolveBonusBuyConfirm(false);
       }
     });
+    bonusIntroContinue.addEventListener("click", () =>
+      this._resolveBonusIntroContinue(),
+    );
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && this.isConfirmOpen) {
         this._resolveBonusBuyConfirm(false);
@@ -236,6 +246,11 @@ export class GameController {
       buyConfirmText,
       buyConfirmCancel,
       buyConfirmAccept,
+      bonusIntroModal,
+      bonusIntroTitle,
+      bonusIntroCopy,
+      bonusIntroContinue,
+      bonusIntroGraphic,
       balanceEl,
       stateEl,
       betInput,
@@ -316,7 +331,7 @@ export class GameController {
           `Free Bonus Unlocked: ${spinResult.bonusMode.name} (${this._formatCount(spinResult.bonusMode.initialSpins)} Free Spins) via ${this._formatCount(spinResult.scatterCount)} 🎲`,
           "win",
         );
-        await this._delay(950);
+        await this._showBonusIntro(spinResult.bonusMode, spinResult.scatterCount);
         await this._playFreeSpins(betAmount);
       }
 
@@ -596,8 +611,38 @@ export class GameController {
         freeSpinIndex,
       });
 
-      if (result.scatterCount >= 3) {
-        this.game.handleFreeSpinsRetrigger(result.scatterCount);
+      let retriggerSpinsAwarded = 0;
+      if (result.scatterCount >= 2) {
+        retriggerSpinsAwarded = this.game.handleFreeSpinsRetrigger(
+          result.scatterCount,
+        );
+      }
+
+      if (retriggerSpinsAwarded > 0) {
+        this.soundManager.playBonus();
+        this.ui.stateEl.textContent = `RETRIGGER +${this._formatCount(retriggerSpinsAwarded)}`;
+        const retriggerScatterPositions = Array.isArray(result.scatterPositions)
+          ? result.scatterPositions
+          : [];
+
+        if (retriggerScatterPositions.length > 0) {
+          await this.renderer.animateScatterTrigger(retriggerScatterPositions, {
+            duration: 860,
+            intensity: 0.7,
+          });
+        }
+
+        await this.renderer.animateCenterCallout(
+          `+${this._formatCount(retriggerSpinsAwarded)} FREE SPINS`,
+          860,
+          { color: 0xffef9a },
+        );
+
+        this._showResult(
+          `+${this._formatCount(retriggerSpinsAwarded)} FREE SPINS`,
+          "win",
+        );
+        await this._delay(240);
       }
 
       this.game.advanceFreeSpins();
@@ -666,6 +711,37 @@ export class GameController {
 
     if (type === "loss") {
       this.ui.resultEl.classList.add("loss");
+    }
+  }
+
+  _showBonusIntro(bonusMode, scatterCount) {
+    if (!this.ui?.bonusIntroModal) {
+      return Promise.resolve();
+    }
+
+    this.bonusIntroOpen = true;
+    this.ui.bonusIntroTitle.textContent = bonusMode?.name || "BONUS TRIGGERED";
+    this.ui.bonusIntroCopy.textContent = `${this._formatCount(scatterCount)} FS landed. ${this._formatCount(bonusMode?.initialSpins || 0)} free spins ready — press continue to start.`;
+    this.ui.bonusIntroGraphic.textContent = `${bonusMode?.name || "BONUS"} GRAPHIC PLACEHOLDER`;
+    this.ui.bonusIntroModal.classList.add("show");
+
+    return new Promise((resolve) => {
+      this.bonusIntroResolver = resolve;
+    });
+  }
+
+  _resolveBonusIntroContinue() {
+    if (!this.bonusIntroOpen) {
+      return;
+    }
+
+    this.bonusIntroOpen = false;
+    this.ui.bonusIntroModal.classList.remove("show");
+
+    if (typeof this.bonusIntroResolver === "function") {
+      const resolver = this.bonusIntroResolver;
+      this.bonusIntroResolver = null;
+      resolver(true);
     }
   }
 

@@ -238,10 +238,7 @@ export class GridRenderer {
     }
 
     if (this.bonusVisuals.rainbowTriggered) {
-      const pulse = new PIXI.Graphics();
-      pulse.roundRect(8, 8, this.cellSize - 16, this.cellSize - 16, 8);
-      pulse.stroke({ color: 0x93d1ff, width: 2, alpha: 0.66 });
-      cellContainer.addChild(pulse);
+      return;
     }
   }
 
@@ -276,10 +273,7 @@ export class GridRenderer {
     }
 
     if (activeRainbow && (highlighted || bonusGolden)) {
-      const rainbowPulse = new PIXI.Graphics();
-      rainbowPulse.rect(6, 6, this.cellSize - 12, this.cellSize - 12);
-      rainbowPulse.stroke({ color: 0x93d1ff, width: 2, alpha: 0.65 });
-      background.addChild(rainbowPulse);
+      // Intentionally no extra pulse stroke to keep bonus visuals cleaner.
     }
 
     cellContainer.addChildAt(background, 0);
@@ -880,18 +874,38 @@ export class GridRenderer {
 
     return {
       symbolId,
-      label: "POT",
+      label: "",
       accentColor: 0xffb873,
     };
   }
 
-  async _animateTileSpinRevealAtCell(x, y, revealData, duration = 320) {
+  _coinTierFromValue(value) {
+    if (Number(value) >= 25) {
+      return "gold";
+    }
+
+    if (Number(value) >= 5) {
+      return "silver";
+    }
+
+    return "bronze";
+  }
+
+  async _animateTileSpinRevealAtCell(
+    x,
+    y,
+    revealData,
+    duration = 320,
+    options = {},
+  ) {
     await this.ready;
 
     return new Promise((resolve) => {
       const key = `${x}_${y}`;
       const revealSymbolId = revealData.symbolId;
-      const currentSymbolId = this._getVisibleSymbolIdAt(x, y);
+      const currentSymbolId = options.startFromEmpty
+        ? SYMBOLS.EMPTY
+        : this._getVisibleSymbolIdAt(x, y);
       const tilePadding = 5;
       const width = this.cellSize - tilePadding * 2;
       const height = this.cellSize - tilePadding * 2;
@@ -916,7 +930,7 @@ export class GridRenderer {
       back.visible = false;
       back.scale.x = 0.05;
 
-      if (revealData.label) {
+      if (revealData.label && options.showLabelDuringFlip) {
         const revealLabel = new PIXI.Text({
           text: revealData.label,
           style: {
@@ -985,6 +999,61 @@ export class GridRenderer {
         this.render(this.lastRenderedGrid, new Set(), {
           showBonusOverlays: true,
         });
+        resolve();
+      };
+
+      animate();
+    });
+  }
+
+  async animateCenterCallout(text, duration = 820, options = {}) {
+    await this.ready;
+
+    return new Promise((resolve) => {
+      const color = options.color ?? 0xffef9a;
+      const centerX = (this.cols * this.cellSize) / 2;
+      const centerY = (this.rows * this.cellSize) / 2;
+
+      const label = new PIXI.Text({
+        text,
+        style: {
+          fontFamily: "Arial",
+          fontSize: 46,
+          fontWeight: "bold",
+          fill: color,
+          align: "center",
+          stroke: { color: 0x1a102b, width: 9, join: "round" },
+          dropShadow: {
+            color: 0x000000,
+            alpha: 0.85,
+            blur: 6,
+            angle: Math.PI / 3,
+            distance: 4,
+          },
+        },
+      });
+
+      label.anchor.set(0.5, 0.5);
+      label.position.set(centerX, centerY);
+      this.animationContainer.addChild(label);
+
+      const startTime = Date.now();
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const pulse = Math.sin(progress * Math.PI);
+
+        label.y = centerY - progress * 42;
+        label.alpha = 1 - Math.pow(progress, 1.15);
+        label.scale.set(1 + pulse * 0.16);
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+          return;
+        }
+
+        this.animationContainer.removeChild(label);
+        label.destroy();
         resolve();
       };
 
@@ -1086,7 +1155,7 @@ export class GridRenderer {
     this.revealedSymbolMap.set(this.persistentPotKey, {
       ...existing,
       symbolId: REVEAL_SYMBOLS.POT,
-      label: existing.label || "POT",
+      label: existing.label || "",
       accentColor: 0xffb873,
     });
   }
@@ -1464,7 +1533,6 @@ export class GridRenderer {
     const sprite = new PIXI.Graphics();
     sprite.roundRect(0, 0, 100, 100, 16);
     sprite.fill(color);
-    sprite.stroke({ color: isBonusPalette ? 0xfff1cf : 0xe0d0b2, width: 2 });
 
     // Add label text
     const text = new PIXI.Text({
@@ -1891,6 +1959,9 @@ export class GridRenderer {
                 label: this._formatBonusValue(source.value ?? 0),
               }))
             : [];
+          const clearedSources = Array.isArray(step.clearedSources)
+            ? step.clearedSources
+            : sources;
 
           const potFocusDuration = sources.length > 0 ? 1320 : 760;
           const potFocusPromise = this._animateFocusedTileAtCell(
@@ -1907,12 +1978,45 @@ export class GridRenderer {
 
           await this._animateCollectFlowToPot(sources, step, betAmount);
 
-          for (const source of sources) {
+          for (const source of clearedSources) {
             const sourceKey = `${source.x}_${source.y}`;
             if (sourceKey === `${step.x}_${step.y}`) {
               continue;
             }
-            this.revealedSymbolMap.delete(sourceKey);
+
+            if (source.type === "clover") {
+              this.revealedSymbolMap.set(sourceKey, {
+                symbolId: SYMBOLS.EMPTY,
+                label: "",
+                accentColor: 0x52c86e,
+              });
+              continue;
+            }
+
+            const existingSource = this.revealedSymbolMap.get(sourceKey) || {};
+            if (source.type === "collector") {
+              this.revealedSymbolMap.set(sourceKey, {
+                ...existingSource,
+                symbolId: REVEAL_SYMBOLS.POT,
+                label: "",
+                accentColor: 0xffb873,
+              });
+              continue;
+            }
+
+            const sourceTier = this._coinTierFromValue(source.value ?? 0);
+            const sourceSymbolId =
+              existingSource.symbolId ||
+              this._getRevealSymbolId({ type: "coin", tier: sourceTier });
+            const sourceAccent =
+              existingSource.accentColor || this._coinTierStyle(sourceTier).color;
+
+            this.revealedSymbolMap.set(sourceKey, {
+              ...existingSource,
+              symbolId: sourceSymbolId,
+              label: "",
+              accentColor: sourceAccent,
+            });
           }
 
           this.render(this.lastRenderedGrid, new Set(), {
@@ -1963,6 +2067,7 @@ export class GridRenderer {
                         reveal.y,
                         revealData,
                         revealDuration,
+                        { startFromEmpty: true },
                       ).then(resolve);
                     }, index * revealStagger);
                   }),
