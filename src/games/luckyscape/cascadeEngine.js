@@ -30,7 +30,7 @@ export class CascadeEngine {
    *   moved: How many cells moved (for animation calcs)
    * }
    */
-  executeCascade(grid, winPositions, rng) {
+  executeCascade(grid, winPositions, rng, options = {}) {
     // Step 1: Remove winning symbols
     this.detector.removeWinningSymbols(grid, winPositions);
 
@@ -38,7 +38,7 @@ export class CascadeEngine {
     const moveData = this.applyGravity(grid);
 
     // Step 3: Fill empty spaces from top
-    this.fillFromTop(grid, rng);
+    this.fillFromTop(grid, rng, options.symbolWeights);
 
     // Step 4: Check for new wins
     const newWins = this.detector.findWins(grid);
@@ -106,14 +106,22 @@ export class CascadeEngine {
    * @param {number[][]} grid - Grid to modify (mutated)
    * @param {RNG} rng - Random number generator
    */
-  fillFromTop(grid, rng) {
-    const symbolWeights = [
+  fillFromTop(grid, rng, customSymbolWeights = null) {
+    const symbolWeights =
+      Array.isArray(customSymbolWeights) && customSymbolWeights.length > 0
+        ? customSymbolWeights
+        : [
       { id: CascadeDetector.SYMBOL_IDS.RED, weight: 22 },
       { id: CascadeDetector.SYMBOL_IDS.GREEN, weight: 20 },
       { id: CascadeDetector.SYMBOL_IDS.PURPLE, weight: 18 },
       { id: CascadeDetector.SYMBOL_IDS.YELLOW, weight: 16 },
       { id: CascadeDetector.SYMBOL_IDS.BLUE, weight: 14 },
-      { id: CascadeDetector.SYMBOL_IDS.WILD, weight: 8 },
+      { id: CascadeDetector.SYMBOL_IDS.TRAP, weight: 11 },
+      { id: CascadeDetector.SYMBOL_IDS.CHEESE, weight: 10 },
+      { id: CascadeDetector.SYMBOL_IDS.BEER, weight: 8 },
+      { id: CascadeDetector.SYMBOL_IDS.BREAD, weight: 7 },
+      { id: CascadeDetector.SYMBOL_IDS.TOP_HAT, weight: 5 },
+      { id: CascadeDetector.SYMBOL_IDS.WILD, weight: 6 },
       { id: CascadeDetector.SYMBOL_IDS.SCATTER, weight: 2 },
       { id: CascadeDetector.SYMBOL_IDS.RAINBOW, weight: 2 },
     ];

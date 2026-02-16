@@ -24,7 +24,7 @@ describe("CascadeDetector (Le Bandit placeholder rules)", () => {
 
       expect(result.clusters).toHaveLength(1);
       expect(result.clusters[0].positions).toHaveLength(5);
-      expect(result.totalWin).toBeCloseTo(0.35);
+      expect(result.totalWin).toBeCloseTo(0.1);
     });
 
     it("detects L-shaped cluster", () => {
@@ -59,8 +59,8 @@ describe("CascadeDetector (Le Bandit placeholder rules)", () => {
     });
   });
 
-  describe("Payout multipliers", () => {
-    it("applies 1.5x for 6-symbol cluster", () => {
+  describe("Paytable payouts", () => {
+    it("pays 0.20 for a 6-symbol royal cluster", () => {
       const grid = [
         [RED, RED, RED, RED, RED],
         [RED, EMPTY, EMPTY, EMPTY, EMPTY],
@@ -71,10 +71,10 @@ describe("CascadeDetector (Le Bandit placeholder rules)", () => {
 
       const result = detector.findWins(grid);
 
-      expect(result.totalWin).toBeCloseTo(0.35 * 1.5);
+      expect(result.totalWin).toBeCloseTo(0.2);
     });
 
-    it("applies 2x for 8+ symbol cluster", () => {
+    it("pays 0.50 for an 8-symbol royal cluster", () => {
       const grid = [
         [RED, RED, RED, RED, RED],
         [RED, RED, RED, EMPTY, EMPTY],
@@ -85,7 +85,7 @@ describe("CascadeDetector (Le Bandit placeholder rules)", () => {
 
       const result = detector.findWins(grid);
 
-      expect(result.totalWin).toBeCloseTo(0.35 * 2.0);
+      expect(result.totalWin).toBeCloseTo(0.5);
     });
 
     it("does not merge different regular symbols into one cluster", () => {
@@ -99,7 +99,7 @@ describe("CascadeDetector (Le Bandit placeholder rules)", () => {
 
       const result = detector.findWins(grid);
 
-      expect(result.totalWin).toBeCloseTo(0.35);
+      expect(result.totalWin).toBeCloseTo(0.1);
     });
   });
 
@@ -130,7 +130,7 @@ describe("CascadeDetector (Le Bandit placeholder rules)", () => {
       const result = detector.findWins(grid);
 
       expect(result.clusters).toHaveLength(1);
-      expect(result.totalWin).toBeCloseTo(1.6);
+      expect(result.totalWin).toBeCloseTo(1.0);
     });
   });
 

@@ -111,6 +111,12 @@ export class LuckyScapeSlot extends BaseSlot {
         this.currentGrid,
         removePositions,
         this.rng,
+        {
+          symbolWeights: this._getSymbolWeightsForCurrentSpin({
+            allowRainbow: this._shouldAllowRainbowSymbolInCurrentSpin(),
+            includeScatter: true,
+          }),
+        },
       );
 
       cascades.push({
@@ -366,6 +372,7 @@ export class LuckyScapeSlot extends BaseSlot {
     return {
       symbols: this.config.symbols,
       basePayouts: CascadeDetector.BASE_PAYOUTS,
+      clusterPaytable: CascadeDetector.CLUSTER_PAYTABLE,
       clusterMultipliers: CascadeDetector.CLUSTER_MULTIPLIERS,
       scatterTriggers: {
         3: "Luck of the Leprechaun (8 free spins)",
@@ -390,16 +397,10 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   _generateSymbol() {
-    const weights = [
-      { id: 1, weight: 22 },
-      { id: 2, weight: 20 },
-      { id: 3, weight: 18 },
-      { id: 4, weight: 16 },
-      { id: 5, weight: 14 },
-      { id: 6, weight: 8 },
-      { id: 7, weight: 2 },
-      { id: 9, weight: this._shouldAllowRainbowSymbolInCurrentSpin() ? 3 : 0 },
-    ];
+    const weights = this._getSymbolWeightsForCurrentSpin({
+      allowRainbow: this._shouldAllowRainbowSymbolInCurrentSpin(),
+      includeScatter: true,
+    });
 
     const filtered = weights.filter((entry) => entry.weight > 0);
     const total = filtered.reduce((sum, entry) => sum + entry.weight, 0);
@@ -486,41 +487,31 @@ export class LuckyScapeSlot extends BaseSlot {
       return;
     }
 
-    if (!this.rainbowSpawnedThisSpin) {
+    if (rainbows.length === 1) {
       this.rainbowSpawnedThisSpin = true;
-
-      if (rainbows.length === 1) {
-        return;
-      }
-
-      const keepIndex = this.rng.nextInt(0, rainbows.length - 1);
-      for (let index = 0; index < rainbows.length; index++) {
-        if (index === keepIndex) {
-          continue;
-        }
-
-        const extra = rainbows[index];
-        this.currentGrid[extra.y][extra.x] = this._rollReplacementSymbol();
-      }
-
       return;
     }
 
-    for (const rainbow of rainbows) {
-      this.currentGrid[rainbow.y][rainbow.x] = this._rollReplacementSymbol();
+    if (!this.rainbowSpawnedThisSpin) {
+      this.rainbowSpawnedThisSpin = true;
+    }
+
+    const keepIndex = this.rng.nextInt(0, rainbows.length - 1);
+    for (let index = 0; index < rainbows.length; index++) {
+      if (index === keepIndex) {
+        continue;
+      }
+
+      const extra = rainbows[index];
+      this.currentGrid[extra.y][extra.x] = this._rollReplacementSymbol();
     }
   }
 
   _rollReplacementSymbol() {
-    const table = [
-      { id: 1, weight: 22 },
-      { id: 2, weight: 20 },
-      { id: 3, weight: 18 },
-      { id: 4, weight: 16 },
-      { id: 5, weight: 14 },
-      { id: 6, weight: 8 },
-      { id: 7, weight: 2 },
-    ];
+    const table = this._getSymbolWeightsForCurrentSpin({
+      allowRainbow: false,
+      includeScatter: true,
+    });
 
     const total = table.reduce((sum, entry) => sum + entry.weight, 0);
     let roll = this.rng.nextInt(0, total - 1);
@@ -533,6 +524,58 @@ export class LuckyScapeSlot extends BaseSlot {
     }
 
     return 1;
+  }
+
+  _getSymbolWeightsForCurrentSpin({ allowRainbow = true, includeScatter = true } = {}) {
+    // Connection-biased profiles: free spins intentionally lean heavier to low regulars
+    // so 5+ adjacency occurs more frequently while preserving symbol variety.
+    const profile = this.isInFreeSpins
+      ? {
+          ten: 36,
+          jack: 32,
+          queen: 28,
+          king: 24,
+          ace: 20,
+          trap: 9,
+          cheese: 8,
+          beer: 6,
+          bread: 5,
+          topHat: 4,
+          wild: 2,
+          scatter: 1,
+          rainbow: 2,
+        }
+      : {
+          ten: 30,
+          jack: 27,
+          queen: 24,
+          king: 20,
+          ace: 17,
+          trap: 9,
+          cheese: 8,
+          beer: 6,
+          bread: 5,
+          topHat: 4,
+          wild: 3,
+          scatter: 2,
+          rainbow: 2,
+        };
+
+    return [
+      { id: 1, weight: profile.ten },
+      { id: 2, weight: profile.jack },
+      { id: 3, weight: profile.queen },
+      { id: 4, weight: profile.king },
+      { id: 5, weight: profile.ace },
+      { id: 11, weight: profile.trap },
+      { id: 12, weight: profile.cheese },
+      { id: 13, weight: profile.beer },
+      { id: 14, weight: profile.bread },
+      { id: 15, weight: profile.topHat },
+      { id: 6, weight: profile.wild },
+      { id: 7, weight: includeScatter ? profile.scatter : 0 },
+      { id: 9, weight: allowRainbow ? profile.rainbow : 0 },
+    ].filter((entry) => entry.weight > 0);
   }
 
   _findSymbolPositions(symbolId) {
@@ -931,12 +974,13 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   _pickRandomRegularPosition() {
+    const regularSymbols = CascadeDetector.REGULAR_SYMBOL_IDS;
     const candidates = [];
 
     for (let y = 0; y < this.gridHeight; y++) {
       for (let x = 0; x < this.gridWidth; x++) {
         const value = this.currentGrid[y][x];
-        if (value >= 1 && value <= 6) {
+        if (regularSymbols.has(value)) {
           candidates.push({ x, y });
         }
       }
@@ -954,14 +998,14 @@ export class LuckyScapeSlot extends BaseSlot {
     const isTreasureMode = this.bonusMode?.id === "TREASURE_RAINBOW";
     const table = isTreasureMode
       ? [
-          { value: 5, weight: 12 },
-          { value: 7, weight: 10 },
-          { value: 10, weight: 10 },
-          { value: 15, weight: 8 },
-          { value: 20, weight: 7 },
+          { value: 5, weight: 14 },
+          { value: 10, weight: 12 },
+          { value: 15, weight: 10 },
+          { value: 20, weight: 8 },
+          { value: 25, weight: 4 },
           { value: 50, weight: 3 },
           { value: 100, weight: 2 },
-          { value: 200, weight: 1 },
+          { value: 250, weight: 1 },
           { value: 500, weight: 1 },
         ]
       : [
@@ -969,16 +1013,16 @@ export class LuckyScapeSlot extends BaseSlot {
           { value: 0.5, weight: 16 },
           { value: 1, weight: 14 },
           { value: 2, weight: 12 },
-          { value: 3, weight: 9 },
-          { value: 4, weight: 8 },
+          { value: 3, weight: 10 },
+          { value: 4, weight: 9 },
           { value: 5, weight: 7 },
-          { value: 7, weight: 4 },
-          { value: 10, weight: 4 },
-          { value: 15, weight: 3 },
-          { value: 20, weight: 2 },
-          { value: 50, weight: 1 },
+          { value: 10, weight: 5 },
+          { value: 15, weight: 4 },
+          { value: 20, weight: 3 },
+          { value: 25, weight: 2 },
+          { value: 50, weight: 2 },
           { value: 100, weight: 1 },
-          { value: 200, weight: 1 },
+          { value: 250, weight: 1 },
           { value: 500, weight: 1 },
         ];
 
@@ -1009,13 +1053,11 @@ export class LuckyScapeSlot extends BaseSlot {
 
   _rollCloverMultiplierValue() {
     const table = [
-      { multiplier: 2, weight: 38 },
-      { multiplier: 3, weight: 26 },
-      { multiplier: 4, weight: 15 },
+      { multiplier: 2, weight: 40 },
+      { multiplier: 3, weight: 28 },
+      { multiplier: 4, weight: 16 },
       { multiplier: 5, weight: 10 },
-      { multiplier: 6, weight: 6 },
-      { multiplier: 8, weight: 3 },
-      { multiplier: 10, weight: 2 },
+      { multiplier: 10, weight: 6 },
     ];
 
     const total = table.reduce((sum, entry) => sum + entry.weight, 0);

@@ -3,8 +3,8 @@
  *
  * Responsible for:
  * - Finding winning clusters (5+ adjacent matching symbols)
- * - Calculating payouts with cluster size bonuses
- * - Supporting wild symbol substitution
+ * - Calculating payouts via size-banded paytable rows
+ * - Supporting exact-symbol cluster matching
  * - Detecting multiple simultaneous wins
  *
  * Algorithm: Flood-fill connected component detection
@@ -16,6 +16,11 @@ export class CascadeDetector {
    * Symbol ID constants
    */
   static SYMBOL_IDS = {
+    TEN: 1,
+    JACK: 2,
+    QUEEN: 3,
+    KING: 4,
+    ACE: 5,
     RED: 1,
     GREEN: 2,
     PURPLE: 3,
@@ -26,19 +31,33 @@ export class CascadeDetector {
     CLOVER: 8,
     RAINBOW: 9,
     BUCKET: 10,
+    TRAP: 11,
+    CHEESE: 12,
+    BEER: 13,
+    BREAD: 14,
+    TOP_HAT: 15,
     EMPTY: 0,
   };
+
+  static REGULAR_SYMBOL_IDS = new Set([1, 2, 3, 4, 5, 11, 12, 13, 14, 15]);
+
+  static NON_CLUSTER_SYMBOL_IDS = new Set([0, 7, 8, 9, 10]);
 
   /**
    * Base payouts per symbol (in units of bet)
    */
   static BASE_PAYOUTS = {
-    1: 0.35,
-    2: 0.45,
-    3: 0.65,
-    4: 0.85,
-    5: 1.15,
-    6: 1.6,
+    1: 0.1,
+    2: 0.1,
+    3: 0.1,
+    4: 0.1,
+    5: 0.1,
+    6: 1.0,
+    11: 0.3,
+    12: 0.3,
+    13: 0.5,
+    14: 0.5,
+    15: 1.0,
     7: "special", // SCATTER (doesn't use cluster payout)
     8: "special", // CLOVER symbol
     9: "special", // RAINBOW symbol
@@ -46,7 +65,127 @@ export class CascadeDetector {
   };
 
   /**
-   * Cluster size multipliers (favors larger clusters)
+   * Le Bandit-style cluster paytable by symbol and size band.
+   *
+   * Size bands:
+   * - 5
+   * - 6
+   * - 7
+   * - 8
+   * - 9-10
+   * - 11-12
+   * - 13+
+   */
+  static CLUSTER_PAYTABLE = {
+    // 10, J, Q, K, A
+    1: {
+      5: 0.1,
+      6: 0.2,
+      7: 0.3,
+      8: 0.5,
+      "9-10": 1.5,
+      "11-12": 5.0,
+      "13+": 15.0,
+    },
+    2: {
+      5: 0.1,
+      6: 0.2,
+      7: 0.3,
+      8: 0.5,
+      "9-10": 1.5,
+      "11-12": 5.0,
+      "13+": 15.0,
+    },
+    3: {
+      5: 0.1,
+      6: 0.2,
+      7: 0.3,
+      8: 0.5,
+      "9-10": 1.5,
+      "11-12": 5.0,
+      "13+": 15.0,
+    },
+    4: {
+      5: 0.1,
+      6: 0.2,
+      7: 0.3,
+      8: 0.5,
+      "9-10": 1.5,
+      "11-12": 5.0,
+      "13+": 15.0,
+    },
+    5: {
+      5: 0.1,
+      6: 0.2,
+      7: 0.3,
+      8: 0.5,
+      "9-10": 1.5,
+      "11-12": 5.0,
+      "13+": 15.0,
+    },
+    // Wild (kept in play)
+    6: {
+      5: 1.0,
+      6: 1.5,
+      7: 2.0,
+      8: 3.0,
+      "9-10": 10.0,
+      "11-12": 30.0,
+      "13+": 100.0,
+    },
+    // Trap / Cheese
+    11: {
+      5: 0.3,
+      6: 0.4,
+      7: 0.5,
+      8: 0.7,
+      "9-10": 2.5,
+      "11-12": 7.5,
+      "13+": 25.0,
+    },
+    12: {
+      5: 0.3,
+      6: 0.4,
+      7: 0.5,
+      8: 0.7,
+      "9-10": 2.5,
+      "11-12": 7.5,
+      "13+": 25.0,
+    },
+    // Beer / Bread
+    13: {
+      5: 0.5,
+      6: 0.7,
+      7: 1.0,
+      8: 1.5,
+      "9-10": 5.0,
+      "11-12": 15.0,
+      "13+": 50.0,
+    },
+    14: {
+      5: 0.5,
+      6: 0.7,
+      7: 1.0,
+      8: 1.5,
+      "9-10": 5.0,
+      "11-12": 15.0,
+      "13+": 50.0,
+    },
+    // Top Hat
+    15: {
+      5: 1.0,
+      6: 1.5,
+      7: 2.0,
+      8: 3.0,
+      "9-10": 10.0,
+      "11-12": 30.0,
+      "13+": 100.0,
+    },
+  };
+
+  /**
+   * Legacy multipliers (kept for compatibility display hooks).
+   * Runtime payout logic uses CLUSTER_PAYTABLE.
    */
   static CLUSTER_MULTIPLIERS = {
     5: 1.0,
@@ -81,11 +220,7 @@ export class CascadeDetector {
 
         // Skip if already part of a cluster or non-paying special
         if (visited.has(posKey)) continue;
-        if (grid[y][x] === CascadeDetector.SYMBOL_IDS.EMPTY) continue;
-        if (grid[y][x] === CascadeDetector.SYMBOL_IDS.SCATTER) continue;
-        if (grid[y][x] === CascadeDetector.SYMBOL_IDS.CLOVER) continue;
-        if (grid[y][x] === CascadeDetector.SYMBOL_IDS.RAINBOW) continue;
-        if (grid[y][x] === CascadeDetector.SYMBOL_IDS.BUCKET) continue;
+        if (CascadeDetector.NON_CLUSTER_SYMBOL_IDS.has(grid[y][x])) continue;
 
         // Start flood-fill from this position
         const cluster = this._findCluster(grid, x, y, visited);
@@ -183,8 +318,8 @@ export class CascadeDetector {
   }
 
   /**
-   * Check if two symbols match (considering wild substitution)
-   * Wild (6) matches any regular symbol (1-5) but not special symbols or empty
+  * Check if two symbols match.
+  * Matching is exact-symbol only; no substitution.
    *
    * @private
    * @param {number} symbol1 - First symbol ID
@@ -217,9 +352,7 @@ export class CascadeDetector {
 
   /**
    * Calculate payout for a winning cluster
-   * Payout = base_payout × cluster_multiplier
-   *
-   * For mixed clusters (with wild), use the highest payout symbol in cluster
+  * Payout comes from the symbol row + cluster size band in CLUSTER_PAYTABLE.
    *
    * @private
    * @param {Object} cluster - Cluster with positions and symbolId
@@ -228,25 +361,65 @@ export class CascadeDetector {
    */
   _calculateClusterPayout(cluster, grid) {
     const { positions } = cluster;
-    let basePayout = 0;
+    const clusterSize = positions.length;
+    const highestSymbolId = this._getHighestPayingSymbolInCluster(positions, grid);
+    const paytable = CascadeDetector.CLUSTER_PAYTABLE[highestSymbolId];
 
-    // Check all positions in cluster for highest payout symbol
-    let maxPayout = 0;
-    for (const pos of positions) {
-      const symbolId = grid[pos.y][pos.x];
-      const symbolPayout = CascadeDetector.BASE_PAYOUTS[symbolId] || 0;
-      maxPayout = Math.max(maxPayout, symbolPayout);
+    if (!paytable) {
+      return 0;
     }
 
-    basePayout = maxPayout;
-    const clusterSize = positions.length;
+    const band = this._getClusterSizeBand(clusterSize);
+    return Number(paytable[band] || 0);
+  }
 
-    // Get multiplier based on cluster size (cap at 8+)
-    const multiplierKey = Math.min(clusterSize, 8);
-    const multiplier =
-      CascadeDetector.CLUSTER_MULTIPLIERS[multiplierKey] || 2.0;
+  _getHighestPayingSymbolInCluster(positions, grid) {
+    let highestSymbolId = null;
+    let highestFiveClusterPayout = -Infinity;
 
-    return basePayout * multiplier;
+    for (const pos of positions) {
+      const symbolId = grid[pos.y][pos.x];
+      const paytable = CascadeDetector.CLUSTER_PAYTABLE[symbolId];
+      if (!paytable) {
+        continue;
+      }
+
+      const fiveOfAKindPayout = Number(paytable[5] || 0);
+      if (fiveOfAKindPayout > highestFiveClusterPayout) {
+        highestFiveClusterPayout = fiveOfAKindPayout;
+        highestSymbolId = symbolId;
+      }
+    }
+
+    return highestSymbolId;
+  }
+
+  _getClusterSizeBand(clusterSize) {
+    if (clusterSize <= 5) {
+      return 5;
+    }
+
+    if (clusterSize === 6) {
+      return 6;
+    }
+
+    if (clusterSize === 7) {
+      return 7;
+    }
+
+    if (clusterSize === 8) {
+      return 8;
+    }
+
+    if (clusterSize <= 10) {
+      return "9-10";
+    }
+
+    if (clusterSize <= 12) {
+      return "11-12";
+    }
+
+    return "13+";
   }
 
   /**
@@ -295,7 +468,7 @@ export class CascadeDetector {
    *
    * Removes:
    * - All current winning positions
-   * - Any additional visible regular symbols (1-5) that match
+  * - Any additional visible regular symbols that match
    *   regular symbol types participating in winning clusters
    *
    * @param {number[][]} grid - Game grid
@@ -309,10 +482,7 @@ export class CascadeDetector {
     for (const cluster of winResult?.clusters || []) {
       for (const pos of cluster.positions) {
         const symbolId = grid[pos.y][pos.x];
-        if (
-          symbolId >= CascadeDetector.SYMBOL_IDS.RED &&
-          symbolId <= CascadeDetector.SYMBOL_IDS.WILD
-        ) {
+        if (CascadeDetector.REGULAR_SYMBOL_IDS.has(symbolId)) {
           matchingRegularSymbols.add(symbolId);
         }
       }
@@ -380,6 +550,11 @@ export class CascadeDetector {
       8: "  C ",
       9: "  R ",
       10: "  U ",
+      11: "  T ",
+      12: "  C ",
+      13: "  B ",
+      14: "  R ",
+      15: "  H ",
     };
 
     for (let y = 0; y < this.gridHeight; y++) {

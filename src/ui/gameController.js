@@ -11,6 +11,7 @@
 import { LuckyScapeSlot } from "../games/luckyscape/luckyScapeSlot.js";
 import { GridRenderer } from "../renderer/gridRenderer.js";
 import { LUCKY_ESCAPE_CONFIG } from "../games/luckyscape/config.js";
+import { ANIMATION_TIMING } from "../config/animationTiming.js";
 import { SoundManager } from "./soundManager.js";
 
 export class GameController {
@@ -55,36 +56,14 @@ export class GameController {
     this.bonusIntroResolver = null;
     this.soundManager = new SoundManager();
     this.timings = {
-      spinDrop: 520,
-      cascade: 200,
-      betweenCascades: 24,
-      preCascadePause: 30,
-      maxAnimatedCascades: 8,
-      winText: 520,
+      spinDrop: ANIMATION_TIMING.controller.spinFlow.spinDropMs,
+      cascade: ANIMATION_TIMING.controller.spinFlow.cascadeMs,
+      betweenCascades: ANIMATION_TIMING.controller.spinFlow.betweenCascadesMs,
+      preCascadePause: ANIMATION_TIMING.controller.spinFlow.preCascadePauseMs,
+      maxAnimatedCascades:
+        ANIMATION_TIMING.controller.spinFlow.maxAnimatedCascades,
+      winText: ANIMATION_TIMING.controller.spinFlow.winTextMs,
     };
-
-    if (LUCKY_ESCAPE_CONFIG?.timing) {
-      this.timings.spinDrop = Math.max(
-        360,
-        LUCKY_ESCAPE_CONFIG.timing.spinDuration * 0.55,
-      );
-      this.timings.cascade = Math.max(
-        160,
-        LUCKY_ESCAPE_CONFIG.timing.cascadeRemoval * 0.72,
-      );
-      this.timings.betweenCascades = Math.max(
-        18,
-        LUCKY_ESCAPE_CONFIG.timing.cascadeDelay * 0.24,
-      );
-      this.timings.preCascadePause = Math.max(
-        24,
-        LUCKY_ESCAPE_CONFIG.timing.cascadeDelay * 0.2,
-      );
-      this.timings.winText = Math.max(
-        420,
-        LUCKY_ESCAPE_CONFIG.timing.winDisplay * 0.35,
-      );
-    }
 
     // Initialize UI
     this.ready = this._initialize();
@@ -133,6 +112,16 @@ export class GameController {
     const balanceEl = document.getElementById("balance");
     const stateEl = document.getElementById("state");
     const betInput = document.getElementById("betInput");
+    if (betInput) {
+      const minBet = Number(this.game.config?.minBet ?? 0.1);
+      const maxBet = Number(this.game.config?.maxBet ?? 100);
+      betInput.min = String(minBet);
+      betInput.max = String(maxBet);
+      betInput.step = "0.1";
+      if (!betInput.value) {
+        betInput.value = String(minBet);
+      }
+    }
     const resultEl = document.getElementById("result");
     const resultText = document.getElementById("resultText");
     const gameContainer = document.querySelector(".game-container");
@@ -291,7 +280,20 @@ export class GameController {
       this.soundManager.playButton();
     }
 
-    const betAmount = parseInt(this.ui.betInput.value) || 10;
+    const betAmount = Number.parseFloat(this.ui.betInput.value);
+
+    if (!this.game.validateBet(betAmount)) {
+      const minBet = Number(this.game.config?.minBet ?? 0.1);
+      const maxBet = Number(this.game.config?.maxBet ?? 100);
+      this._showResult(
+        `Bet must be between ${this._formatCredits(minBet)} and ${this._formatCredits(maxBet)}`,
+        "loss",
+      );
+      if (this.autoPlayEnabled) {
+        this._toggleAutoplay(false);
+      }
+      return;
+    }
 
     // Validate bet
     if (betAmount > this.currentBalance) {
@@ -324,7 +326,7 @@ export class GameController {
           : [];
 
         await this.renderer.animateScatterTrigger(scatterPositions, {
-          duration: 1100,
+          duration: ANIMATION_TIMING.controller.triggerEffects.bonusScatterPulseMs,
         });
 
         this._showResult(
@@ -335,7 +337,7 @@ export class GameController {
         await this._playFreeSpins(betAmount);
       }
 
-      await this._delay(600);
+      await this._delay(ANIMATION_TIMING.controller.pauses.postBaseSpinMs);
       this.ui.stateEl.textContent = "READY";
       this._showResult("Ready for next spin", "info");
     } catch (error) {
@@ -367,7 +369,17 @@ export class GameController {
       this._toggleAutoplay(false);
     }
 
-    const betAmount = parseInt(this.ui.betInput.value) || 10;
+    const betAmount = Number.parseFloat(this.ui.betInput.value);
+
+    if (!this.game.validateBet(betAmount)) {
+      const minBet = Number(this.game.config?.minBet ?? 0.1);
+      const maxBet = Number(this.game.config?.maxBet ?? 100);
+      this._showResult(
+        `Bet must be between ${this._formatCredits(minBet)} and ${this._formatCredits(maxBet)}`,
+        "loss",
+      );
+      return;
+    }
     const offers = this.game.getBonusBuyOffers(betAmount);
     const offer = offers.offers.find((entry) => entry.modeType === modeType);
 
@@ -381,18 +393,6 @@ export class GameController {
         `Insufficient balance for buy (${this._formatCredits(offer.cost)})`,
         "loss",
       );
-      return;
-    }
-
-    const modeName = modeType.replace(/_/g, " ");
-    const confirmed = await this._showBonusBuyConfirm({
-      modeName,
-      cost: offer.cost,
-      betAmount,
-      multiplier: offer.multiplier,
-    });
-    if (!confirmed) {
-      this._showResult("Bonus buy cancelled", "info");
       return;
     }
 
@@ -415,7 +415,12 @@ export class GameController {
         "win",
       );
 
-      await this._delay(700);
+      await this._showBonusIntro(bonusMeta, null, {
+        source: "buy",
+        cost: offer.cost,
+        multiplier: offer.multiplier,
+        betAmount,
+      });
       await this._playFreeSpins(betAmount);
 
       this.ui.stateEl.textContent = "READY";
@@ -545,7 +550,7 @@ export class GameController {
       spinResult.scatterPositions.length === 2
     ) {
       await this.renderer.animateScatterTrigger(spinResult.scatterPositions, {
-        duration: 760,
+        duration: ANIMATION_TIMING.controller.triggerEffects.teaseScatterPulseMs,
         intensity: 0.26,
       });
     }
@@ -627,14 +632,15 @@ export class GameController {
 
         if (retriggerScatterPositions.length > 0) {
           await this.renderer.animateScatterTrigger(retriggerScatterPositions, {
-            duration: 860,
+            duration:
+              ANIMATION_TIMING.controller.triggerEffects.retriggerScatterPulseMs,
             intensity: 0.7,
           });
         }
 
         await this.renderer.animateCenterCallout(
           `+${this._formatCount(retriggerSpinsAwarded)} FREE SPINS`,
-          860,
+          ANIMATION_TIMING.controller.triggerEffects.retriggerCalloutMs,
           { color: 0xffef9a },
         );
 
@@ -642,7 +648,7 @@ export class GameController {
           `+${this._formatCount(retriggerSpinsAwarded)} FREE SPINS`,
           "win",
         );
-        await this._delay(240);
+        await this._delay(ANIMATION_TIMING.controller.pauses.postRetriggerMs);
       }
 
       this.game.advanceFreeSpins();
@@ -658,7 +664,7 @@ export class GameController {
         scatters: result.scatterCount,
       });
 
-      await this._delay(350);
+      await this._delay(ANIMATION_TIMING.controller.pauses.betweenFreeSpinsMs);
     }
   }
 
@@ -714,14 +720,23 @@ export class GameController {
     }
   }
 
-  _showBonusIntro(bonusMode, scatterCount) {
+  _showBonusIntro(bonusMode, scatterCount, options = {}) {
     if (!this.ui?.bonusIntroModal) {
       return Promise.resolve();
     }
 
+    const isBonusBuy = options?.source === "buy";
     this.bonusIntroOpen = true;
     this.ui.bonusIntroTitle.textContent = bonusMode?.name || "BONUS TRIGGERED";
-    this.ui.bonusIntroCopy.textContent = `${this._formatCount(scatterCount)} FS landed. ${this._formatCount(bonusMode?.initialSpins || 0)} free spins ready — press continue to start.`;
+
+    if (isBonusBuy) {
+      const costText = this._formatCredits(options?.cost || 0);
+      const spinsText = this._formatCount(bonusMode?.initialSpins || 0);
+      this.ui.bonusIntroCopy.textContent = `Bonus Buy purchased for ${costText}. ${spinsText} free spins ready — press continue to start.`;
+    } else {
+      this.ui.bonusIntroCopy.textContent = `${this._formatCount(scatterCount)} FS landed. ${this._formatCount(bonusMode?.initialSpins || 0)} free spins ready — press continue to start.`;
+    }
+
     this.ui.bonusIntroGraphic.textContent = `${bonusMode?.name || "BONUS"} GRAPHIC PLACEHOLDER`;
     this.ui.bonusIntroModal.classList.add("show");
 
@@ -782,7 +797,10 @@ export class GameController {
 
   _updateControlButtons() {
     if (!this.ui) return;
-    const betAmount = parseInt(this.ui.betInput.value) || 10;
+    const parsedBet = Number.parseFloat(this.ui.betInput.value);
+    const minBet = Number(this.game.config?.minBet ?? 0.1);
+    const fallbackBet = Number.isFinite(parsedBet) ? parsedBet : minBet;
+    const betAmount = this.game.validateBet(fallbackBet) ? fallbackBet : minBet;
     const offers = this.game.getBonusBuyOffers(betAmount);
     const byMode = Object.fromEntries(
       offers.offers.map((entry) => [entry.modeType, entry]),

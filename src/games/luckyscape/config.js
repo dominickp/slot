@@ -14,12 +14,17 @@ export const LUCKY_ESCAPE_CONFIG = {
 
   // Symbol definitions
   symbols: [
-    { id: 1, name: "10", payout: 0.35, rarity: "common" },
-    { id: 2, name: "J", payout: 0.45, rarity: "common" },
-    { id: 3, name: "Q", payout: 0.65, rarity: "common" },
-    { id: 4, name: "K", payout: 0.85, rarity: "uncommon" },
-    { id: 5, name: "A", payout: 1.15, rarity: "uncommon" },
-    { id: 6, name: "Top Hat", payout: 1.6, rarity: "rare" },
+    { id: 1, name: "10", payout: 0.1, rarity: "common" },
+    { id: 2, name: "J", payout: 0.1, rarity: "common" },
+    { id: 3, name: "Q", payout: 0.1, rarity: "common" },
+    { id: 4, name: "K", payout: 0.1, rarity: "common" },
+    { id: 5, name: "A", payout: 0.1, rarity: "common" },
+    { id: 11, name: "Trap", payout: 0.3, rarity: "uncommon" },
+    { id: 12, name: "Cheese", payout: 0.3, rarity: "uncommon" },
+    { id: 13, name: "Beer", payout: 0.5, rarity: "rare" },
+    { id: 14, name: "Bread", payout: 0.5, rarity: "rare" },
+    { id: 15, name: "Top Hat", payout: 1.0, rarity: "epic" },
+    { id: 6, name: "Wild", payout: "special", rarity: "special" },
     { id: 7, name: "Free Spins", payout: "special", rarity: "bonus trigger" },
     {
       id: 8,
@@ -98,9 +103,11 @@ export const LUCKY_ESCAPE_CONFIG = {
   },
 
   // RTP and volatility
-  rtp: 0.96,
-  volatility: "high",
-  maxWin: 5000,
+  rtp: 0.9634,
+  volatility: "medium",
+  maxWin: 10000,
+  minBet: 0.1,
+  maxBet: 100.0,
 
   // Payout distribution (target)
   payoutDistribution: {

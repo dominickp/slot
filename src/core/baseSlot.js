@@ -63,7 +63,15 @@ export class BaseSlot {
    * Validate bet amount
    */
   validateBet(betAmount) {
-    return betAmount > 0 && betAmount <= (this.config.maxBet || Infinity);
+    const numericBet = Number(betAmount);
+    const minBet = Number(this.config.minBet ?? 0);
+    const maxBet = Number(this.config.maxBet ?? Infinity);
+
+    return (
+      Number.isFinite(numericBet) &&
+      numericBet >= minBet &&
+      numericBet <= maxBet
+    );
   }
 
   /**

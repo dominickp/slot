@@ -6,47 +6,63 @@
  */
 
 import * as PIXI from "pixi.js";
+import { ANIMATION_TIMING, getRevealPacing } from "../config/animationTiming.js";
 
 // Symbol IDs mapping
 const SYMBOLS = {
   EMPTY: 0,
-  RED: 1,
-  GREEN: 2,
-  PURPLE: 3,
-  YELLOW: 4,
-  BLUE: 5,
+  TEN: 1,
+  JACK: 2,
+  QUEEN: 3,
+  KING: 4,
+  ACE: 5,
   WILD: 6,
   SCATTER: 7,
   CLOVER: 8,
   RAINBOW: 9,
   BUCKET: 10,
+  TRAP: 11,
+  CHEESE: 12,
+  BEER: 13,
+  BREAD: 14,
+  TOP_HAT: 15,
 };
 
 // Symbol colors/styling
 const SYMBOL_COLORS = {
-  [SYMBOLS.RED]: 0x9d8665,
-  [SYMBOLS.GREEN]: 0xa09170,
-  [SYMBOLS.PURPLE]: 0xaa9f87,
-  [SYMBOLS.YELLOW]: 0xb5a68c,
-  [SYMBOLS.BLUE]: 0xc2b39a,
-  [SYMBOLS.WILD]: 0xcfbf9f,
+  [SYMBOLS.TEN]: 0x9d8665,
+  [SYMBOLS.JACK]: 0xa09170,
+  [SYMBOLS.QUEEN]: 0xaa9f87,
+  [SYMBOLS.KING]: 0xb5a68c,
+  [SYMBOLS.ACE]: 0xc2b39a,
+  [SYMBOLS.WILD]: 0xe6d7b6,
   [SYMBOLS.SCATTER]: 0xb68f4c,
   [SYMBOLS.CLOVER]: 0x67c37d,
   [SYMBOLS.RAINBOW]: 0x6fb5e8,
   [SYMBOLS.BUCKET]: 0xe1a974,
+  [SYMBOLS.TRAP]: 0xb39064,
+  [SYMBOLS.CHEESE]: 0xd1ad4f,
+  [SYMBOLS.BEER]: 0xc5844d,
+  [SYMBOLS.BREAD]: 0xba8b58,
+  [SYMBOLS.TOP_HAT]: 0x2f2f36,
 };
 
 const SYMBOL_LABELS = {
-  [SYMBOLS.RED]: "10",
-  [SYMBOLS.GREEN]: "J",
-  [SYMBOLS.PURPLE]: "Q",
-  [SYMBOLS.YELLOW]: "K",
-  [SYMBOLS.BLUE]: "A",
-  [SYMBOLS.WILD]: "🎩",
+  [SYMBOLS.TEN]: "10",
+  [SYMBOLS.JACK]: "J",
+  [SYMBOLS.QUEEN]: "Q",
+  [SYMBOLS.KING]: "K",
+  [SYMBOLS.ACE]: "A",
+  [SYMBOLS.WILD]: "W",
   [SYMBOLS.SCATTER]: "FS",
   [SYMBOLS.CLOVER]: "🍀",
   [SYMBOLS.RAINBOW]: "🌈",
   [SYMBOLS.BUCKET]: "🏺",
+  [SYMBOLS.TRAP]: "⛓",
+  [SYMBOLS.CHEESE]: "🧀",
+  [SYMBOLS.BEER]: "🍺",
+  [SYMBOLS.BREAD]: "🥖",
+  [SYMBOLS.TOP_HAT]: "🎩",
   101: "🟤",
   102: "⚪",
   103: "🟡",
@@ -499,7 +515,13 @@ export class GridRenderer {
     };
   }
 
-  async _animateBadgeAtCell(x, y, text, color, duration = 300) {
+  async _animateBadgeAtCell(
+    x,
+    y,
+    text,
+    color,
+    duration = ANIMATION_TIMING.renderer.defaults.badgeMs,
+  ) {
     await this.ready;
 
     return new Promise((resolve) => {
@@ -535,7 +557,12 @@ export class GridRenderer {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  async _animateFocusedTileAtCell(x, y, duration = 520, options = {}) {
+  async _animateFocusedTileAtCell(
+    x,
+    y,
+    duration = ANIMATION_TIMING.renderer.defaults.focusedTileMs,
+    options = {},
+  ) {
     await this.ready;
 
     return new Promise((resolve) => {
@@ -623,7 +650,11 @@ export class GridRenderer {
     });
   }
 
-  async _animateMultiplierBurstFromClover(cloverHit, targets, duration = 380) {
+  async _animateMultiplierBurstFromClover(
+    cloverHit,
+    targets,
+    duration = ANIMATION_TIMING.renderer.defaults.multiplierBurstMs,
+  ) {
     await this.ready;
 
     if (!Array.isArray(targets) || targets.length === 0) {
@@ -711,7 +742,7 @@ export class GridRenderer {
     y,
     beforeValue,
     afterValue,
-    duration = 340,
+    duration = ANIMATION_TIMING.renderer.defaults.upgradePulseMs,
     options = {},
   ) {
     await this.ready;
@@ -790,7 +821,13 @@ export class GridRenderer {
     });
   }
 
-  async _animateFlipRevealAtCell(x, y, text, color, duration = 360) {
+  async _animateFlipRevealAtCell(
+    x,
+    y,
+    text,
+    color,
+    duration = ANIMATION_TIMING.renderer.defaults.flipRevealMs,
+  ) {
     await this.ready;
 
     return new Promise((resolve) => {
@@ -895,7 +932,7 @@ export class GridRenderer {
     x,
     y,
     revealData,
-    duration = 320,
+    duration = ANIMATION_TIMING.renderer.defaults.tileSpinRevealMs,
     options = {},
   ) {
     await this.ready;
@@ -1006,7 +1043,11 @@ export class GridRenderer {
     });
   }
 
-  async animateCenterCallout(text, duration = 820, options = {}) {
+  async animateCenterCallout(
+    text,
+    duration = ANIMATION_TIMING.renderer.defaults.centerCalloutMs,
+    options = {},
+  ) {
     await this.ready;
 
     return new Promise((resolve) => {
@@ -1095,7 +1136,7 @@ export class GridRenderer {
 
     if (tokens.length > 0) {
       await new Promise((resolve) => {
-        const duration = 560;
+        const duration = ANIMATION_TIMING.renderer.defaults.collectFlowTravelMs;
         const startTime = Date.now();
 
         const animate = () => {
@@ -1133,7 +1174,7 @@ export class GridRenderer {
       collectorStep.y,
       `POT +${this._formatBonusValue(collectorStep.collectedValue * betAmount)}`,
       0xffc77a,
-      620,
+      ANIMATION_TIMING.renderer.defaults.collectFlowBadgeMs,
     );
   }
 
@@ -1167,7 +1208,9 @@ export class GridRenderer {
       return;
     }
 
-    const duration = Number(options.duration || 900);
+    const duration = Number(
+      options.duration || ANIMATION_TIMING.renderer.defaults.scatterTriggerMs,
+    );
     const intensity = Math.max(
       0.2,
       Math.min(1, Number(options.intensity ?? 1)),
@@ -1247,11 +1290,19 @@ export class GridRenderer {
     }
   }
 
-  async animateSpinTransition(fromGrid, toGrid, duration = 520, options = {}) {
+  async animateSpinTransition(
+    fromGrid,
+    toGrid,
+    duration = ANIMATION_TIMING.renderer.defaults.spinTransitionMs,
+    options = {},
+  ) {
     await this.ready;
 
     return new Promise((resolve) => {
-      const { columnStaggerMs = 28, showBonusOverlays = false } = options;
+      const {
+        columnStaggerMs = ANIMATION_TIMING.renderer.stagger.spinTransitionColumnMs,
+        showBonusOverlays = false,
+      } = options;
 
       const padding = 5;
       const outDistance = this.rows * this.cellSize + this.cellSize * 0.85;
@@ -1366,7 +1417,11 @@ export class GridRenderer {
     });
   }
 
-  async animateGridDrop(gridData, duration = 420, options = {}) {
+  async animateGridDrop(
+    gridData,
+    duration = ANIMATION_TIMING.renderer.defaults.gridDropMs,
+    options = {},
+  ) {
     await this.ready;
 
     return new Promise((resolve) => {
@@ -1376,7 +1431,7 @@ export class GridRenderer {
         changedKeys = null,
         baseGrid = null,
         startRowByKey = null,
-        columnStaggerMs = 16,
+        columnStaggerMs = ANIMATION_TIMING.renderer.stagger.gridDropColumnMs,
         rowStaggerMs = 0,
         showBonusOverlays = false,
       } = options;
@@ -1568,7 +1623,7 @@ export class GridRenderer {
     winPositions,
     afterGrid,
     movementData,
-    duration = 300,
+    duration = ANIMATION_TIMING.renderer.defaults.cascadeMs,
   ) {
     await this.ready;
 
@@ -1704,7 +1759,7 @@ export class GridRenderer {
               changedKeys,
               baseGrid,
               startRowByKey,
-              columnStaggerMs: 12,
+              columnStaggerMs: ANIMATION_TIMING.renderer.stagger.cascadeDropColumnMs,
               rowStaggerMs: 0,
               showBonusOverlays: false,
             }).then(() => {
@@ -1721,7 +1776,9 @@ export class GridRenderer {
   /**
    * Animate spin effect on reels
    */
-  async animateSpinStart(duration = 500) {
+  async animateSpinStart(
+    duration = ANIMATION_TIMING.renderer.defaults.spinStartMs,
+  ) {
     await this.ready;
 
     return new Promise((resolve) => {
@@ -1752,7 +1809,11 @@ export class GridRenderer {
   /**
    * Show win animation
    */
-  async animateWin(winAmount, winPositions, duration = 800) {
+  async animateWin(
+    winAmount,
+    winPositions,
+    duration = ANIMATION_TIMING.renderer.defaults.winFloatMs,
+  ) {
     await this.ready;
 
     return new Promise((resolve) => {
@@ -1834,7 +1895,12 @@ export class GridRenderer {
             ? this._animateFocusedTileAtCell(
                 this.bonusVisuals.rainbowPositions[0].x,
                 this.bonusVisuals.rainbowPositions[0].y,
-                Math.max(560, reveals.length * 28 + 420),
+                Math.max(
+                  ANIMATION_TIMING.renderer.bonusSequence.rainbowFocusMinMs,
+                  reveals.length *
+                    ANIMATION_TIMING.renderer.bonusSequence.rainbowFocusPerRevealMs +
+                    ANIMATION_TIMING.renderer.bonusSequence.rainbowFocusBaseMs,
+                ),
                 {
                   accentColor: 0x93d1ff,
                   maxScale: 1.16,
@@ -1852,10 +1918,9 @@ export class GridRenderer {
         });
 
         const revealCount = sortedReveals.length;
-        const revealDuration =
-          revealCount > 20 ? 220 : revealCount > 12 ? 250 : 290;
-        const revealStagger =
-          revealCount > 20 ? 12 : revealCount > 12 ? 16 : 24;
+        const revealPacing = getRevealPacing(revealCount);
+        const revealDuration = revealPacing.durationMs;
+        const revealStagger = revealPacing.staggerMs;
 
         await Promise.all(
           sortedReveals.map(
@@ -1890,11 +1955,16 @@ export class GridRenderer {
           const allTargets = [...coinTargets, ...collectorTargets];
 
           const cloverFocusDuration =
-            520 + Math.max(0, allTargets.length - 1) * 45;
+            ANIMATION_TIMING.renderer.bonusSequence.cloverFocusBaseMs +
+            Math.max(0, allTargets.length - 1) *
+              ANIMATION_TIMING.renderer.bonusSequence.cloverFocusPerTargetMs;
           const cloverFocusPromise = this._animateFocusedTileAtCell(
             cloverHit.x,
             cloverHit.y,
-            Math.max(560, cloverFocusDuration),
+            Math.max(
+              ANIMATION_TIMING.renderer.bonusSequence.cloverFocusMinMs,
+              cloverFocusDuration,
+            ),
             {
               accentColor: 0x67e07f,
               maxScale: 1.18,
@@ -1908,15 +1978,17 @@ export class GridRenderer {
             cloverHit.y,
             `x${this._formatBonusValue(cloverHit.multiplier)}`,
             0x67e07f,
-            360,
+            ANIMATION_TIMING.renderer.bonusSequence.cloverBadgeMs,
           );
 
-          await this._wait(120);
+          await this._wait(
+            ANIMATION_TIMING.renderer.bonusSequence.cloverBadgeGapMs,
+          );
 
           await this._animateMultiplierBurstFromClover(
             cloverHit,
             allTargets,
-            360,
+            ANIMATION_TIMING.renderer.defaults.multiplierBurstMs,
           );
 
           for (const target of coinTargets) {
@@ -1946,7 +2018,9 @@ export class GridRenderer {
             showBonusOverlays: true,
           });
 
-          await this._wait(80);
+          await this._wait(
+            ANIMATION_TIMING.renderer.bonusSequence.cloverSettleGapMs,
+          );
           await cloverFocusPromise;
         }
       }
@@ -1963,7 +2037,10 @@ export class GridRenderer {
             ? step.clearedSources
             : sources;
 
-          const potFocusDuration = sources.length > 0 ? 1320 : 760;
+          const potFocusDuration =
+            sources.length > 0
+              ? ANIMATION_TIMING.renderer.bonusSequence.collectorFocusWithSourcesMs
+              : ANIMATION_TIMING.renderer.bonusSequence.collectorFocusWithoutSourcesMs;
           const potFocusPromise = this._animateFocusedTileAtCell(
             step.x,
             step.y,
@@ -2051,10 +2128,9 @@ export class GridRenderer {
             });
 
             const revealCount = sortedPostReveals.length;
-            const revealDuration =
-              revealCount > 20 ? 220 : revealCount > 12 ? 250 : 290;
-            const revealStagger =
-              revealCount > 20 ? 12 : revealCount > 12 ? 16 : 24;
+            const revealPacing = getRevealPacing(revealCount);
+            const revealDuration = revealPacing.durationMs;
+            const revealStagger = revealPacing.staggerMs;
 
             await Promise.all(
               sortedPostReveals.map(
@@ -2091,7 +2167,12 @@ export class GridRenderer {
             const cloverFocusPromise = this._animateFocusedTileAtCell(
               cloverHit.x,
               cloverHit.y,
-              Math.max(520, 520 + Math.max(0, allTargets.length - 1) * 45),
+              Math.max(
+                ANIMATION_TIMING.renderer.bonusSequence.cloverFocusBaseMs,
+                ANIMATION_TIMING.renderer.bonusSequence.cloverFocusBaseMs +
+                  Math.max(0, allTargets.length - 1) *
+                    ANIMATION_TIMING.renderer.bonusSequence.cloverFocusPerTargetMs,
+              ),
               {
                 accentColor: 0x67e07f,
                 maxScale: 1.18,
@@ -2105,15 +2186,17 @@ export class GridRenderer {
               cloverHit.y,
               `x${this._formatBonusValue(cloverHit.multiplier)}`,
               0x67e07f,
-              320,
+              ANIMATION_TIMING.renderer.bonusSequence.postCollectCloverBadgeMs,
             );
 
-            await this._wait(90);
+            await this._wait(
+              ANIMATION_TIMING.renderer.bonusSequence.postCollectCloverGapMs,
+            );
 
             await this._animateMultiplierBurstFromClover(
               cloverHit,
               allTargets,
-              320,
+              ANIMATION_TIMING.renderer.bonusSequence.postCollectBurstMs,
             );
 
             for (const target of coinTargets) {
@@ -2145,11 +2228,15 @@ export class GridRenderer {
               showBonusOverlays: true,
             });
 
-            await this._wait(80);
+            await this._wait(
+              ANIMATION_TIMING.renderer.bonusSequence.postCollectSettleGapMs,
+            );
             await cloverFocusPromise;
           }
 
-          await this._wait(180);
+          await this._wait(
+            ANIMATION_TIMING.renderer.bonusSequence.collectorStepGapMs,
+          );
         }
 
         const lastCollector = collectorSteps[collectorSteps.length - 1];
@@ -2173,11 +2260,11 @@ export class GridRenderer {
           Math.floor(this.rows / 2),
           `COLLECTED ${this._formatBonusValue(totalCredits)}`,
           0xffe27a,
-          420,
+          ANIMATION_TIMING.renderer.bonusSequence.roundCollectedBadgeMs,
         );
       }
 
-      await this._wait(80);
+      await this._wait(ANIMATION_TIMING.renderer.bonusSequence.betweenRoundsGapMs);
     }
   }
 
