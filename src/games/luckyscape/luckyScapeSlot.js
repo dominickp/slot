@@ -65,7 +65,7 @@ export class LuckyScapeSlot extends BaseSlot {
     this.spinCollectionValue = 0;
     this.chainRoundsTriggered = 0;
     this.bonusEventTimeline = [];
-    this.bonusSawRainbowThisSession = false;
+    this.bonusHadRainbowActivationThisSession = false;
   }
 
   async spin(backend, betAmount = 10) {
@@ -138,8 +138,8 @@ export class LuckyScapeSlot extends BaseSlot {
 
     this._resolveRainbowActivation();
 
-    if (this.spinHadRainbowSymbol && this.isInFreeSpins) {
-      this.bonusSawRainbowThisSession = true;
+    if (this.rainbowTriggered && this.isInFreeSpins) {
+      this.bonusHadRainbowActivationThisSession = true;
     }
 
     this.totalWinFromSpin += this.spinCollectionValue;
@@ -215,7 +215,7 @@ export class LuckyScapeSlot extends BaseSlot {
     this.isInFreeSpins = true;
     this.freeSpinsRemaining = initialSpins;
     this.goldenSquares = new Set();
-    this.bonusSawRainbowThisSession = false;
+    this.bonusHadRainbowActivationThisSession = false;
     this._resetSpinFeatureState();
   }
 
@@ -308,7 +308,7 @@ export class LuckyScapeSlot extends BaseSlot {
       this.isInFreeSpins = false;
       this.bonusMode = null;
       this.goldenSquares.clear();
-      this.bonusSawRainbowThisSession = false;
+      this.bonusHadRainbowActivationThisSession = false;
       return true;
     }
 
@@ -480,7 +480,7 @@ export class LuckyScapeSlot extends BaseSlot {
       return false;
     }
 
-    if (this.bonusSawRainbowThisSession) {
+    if (this.bonusHadRainbowActivationThisSession) {
       return false;
     }
 

@@ -84,20 +84,20 @@ describe("LuckyScapeSlot collector payout consistency", () => {
 });
 
 describe("LuckyScapeSlot minimum bonus rainbow safeguard", () => {
-  it("forces rainbow on final GLITTER_GOLD spin when none seen", () => {
+  it("forces rainbow on final GLITTER_GOLD spin when none has activated golds", () => {
     const slot = new LuckyScapeSlot();
     slot.isInFreeSpins = true;
     slot.bonusMode = { id: "GLITTER_GOLD", remaining: 1 };
-    slot.bonusSawRainbowThisSession = false;
+    slot.bonusHadRainbowActivationThisSession = false;
 
     expect(slot._shouldForceMinimumBonusRainbowSpin()).toBe(true);
   });
 
-  it("does not force rainbow if one already appeared in GLITTER_GOLD", () => {
+  it("does not force rainbow if one already activated golds in GLITTER_GOLD", () => {
     const slot = new LuckyScapeSlot();
     slot.isInFreeSpins = true;
     slot.bonusMode = { id: "GLITTER_GOLD", remaining: 1 };
-    slot.bonusSawRainbowThisSession = true;
+    slot.bonusHadRainbowActivationThisSession = true;
 
     expect(slot._shouldForceMinimumBonusRainbowSpin()).toBe(false);
   });
