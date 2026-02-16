@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Le Bandit Placeholder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-1: #090f1f;
+            --bg-2: #10182e;
+            --panel: rgba(13, 20, 38, 0.9);
+            --panel-soft: rgba(22, 33, 60, 0.8);
+            --line: rgba(116, 141, 199, 0.35);
+            --text: #e9f2ff;
+            --text-dim: #9db2db;
+            --accent: #6ea8ff;
+            --accent-2: #8b6dff;
+            --good: #7cf0b5;
+            --danger: #ff8f9f;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background:
+                radial-gradient(circle at 15% 15%, #1b2c56 0%, transparent 42%),
+                radial-gradient(circle at 85% 20%, #2f1f5f 0%, transparent 44%),
+                linear-gradient(145deg, var(--bg-1) 0%, var(--bg-2) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: var(--text);
+        }
+
+        #app {
+            width: 100%;
+            max-width: 980px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(6px);
+            padding: 28px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: var(--text);
+            margin-bottom: 6px;
+            font-size: 34px;
+            letter-spacing: 0.5px;
+        }
+
+        .header p {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 14px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-size: 12px;
+            color: var(--text-dim);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.75px;
+        }
+
+        .control-group input,
+        .control-group select {
+            padding: 10px 15px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            background: var(--panel-soft);
+            color: var(--text);
+        }
+
+        .control-group input:focus,
+        .control-group select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(110, 168, 255, 0.2);
+        }
+
+        .volume-wrap {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #volumeSlider {
+            width: 100%;
+            accent-color: var(--accent);
+        }
+
+        #volumeValue {
+            min-width: 44px;
+            text-align: right;
+            color: var(--text-dim);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 15px;
+            margin-bottom: 16px;
+            padding: 16px;
+            background: var(--panel-soft);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .stat-value.balance {
+            color: var(--accent);
+        }
+
+        .stat-value.state {
+            color: #c2a9ff;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+            color: white;
+            width: 100%;
+            padding: 14px;
+            margin-bottom: 12px;
+            font-size: 15px;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(110, 168, 255, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: var(--panel-soft);
+            color: var(--text);
+            border-color: var(--line);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(41, 58, 99, 0.9);
+            border-color: rgba(130, 157, 219, 0.55);
+        }
+
+        .btn-secondary:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .result {
+            background: var(--panel-soft);
+            border: 1px solid var(--line);
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result.win {
+            background: linear-gradient(135deg, rgba(22, 65, 56, 0.9) 0%, rgba(22, 64, 93, 0.9) 100%);
+            border: 1px solid rgba(124, 240, 181, 0.6);
+        }
+
+        .result-text {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .result.win .result-text {
+            color: var(--good);
+        }
+
+        .result.loss .result-text {
+            color: var(--danger);
+        }
+
+        .info {
+            background: var(--panel-soft);
+            border: 1px solid var(--line);
+            padding: 14px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-dim);
+            padding-top: 20px;
+            border-top: 1px solid var(--line);
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(2, 8, 20, 0.65);
+            z-index: 40;
+            padding: 16px;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-card {
+            width: 100%;
+            max-width: 420px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+            padding: 18px;
+        }
+
+        .modal-title {
+            font-size: 19px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .modal-copy {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.45;
+            margin-bottom: 16px;
+        }
+
+        .modal-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .modal-actions .btn-secondary,
+        .modal-actions .btn-primary {
+            margin: 0;
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 13px;
+        }
+
+        @media (max-width: 600px) {
+            #app {
+                padding: 20px;
+            }
+
+            .controls {
+                grid-template-columns: 1fr;
+            }
+
+            .stats {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <h1>🎰 Le Bandit Placeholder</h1>
+            <p>6x5 Cluster Pays • Super Cascades • Rainbow Bonus Chain</p>
+        </div>
+
+        <div class="info">
+            <strong>Scatter symbol:</strong> FS tile. 3/4/5 scatters trigger Luck of the Leprechaun, All That Glitters Is Gold, or Treasure at the End of the Rainbow.
+        </div>
+
+        <div class="game-container loading" style="display:none;">
+            <div>🔧 Game loader initializing...</div>
+        </div>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Balance</div>
+                <div class="stat-value balance" id="balance">1000</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Game State</div>
+                <div class="stat-value state" id="state">IDLE</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="betInput">Bet Amount</label>
+                <input type="number" id="betInput" value="10" min="1" max="1000" step="5" />
+            </div>
+            <div class="control-group">
+                <label for="volumeSlider">Volume</label>
+                <div class="volume-wrap">
+                    <input type="range" id="volumeSlider" min="0" max="100" value="75" />
+                    <span id="volumeValue">75%</span>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-primary" id="spinBtn" disabled>SPIN</button>
+
+        <div class="controls" style="grid-template-columns: 1fr 1fr; margin-top: 12px;">
+            <button class="btn-secondary" id="autoplayBtn">AUTOPLAY: OFF</button>
+            <button class="btn-secondary" id="soundBtn">SOUND: ON</button>
+        </div>
+
+        <div class="controls" style="grid-template-columns: repeat(3, 1fr); margin-top: 12px;">
+            <button class="btn-secondary" id="buyLeprechaunBtn">BUY LEPRECHAUN</button>
+            <button class="btn-secondary" id="buyGlitterGoldBtn">BUY GLITTER GOLD</button>
+            <button class="btn-secondary" id="buyTreasureRainbowBtn">BUY TREASURE RAINBOW</button>
+        </div>
+
+        <div class="result" id="result">
+            <div class="result-text" id="resultText"></div>
+        </div>
+
+        <div class="footer">
+            <p>Demo version - No real money. See ARCHITECTURE.md and DECISIONS.md for technical details.</p>
+        </div>
+    </div>
+
+    <div class="modal" id="buyConfirmModal" role="dialog" aria-modal="true" aria-labelledby="buyConfirmTitle">
+        <div class="modal-card">
+            <div class="modal-title" id="buyConfirmTitle">Confirm Bonus Buy</div>
+            <div class="modal-copy" id="buyConfirmText">Buy this bonus now?</div>
+            <div class="modal-actions">
+                <button class="btn-secondary" id="buyConfirmCancel">Cancel</button>
+                <button class="btn-primary" id="buyConfirmAccept">Confirm Buy</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import GameController from '../src/ui/gameController.js';
+
+        // Initialize game when DOM is ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', () => {
+            const gameController = new GameController(document.getElementById('app'));
+          });
+        } else {
+          const gameController = new GameController(document.getElementById('app'));
+        }
+    </script>
+</body>
+</html>

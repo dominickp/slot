@@ -1,0 +1,36 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^node --experimental-vm-modules node_modules/jest/bin/jest\\.js 2>&1 \\| tail -50$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^node --experimental-vm-modules node_modules/jest/bin/jest\\.js 2>&1$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^node --experimental-vm-modules node_modules/jest/bin/jest\\.js 2>&1 \\| Select-String -Pattern \"FAIL\\|PASS\\|Tests:\" -Context 1$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^node --experimental-vm-modules node_modules/jest/bin/jest\\.js 2>&1 \\| Select-String \"Tests:\" $/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^node debug-cascade\\.js$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^node --experimental-vm-modules node_modules/jest/bin/jest\\.js 2>&1 \\| Select-String \"Tests:\\|Test Suites:\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^node --experimental-vm-modules node_modules/jest/bin/jest\\.js 2>&1 \\| Select-String \"ΓùÅ\" -Context 5$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^node --experimental-vm-modules node_modules/jest/bin/jest\\.js 2>&1 \\| Select-String \"Test Suites:\\|Tests:\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
