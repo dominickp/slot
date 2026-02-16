@@ -66,6 +66,8 @@ export const ANIMATION_TIMING = {
       gridDropMs: 420,
       // Cascade sequence duration baseline.
       cascadeMs: 300,
+      // Delay after a connection highlight before explosion/removal starts.
+      cascadeHighlightPauseMs: 405,
       // Pre-spin blur animation duration.
       spinStartMs: 500,
       // Floating win text animation duration.
@@ -101,7 +103,7 @@ export const ANIMATION_TIMING = {
       // Delay after clover badge before burst packets launch.
       cloverBadgeGapMs: 120,
       // Gap after clover updates before next action.
-      cloverSettleGapMs: 80,
+      cloverSettleGapMs: 300,
       // Badge duration for post-collect clover multiplier display.
       postCollectCloverBadgeMs: 320,
       // Delay after post-collect clover badge before burst packets launch.

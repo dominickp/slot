@@ -65,6 +65,7 @@ export class LuckyScapeSlot extends BaseSlot {
     this.spinCollectionValue = 0;
     this.chainRoundsTriggered = 0;
     this.bonusEventTimeline = [];
+    this.bonusSawRainbowThisSession = false;
   }
 
   async spin(backend, betAmount = 10) {
@@ -76,7 +77,10 @@ export class LuckyScapeSlot extends BaseSlot {
     this.currentGrid = this._generateRandomGrid();
     this._enforceSingleRainbowPerSpin();
 
-    if (this._isGuaranteedRainbowSpin()) {
+    if (
+      this._isGuaranteedRainbowSpin() ||
+      this._shouldForceMinimumBonusRainbowSpin()
+    ) {
       this._injectRainbowIfMissing();
       this._enforceSingleRainbowPerSpin();
     }
@@ -133,6 +137,10 @@ export class LuckyScapeSlot extends BaseSlot {
     }
 
     this._resolveRainbowActivation();
+
+    if (this.spinHadRainbowSymbol && this.isInFreeSpins) {
+      this.bonusSawRainbowThisSession = true;
+    }
 
     this.totalWinFromSpin += this.spinCollectionValue;
 
@@ -207,6 +215,7 @@ export class LuckyScapeSlot extends BaseSlot {
     this.isInFreeSpins = true;
     this.freeSpinsRemaining = initialSpins;
     this.goldenSquares = new Set();
+    this.bonusSawRainbowThisSession = false;
     this._resetSpinFeatureState();
   }
 
@@ -299,6 +308,7 @@ export class LuckyScapeSlot extends BaseSlot {
       this.isInFreeSpins = false;
       this.bonusMode = null;
       this.goldenSquares.clear();
+      this.bonusSawRainbowThisSession = false;
       return true;
     }
 
@@ -461,6 +471,22 @@ export class LuckyScapeSlot extends BaseSlot {
     return Boolean(this.bonusMode?.guaranteedRainbowEverySpin);
   }
 
+  _shouldForceMinimumBonusRainbowSpin() {
+    if (!this.isInFreeSpins || !this.bonusMode) {
+      return false;
+    }
+
+    if (this.bonusMode.id !== "GLITTER_GOLD") {
+      return false;
+    }
+
+    if (this.bonusSawRainbowThisSession) {
+      return false;
+    }
+
+    return Number(this.bonusMode.remaining) === 1;
+  }
+
   _injectRainbowIfMissing() {
     if (this.rainbowSpawnedThisSpin) {
       return;
@@ -526,7 +552,10 @@ export class LuckyScapeSlot extends BaseSlot {
     return 1;
   }
 
-  _getSymbolWeightsForCurrentSpin({ allowRainbow = true, includeScatter = true } = {}) {
+  _getSymbolWeightsForCurrentSpin({
+    allowRainbow = true,
+    includeScatter = true,
+  } = {}) {
     // Connection-biased profiles: free spins intentionally lean heavier to low regulars
     // so 5+ adjacency occurs more frequently while preserving symbol variety.
     const profile = this.isInFreeSpins
@@ -687,12 +716,23 @@ export class LuckyScapeSlot extends BaseSlot {
       queuedCollectors.add(key);
     };
 
+    const getCollectorCount = () =>
+      [...tileState.values()].filter(
+        (tile) =>
+          tile.type === "collector_empty" || tile.type === "collector_full",
+      ).length;
+
     const revealAtKey = (key, targetList) => {
       const { x, y } = parseKey(key);
       const roll = this.rng.nextFloat();
       const chances = this._getGoldenSquareOutcomeChances();
+      const collectorCount = getCollectorCount();
+      const adjustedPotChance = this._getAdjustedPotChance(
+        chances.pot,
+        collectorCount,
+      );
 
-      if (roll < chances.coin) {
+      const createCoinTile = () => {
         const value = this._rollCoinValue();
         const tile = {
           key,
@@ -705,6 +745,10 @@ export class LuckyScapeSlot extends BaseSlot {
         tileState.set(key, tile);
         targetList.push({ x, y, type: "coin", value, tier: tile.tier });
         return tile;
+      };
+
+      if (roll < chances.coin) {
+        return createCoinTile();
       }
 
       if (roll < chances.coin + chances.clover) {
@@ -722,21 +766,29 @@ export class LuckyScapeSlot extends BaseSlot {
         return tile;
       }
 
-      const tile = {
-        key,
-        x,
-        y,
-        type: "collector_empty",
-        value: 1,
-      };
-      tileState.set(key, tile);
-      this.potSymbolsHit.push(1);
-      targetList.push({ x, y, type: "collector", value: 1 });
-      queueCollector(key);
-      return tile;
+      if (roll < chances.coin + chances.clover + adjustedPotChance) {
+        const tile = {
+          key,
+          x,
+          y,
+          type: "collector_empty",
+          value: 1,
+        };
+        tileState.set(key, tile);
+        this.potSymbolsHit.push(1);
+        targetList.push({ x, y, type: "collector", value: 1 });
+        queueCollector(key);
+        return tile;
+      }
+
+      return createCoinTile();
     };
 
-    const applyCloverMultipliers = (cloverKeys, roundTargetList, stepTargetList) => {
+    const applyCloverMultipliers = (
+      cloverKeys,
+      roundTargetList,
+      stepTargetList,
+    ) => {
       for (const cloverKey of cloverKeys) {
         const cloverTile = tileState.get(cloverKey);
         if (!cloverTile || cloverTile.type !== "clover") {
@@ -937,10 +989,9 @@ export class LuckyScapeSlot extends BaseSlot {
     const finalCoins = [...tileState.values()]
       .filter((tile) => tile.type === "coin")
       .reduce((sum, tile) => sum + tile.value, 0);
-    const totalCollectedByCollectors = eventRound.collectorSteps.reduce(
-      (sum, step) => sum + step.collectedValue,
-      0,
-    );
+    const totalCollectedByCollectors = [...tileState.values()]
+      .filter((tile) => tile.type === "collector_full")
+      .reduce((sum, tile) => sum + Number(tile.value || 0), 0);
 
     eventRound.roundCollectionValue = Math.min(
       10000,
@@ -971,6 +1022,17 @@ export class LuckyScapeSlot extends BaseSlot {
     }
 
     return { coin: 0.9, clover: 0.08, pot: 0.02 };
+  }
+
+  _getAdjustedPotChance(basePotChance, collectorCount) {
+    const chance = Number(basePotChance || 0);
+    if (chance <= 0) {
+      return 0;
+    }
+
+    const globalReduction = 0.75;
+    const perCollectorDecay = 0.65;
+    return chance * globalReduction * Math.pow(perCollectorDecay, collectorCount);
   }
 
   _pickRandomRegularPosition() {

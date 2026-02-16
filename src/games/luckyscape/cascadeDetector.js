@@ -318,8 +318,8 @@ export class CascadeDetector {
   }
 
   /**
-  * Check if two symbols match.
-  * Matching is exact-symbol only; no substitution.
+   * Check if two symbols match.
+   * Matching is exact-symbol only; no substitution.
    *
    * @private
    * @param {number} symbol1 - First symbol ID
@@ -352,7 +352,7 @@ export class CascadeDetector {
 
   /**
    * Calculate payout for a winning cluster
-  * Payout comes from the symbol row + cluster size band in CLUSTER_PAYTABLE.
+   * Payout comes from the symbol row + cluster size band in CLUSTER_PAYTABLE.
    *
    * @private
    * @param {Object} cluster - Cluster with positions and symbolId
@@ -362,7 +362,10 @@ export class CascadeDetector {
   _calculateClusterPayout(cluster, grid) {
     const { positions } = cluster;
     const clusterSize = positions.length;
-    const highestSymbolId = this._getHighestPayingSymbolInCluster(positions, grid);
+    const highestSymbolId = this._getHighestPayingSymbolInCluster(
+      positions,
+      grid,
+    );
     const paytable = CascadeDetector.CLUSTER_PAYTABLE[highestSymbolId];
 
     if (!paytable) {
@@ -468,7 +471,7 @@ export class CascadeDetector {
    *
    * Removes:
    * - All current winning positions
-  * - Any additional visible regular symbols that match
+   * - Any additional visible regular symbols that match
    *   regular symbol types participating in winning clusters
    *
    * @param {number[][]} grid - Game grid

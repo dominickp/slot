@@ -111,20 +111,20 @@ export class CascadeEngine {
       Array.isArray(customSymbolWeights) && customSymbolWeights.length > 0
         ? customSymbolWeights
         : [
-      { id: CascadeDetector.SYMBOL_IDS.RED, weight: 22 },
-      { id: CascadeDetector.SYMBOL_IDS.GREEN, weight: 20 },
-      { id: CascadeDetector.SYMBOL_IDS.PURPLE, weight: 18 },
-      { id: CascadeDetector.SYMBOL_IDS.YELLOW, weight: 16 },
-      { id: CascadeDetector.SYMBOL_IDS.BLUE, weight: 14 },
-      { id: CascadeDetector.SYMBOL_IDS.TRAP, weight: 11 },
-      { id: CascadeDetector.SYMBOL_IDS.CHEESE, weight: 10 },
-      { id: CascadeDetector.SYMBOL_IDS.BEER, weight: 8 },
-      { id: CascadeDetector.SYMBOL_IDS.BREAD, weight: 7 },
-      { id: CascadeDetector.SYMBOL_IDS.TOP_HAT, weight: 5 },
-      { id: CascadeDetector.SYMBOL_IDS.WILD, weight: 6 },
-      { id: CascadeDetector.SYMBOL_IDS.SCATTER, weight: 2 },
-      { id: CascadeDetector.SYMBOL_IDS.RAINBOW, weight: 2 },
-    ];
+            { id: CascadeDetector.SYMBOL_IDS.RED, weight: 22 },
+            { id: CascadeDetector.SYMBOL_IDS.GREEN, weight: 20 },
+            { id: CascadeDetector.SYMBOL_IDS.PURPLE, weight: 18 },
+            { id: CascadeDetector.SYMBOL_IDS.YELLOW, weight: 16 },
+            { id: CascadeDetector.SYMBOL_IDS.BLUE, weight: 14 },
+            { id: CascadeDetector.SYMBOL_IDS.TRAP, weight: 11 },
+            { id: CascadeDetector.SYMBOL_IDS.CHEESE, weight: 10 },
+            { id: CascadeDetector.SYMBOL_IDS.BEER, weight: 8 },
+            { id: CascadeDetector.SYMBOL_IDS.BREAD, weight: 7 },
+            { id: CascadeDetector.SYMBOL_IDS.TOP_HAT, weight: 5 },
+            { id: CascadeDetector.SYMBOL_IDS.WILD, weight: 6 },
+            { id: CascadeDetector.SYMBOL_IDS.SCATTER, weight: 2 },
+            { id: CascadeDetector.SYMBOL_IDS.RAINBOW, weight: 2 },
+          ];
 
     // For each empty position, generate new symbol
     for (let y = 0; y < this.gridHeight; y++) {

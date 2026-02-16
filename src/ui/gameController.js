@@ -326,14 +326,18 @@ export class GameController {
           : [];
 
         await this.renderer.animateScatterTrigger(scatterPositions, {
-          duration: ANIMATION_TIMING.controller.triggerEffects.bonusScatterPulseMs,
+          duration:
+            ANIMATION_TIMING.controller.triggerEffects.bonusScatterPulseMs,
         });
 
         this._showResult(
           `Free Bonus Unlocked: ${spinResult.bonusMode.name} (${this._formatCount(spinResult.bonusMode.initialSpins)} Free Spins) via ${this._formatCount(spinResult.scatterCount)} 🎲`,
           "win",
         );
-        await this._showBonusIntro(spinResult.bonusMode, spinResult.scatterCount);
+        await this._showBonusIntro(
+          spinResult.bonusMode,
+          spinResult.scatterCount,
+        );
         await this._playFreeSpins(betAmount);
       }
 
@@ -550,7 +554,8 @@ export class GameController {
       spinResult.scatterPositions.length === 2
     ) {
       await this.renderer.animateScatterTrigger(spinResult.scatterPositions, {
-        duration: ANIMATION_TIMING.controller.triggerEffects.teaseScatterPulseMs,
+        duration:
+          ANIMATION_TIMING.controller.triggerEffects.teaseScatterPulseMs,
         intensity: 0.26,
       });
     }
@@ -633,7 +638,8 @@ export class GameController {
         if (retriggerScatterPositions.length > 0) {
           await this.renderer.animateScatterTrigger(retriggerScatterPositions, {
             duration:
-              ANIMATION_TIMING.controller.triggerEffects.retriggerScatterPulseMs,
+              ANIMATION_TIMING.controller.triggerEffects
+                .retriggerScatterPulseMs,
             intensity: 0.7,
           });
         }

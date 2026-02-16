@@ -6,7 +6,10 @@
  */
 
 import * as PIXI from "pixi.js";
-import { ANIMATION_TIMING, getRevealPacing } from "../config/animationTiming.js";
+import {
+  ANIMATION_TIMING,
+  getRevealPacing,
+} from "../config/animationTiming.js";
 
 // Symbol IDs mapping
 const SYMBOLS = {
@@ -203,8 +206,7 @@ export class GridRenderer {
         }
 
         const key = `${x}_${y}`;
-        const survivor =
-          survivorIndex >= 0 ? survivors[survivorIndex] : null;
+        const survivor = survivorIndex >= 0 ? survivors[survivorIndex] : null;
 
         if (survivor && survivor.symbol === symbol) {
           startRows.set(key, survivor.y);
@@ -1268,7 +1270,10 @@ export class GridRenderer {
             item.baseScaleX * scaleFactor,
             item.baseScaleY * scaleFactor,
           );
-          item.symbolNode.position.set(item.baseX - offsetX, item.baseY - offsetY);
+          item.symbolNode.position.set(
+            item.baseX - offsetX,
+            item.baseY - offsetY,
+          );
           item.symbolNode.rotation = item.baseRotation;
         }
 
@@ -1300,7 +1305,8 @@ export class GridRenderer {
 
     return new Promise((resolve) => {
       const {
-        columnStaggerMs = ANIMATION_TIMING.renderer.stagger.spinTransitionColumnMs,
+        columnStaggerMs = ANIMATION_TIMING.renderer.stagger
+          .spinTransitionColumnMs,
         showBonusOverlays = false,
       } = options;
 
@@ -1631,7 +1637,9 @@ export class GridRenderer {
       // 1. Highlight winning symbols briefly
       this.render(beforeGrid, winPositions, { showBonusOverlays: false });
 
-      const highlightMs = Math.min(120, Math.max(40, duration * 0.35));
+      const highlightMs = Number(
+        ANIMATION_TIMING.renderer.defaults.cascadeHighlightPauseMs,
+      );
       const fadeMs = Math.max(120, duration * 0.75);
 
       setTimeout(() => {
@@ -1663,8 +1671,12 @@ export class GridRenderer {
           for (let i = 0; i < sparkCount; i++) {
             const spark = new PIXI.Graphics();
             spark.circle(0, 0, 2.2);
-            spark.fill({ color: i % 2 === 0 ? 0xfff1c7 : 0xffc16a, alpha: 0.95 });
-            spark.__angle = (Math.PI * 2 * i) / sparkCount + (Math.PI / 12) * (i % 3);
+            spark.fill({
+              color: i % 2 === 0 ? 0xfff1c7 : 0xffc16a,
+              alpha: 0.95,
+            });
+            spark.__angle =
+              (Math.PI * 2 * i) / sparkCount + (Math.PI / 12) * (i % 3);
             spark.__distance = this.cellSize * (0.26 + (i % 4) * 0.035);
             burst.addChild(spark);
             sparks.push(spark);
@@ -1720,7 +1732,8 @@ export class GridRenderer {
                 child.__baseY = child.y ?? 0;
               }
 
-              const pop = Math.sin(Math.PI * Math.min(progress / 0.45, 1)) * 0.12;
+              const pop =
+                Math.sin(Math.PI * Math.min(progress / 0.45, 1)) * 0.12;
               const shrink = 1 - Math.pow(progress, 1.2) * 0.34;
               const scale = Math.max(0.45, shrink + pop);
 
@@ -1728,7 +1741,9 @@ export class GridRenderer {
                 child.__baseScaleX * scale,
                 child.__baseScaleY * scale,
               );
-              child.y = child.__baseY - Math.sin(progress * Math.PI) * (this.cellSize * 0.06);
+              child.y =
+                child.__baseY -
+                Math.sin(progress * Math.PI) * (this.cellSize * 0.06);
               child.alpha = 1 - progress;
             }
           }
@@ -1759,7 +1774,8 @@ export class GridRenderer {
               changedKeys,
               baseGrid,
               startRowByKey,
-              columnStaggerMs: ANIMATION_TIMING.renderer.stagger.cascadeDropColumnMs,
+              columnStaggerMs:
+                ANIMATION_TIMING.renderer.stagger.cascadeDropColumnMs,
               rowStaggerMs: 0,
               showBonusOverlays: false,
             }).then(() => {
@@ -1898,7 +1914,8 @@ export class GridRenderer {
                 Math.max(
                   ANIMATION_TIMING.renderer.bonusSequence.rainbowFocusMinMs,
                   reveals.length *
-                    ANIMATION_TIMING.renderer.bonusSequence.rainbowFocusPerRevealMs +
+                    ANIMATION_TIMING.renderer.bonusSequence
+                      .rainbowFocusPerRevealMs +
                     ANIMATION_TIMING.renderer.bonusSequence.rainbowFocusBaseMs,
                 ),
                 {
@@ -1996,8 +2013,14 @@ export class GridRenderer {
             const existing = this.revealedSymbolMap.get(key);
 
             if (existing) {
+              const updatedTier = this._coinTierFromValue(target.after);
               this.revealedSymbolMap.set(key, {
                 ...existing,
+                symbolId: this._getRevealSymbolId({
+                  type: "coin",
+                  tier: updatedTier,
+                }),
+                accentColor: this._coinTierStyle(updatedTier).color,
                 label: this._formatBonusValue(target.after),
               });
             }
@@ -2039,8 +2062,10 @@ export class GridRenderer {
 
           const potFocusDuration =
             sources.length > 0
-              ? ANIMATION_TIMING.renderer.bonusSequence.collectorFocusWithSourcesMs
-              : ANIMATION_TIMING.renderer.bonusSequence.collectorFocusWithoutSourcesMs;
+              ? ANIMATION_TIMING.renderer.bonusSequence
+                  .collectorFocusWithSourcesMs
+              : ANIMATION_TIMING.renderer.bonusSequence
+                  .collectorFocusWithoutSourcesMs;
           const potFocusPromise = this._animateFocusedTileAtCell(
             step.x,
             step.y,
@@ -2086,7 +2111,8 @@ export class GridRenderer {
               existingSource.symbolId ||
               this._getRevealSymbolId({ type: "coin", tier: sourceTier });
             const sourceAccent =
-              existingSource.accentColor || this._coinTierStyle(sourceTier).color;
+              existingSource.accentColor ||
+              this._coinTierStyle(sourceTier).color;
 
             this.revealedSymbolMap.set(sourceKey, {
               ...existingSource,
@@ -2120,12 +2146,14 @@ export class GridRenderer {
             : [];
 
           if (postCollectReveals.length > 0) {
-            const sortedPostReveals = [...postCollectReveals].sort((left, right) => {
-              if (left.y === right.y) {
-                return left.x - right.x;
-              }
-              return left.y - right.y;
-            });
+            const sortedPostReveals = [...postCollectReveals].sort(
+              (left, right) => {
+                if (left.y === right.y) {
+                  return left.x - right.x;
+                }
+                return left.y - right.y;
+              },
+            );
 
             const revealCount = sortedPostReveals.length;
             const revealPacing = getRevealPacing(revealCount);
@@ -2151,7 +2179,9 @@ export class GridRenderer {
             );
           }
 
-          const postCollectCloverHits = Array.isArray(step.postCollectCloverHits)
+          const postCollectCloverHits = Array.isArray(
+            step.postCollectCloverHits,
+          )
             ? step.postCollectCloverHits
             : [];
 
@@ -2171,7 +2201,8 @@ export class GridRenderer {
                 ANIMATION_TIMING.renderer.bonusSequence.cloverFocusBaseMs,
                 ANIMATION_TIMING.renderer.bonusSequence.cloverFocusBaseMs +
                   Math.max(0, allTargets.length - 1) *
-                    ANIMATION_TIMING.renderer.bonusSequence.cloverFocusPerTargetMs,
+                    ANIMATION_TIMING.renderer.bonusSequence
+                      .cloverFocusPerTargetMs,
               ),
               {
                 accentColor: 0x67e07f,
@@ -2203,8 +2234,14 @@ export class GridRenderer {
               const key = `${target.x}_${target.y}`;
               const existingTarget = this.revealedSymbolMap.get(key);
               if (existingTarget) {
+                const updatedTier = this._coinTierFromValue(target.after);
                 this.revealedSymbolMap.set(key, {
                   ...existingTarget,
+                  symbolId: this._getRevealSymbolId({
+                    type: "coin",
+                    tier: updatedTier,
+                  }),
+                  accentColor: this._coinTierStyle(updatedTier).color,
                   label: this._formatBonusValue(target.after),
                 });
               }
@@ -2264,7 +2301,9 @@ export class GridRenderer {
         );
       }
 
-      await this._wait(ANIMATION_TIMING.renderer.bonusSequence.betweenRoundsGapMs);
+      await this._wait(
+        ANIMATION_TIMING.renderer.bonusSequence.betweenRoundsGapMs,
+      );
     }
   }
 
