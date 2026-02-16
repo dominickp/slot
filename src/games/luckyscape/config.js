@@ -4,6 +4,17 @@
 
 import { CascadeDetector } from "./cascadeDetector.js";
 
+const BASE_URL =
+  typeof import.meta.env?.BASE_URL === "string"
+    ? import.meta.env.BASE_URL
+    : "/";
+
+const withBasePath = (assetPath) => {
+  const normalizedBase = BASE_URL.endsWith("/") ? BASE_URL : `${BASE_URL}/`;
+  const normalizedAsset = String(assetPath || "").replace(/^\/+/, "");
+  return `${normalizedBase}${normalizedAsset}`;
+};
+
 export const LUCKY_ESCAPE_CONFIG = {
   id: "le-bandit-placeholder",
   name: "Le Bandit (Placeholder)",
@@ -49,37 +60,37 @@ export const LUCKY_ESCAPE_CONFIG = {
   // External art/audio asset manifest (replace these files with your own)
   assets: {
     symbols: {
-      1: "/assets/symbols/10.png",
-      2: "/assets/symbols/J.png",
-      3: "/assets/symbols/Q.png",
-      4: "/assets/symbols/K.png",
-      5: "/assets/symbols/A.png",
-      6: "/assets/symbols/wild.png",
-      7: "/assets/symbols/scatter_fs.png",
-      8: "/assets/symbols/reveal_clover.png",
-      9: "/assets/symbols/rainbow.png",
-      10: "/assets/symbols/reveal_pot.png",
-      11: "/assets/symbols/trap.png",
-      12: "/assets/symbols/cheese.png",
-      13: "/assets/symbols/beer.png",
-      14: "/assets/symbols/bread.png",
-      15: "/assets/symbols/top_hat.png",
-      101: "/assets/symbols/coin_bronze.png",
-      102: "/assets/symbols/coin_silver.png",
-      103: "/assets/symbols/coin_gold.png",
+      1: withBasePath("assets/symbols/10.png"),
+      2: withBasePath("assets/symbols/J.png"),
+      3: withBasePath("assets/symbols/Q.png"),
+      4: withBasePath("assets/symbols/K.png"),
+      5: withBasePath("assets/symbols/A.png"),
+      6: withBasePath("assets/symbols/wild.png"),
+      7: withBasePath("assets/symbols/scatter_fs.png"),
+      8: withBasePath("assets/symbols/reveal_clover.png"),
+      9: withBasePath("assets/symbols/rainbow.png"),
+      10: withBasePath("assets/symbols/reveal_pot.png"),
+      11: withBasePath("assets/symbols/trap.png"),
+      12: withBasePath("assets/symbols/cheese.png"),
+      13: withBasePath("assets/symbols/beer.png"),
+      14: withBasePath("assets/symbols/bread.png"),
+      15: withBasePath("assets/symbols/top_hat.png"),
+      101: withBasePath("assets/symbols/coin_bronze.png"),
+      102: withBasePath("assets/symbols/coin_silver.png"),
+      103: withBasePath("assets/symbols/coin_gold.png"),
     },
     sounds: {
-      button: "/assets/audio/ui_button.ogg",
-      "spin-start": "/assets/audio/spin_start.ogg",
-      cascade: "/assets/audio/cascade.ogg",
-      win: "/assets/audio/win.ogg",
-      "bonus-start": "/assets/audio/bonus_start.ogg",
-      "free-spin-start": "/assets/audio/free_spin_start.ogg",
-      rainbow: "/assets/audio/rainbow.ogg",
-      "clover-multiply": "/assets/audio/clover_multiply.ogg",
-      "collector-collect": "/assets/audio/collector_collect.ogg",
-      "big-win": "/assets/audio/big_win.ogg",
-      "bg-music": "/assets/audio/background_music.ogg",
+      button: withBasePath("assets/audio/ui_button.ogg"),
+      "spin-start": withBasePath("assets/audio/spin_start.ogg"),
+      cascade: withBasePath("assets/audio/cascade.ogg"),
+      win: withBasePath("assets/audio/win.ogg"),
+      "bonus-start": withBasePath("assets/audio/bonus_start.ogg"),
+      "free-spin-start": withBasePath("assets/audio/free_spin_start.ogg"),
+      rainbow: withBasePath("assets/audio/rainbow.ogg"),
+      "clover-multiply": withBasePath("assets/audio/clover_multiply.ogg"),
+      "collector-collect": withBasePath("assets/audio/collector_collect.ogg"),
+      "big-win": withBasePath("assets/audio/big_win.ogg"),
+      "bg-music": withBasePath("assets/audio/background_music.ogg"),
     },
   },
 
