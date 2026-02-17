@@ -81,6 +81,11 @@ const REVEAL_SYMBOLS = {
 
 const TILE_SYMBOL_PADDING = 7;
 const MAX_RENDER_RESOLUTION = 2;
+const DEFAULT_COIN_TIER_COLORS = {
+  bronze: 0xd69763,
+  silver: 0xd7e2f0,
+  gold: 0xffd94a,
+};
 
 export class GridRenderer {
   constructor(containerElement, options = {}) {
@@ -99,6 +104,9 @@ export class GridRenderer {
     );
     this.randomRotationAnglesDeg = this._normalizeRotationAngles(
       options.randomRotationAnglesDeg || [0, 90, 180, 270],
+    );
+    this.coinTierColors = this._normalizeCoinTierColors(
+      options.coinTierColors || {},
     );
     this.rotationByCell = new Map();
     this.assetCacheBustToken = Date.now();
@@ -161,6 +169,35 @@ export class GridRenderer {
     }
 
     return normalized;
+  }
+
+  _normalizeCoinTierColors(rawColors = {}) {
+    const normalizeHexColor = (value, fallback) => {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+      }
+
+      if (typeof value === "string") {
+        const trimmed = value.trim().replace(/^#/, "");
+        if (/^[0-9a-fA-F]{6}$/.test(trimmed)) {
+          return Number.parseInt(trimmed, 16);
+        }
+      }
+
+      return fallback;
+    };
+
+    return {
+      bronze: normalizeHexColor(
+        rawColors.bronze,
+        DEFAULT_COIN_TIER_COLORS.bronze,
+      ),
+      silver: normalizeHexColor(
+        rawColors.silver,
+        DEFAULT_COIN_TIER_COLORS.silver,
+      ),
+      gold: normalizeHexColor(rawColors.gold, DEFAULT_COIN_TIER_COLORS.gold),
+    };
   }
 
   _pickRandomRotationRadians() {
@@ -721,14 +758,14 @@ export class GridRenderer {
 
   _coinTierStyle(tier) {
     if (tier === "gold") {
-      return { label: "GOLD", color: 0xffd94a };
+      return { label: "GOLD", color: this.coinTierColors.gold };
     }
 
     if (tier === "silver") {
-      return { label: "SILVER", color: 0xd7e2f0 };
+      return { label: "SILVER", color: this.coinTierColors.silver };
     }
 
-    return { label: "BRONZE", color: 0xd69763 };
+    return { label: "BRONZE", color: this.coinTierColors.bronze };
   }
 
   _cellCenter(x, y) {
@@ -1902,16 +1939,21 @@ export class GridRenderer {
    */
   async animateCascade(
     beforeGrid,
-    winPositions,
+    removalPositions,
     afterGrid,
     movementData,
     duration = ANIMATION_TIMING.renderer.defaults.cascadeMs,
+    options = {},
   ) {
     await this.ready;
 
+    const highlightPositions =
+      options?.highlightPositions || removalPositions || new Set();
+    const positionsToRemove = removalPositions || new Set();
+
     return new Promise((resolve) => {
       // 1. Highlight winning symbols briefly
-      this.render(beforeGrid, winPositions, { showBonusOverlays: false });
+      this.render(beforeGrid, highlightPositions, { showBonusOverlays: false });
 
       const highlightMs = Number(
         ANIMATION_TIMING.renderer.defaults.cascadeHighlightPauseMs,
@@ -1921,7 +1963,7 @@ export class GridRenderer {
       setTimeout(() => {
         const burstOverlays = [];
 
-        for (const posKey of winPositions) {
+        for (const posKey of highlightPositions) {
           const normalizedKey = this._normalizePosKey(posKey);
           const [x, y] = normalizedKey.split("_").map(Number);
           if (!Number.isFinite(x) || !Number.isFinite(y)) {
@@ -1985,7 +2027,7 @@ export class GridRenderer {
             }
           }
 
-          for (const posKey of winPositions) {
+          for (const posKey of positionsToRemove) {
             const normalizedKey = this._normalizePosKey(posKey);
             const cellContainer = this.symbolCells[normalizedKey];
             if (!cellContainer || cellContainer.children.length <= 1) {
@@ -2034,10 +2076,13 @@ export class GridRenderer {
 
             // 3. Drop only changed cells to avoid full-grid flicker
             const changedKeys = this._getChangedKeys(beforeGrid, afterGrid);
+            for (const posKey of positionsToRemove) {
+              changedKeys.add(this._normalizePosKey(posKey));
+            }
             const startRowByKey = this._buildCascadeStartRows(
               beforeGrid,
               afterGrid,
-              winPositions,
+              positionsToRemove,
             );
             const baseGrid = beforeGrid.map((row) => [...row]);
 

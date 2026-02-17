@@ -97,6 +97,11 @@ export const LUCKY_ESCAPE_CONFIG = {
   visuals: {
     randomRotationSymbolIds: [1, 2, 3, 4, 5],
     randomRotationAnglesDeg: [0, 90, 180, 270],
+    coinTierColors: {
+      bronze: 0x67e07f,
+      silver: 0xd69763,
+      gold: 0x6fb5e8,
+    },
   },
 
   // Win mechanics

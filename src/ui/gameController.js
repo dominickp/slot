@@ -50,13 +50,15 @@ export class GameController {
     this.renderer = new GridRenderer(rendererContainer, {
       cellSize: 100,
       padding: 15,
-      rows: Number(LUCKY_ESCAPE_CONFIG.gridHeight || 5),
-      cols: Number(LUCKY_ESCAPE_CONFIG.gridWidth || 6),
-      symbolTextureMap: LUCKY_ESCAPE_CONFIG?.assets?.symbols || {},
+      rows: Number(gameConfig.gridHeight || 5),
+      cols: Number(gameConfig.gridWidth || 6),
+      symbolTextureMap: gameConfig?.assets?.symbols || {},
       randomRotationSymbolIds:
-        LUCKY_ESCAPE_CONFIG?.visuals?.randomRotationSymbolIds || [],
-      randomRotationAnglesDeg: LUCKY_ESCAPE_CONFIG?.visuals
-        ?.randomRotationAnglesDeg || [0, 90, 180, 270],
+        gameConfig?.visuals?.randomRotationSymbolIds || [],
+      randomRotationAnglesDeg: gameConfig?.visuals?.randomRotationAnglesDeg || [
+        0, 90, 180, 270,
+      ],
+      coinTierColors: gameConfig?.visuals?.coinTierColors || {},
     });
 
     this.bonusTotalOverlay = document.createElement("div");
@@ -563,6 +565,8 @@ export class GameController {
 
       for (const cascade of cascadesToAnimate) {
         this.renderer.setPersistentConnectionHighlights(accumulatedHighlights);
+        const cascadeHighlightPositions =
+          cascade.connectionPositions || cascade.winPositions || new Set();
 
         this.soundManager.playCascade();
         await this.renderer.animateCascade(
@@ -571,6 +575,9 @@ export class GameController {
           cascade.afterGrid,
           cascade.moveData,
           this.timings.cascade,
+          {
+            highlightPositions: cascadeHighlightPositions,
+          },
         );
         await this._delay(this.timings.betweenCascades);
       }
