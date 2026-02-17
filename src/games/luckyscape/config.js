@@ -124,25 +124,25 @@ export const LUCKY_ESCAPE_CONFIG = {
         {
           id: "nice",
           label: "NICE WIN",
-          multiplier: 50,
+          multiplier: 100,
           accentColor: "#7cf0b5",
         },
         {
           id: "big",
           label: "BIG WIN",
-          multiplier: 100,
+          multiplier: 250,
           accentColor: "#6ea8ff",
         },
         {
           id: "epic",
           label: "EPIC WIN",
-          multiplier: 250,
+          multiplier: 500,
           accentColor: "#8b6dff",
         },
         {
           id: "legendary",
           label: "LEGENDARY WIN",
-          multiplier: 500,
+          multiplier: 1000,
           accentColor: "#ffd972",
         },
       ],
@@ -215,16 +215,6 @@ export const LUCKY_ESCAPE_CONFIG = {
   maxWin: 10000,
   minBet: 0.1,
   maxBet: 100.0,
-
-  // Payout distribution (target)
-  payoutDistribution: {
-    noWin: 0.5,
-    smallWin: 0.28,
-    mediumWin: 0.14,
-    largeWin: 0.06,
-    bonusOnly: 0.015,
-    majorWin: 0.005,
-  },
 
   // Balance/tuning knobs used by LuckyScapeSlot runtime logic
   balance: {
@@ -350,33 +340,5 @@ export const LUCKY_ESCAPE_CONFIG = {
     },
   },
 };
-
-/**
- * Helper function to get symbol by ID
- */
-export function getSymbolById(id) {
-  return LUCKY_ESCAPE_CONFIG.symbols.find((s) => s.id === id);
-}
-
-/**
- * Helper function to get bonus mode by scatter count
- */
-export function getBonusModeByScatterCount(count) {
-  const mode =
-    LUCKY_ESCAPE_CONFIG.freeSpins.modes.find(
-      (m) => m.triggerScatters === count,
-    ) ||
-    (count >= 5
-      ? LUCKY_ESCAPE_CONFIG.freeSpins.modes.find((m) => m.triggerScatters === 5)
-      : null);
-  return mode || null;
-}
-
-/**
- * Helper function to calculate RTP target for a session
- */
-export function calculateTargetSessionRtp(spinCount, avgBetAmount) {
-  return spinCount * avgBetAmount * LUCKY_ESCAPE_CONFIG.rtp;
-}
 
 export default LUCKY_ESCAPE_CONFIG;

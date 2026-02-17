@@ -2438,30 +2438,30 @@ export class GridRenderer {
     await this.ready;
 
     return new Promise((resolve) => {
+      const centerX = (this.cols * this.cellSize) / 2;
+      const centerY = (this.rows * this.cellSize) / 2;
+
       // Create floating text
       const winText = new PIXI.Text({
-        text: `+${winAmount}`,
+        text: `+${this._formatBonusValue(winAmount)}`,
         style: {
           fontFamily: "Arial",
-          fontSize: 48,
+          fontSize: 52,
           fontWeight: "bold",
-          fill: 0xffff00,
-          stroke: { color: 0x1a102b, width: 8, join: "round" },
+          fill: 0xffde73,
+          stroke: { color: 0x2a1b07, width: 9, join: "round" },
           dropShadow: {
             color: 0x000000,
-            alpha: 0.9,
-            blur: 6,
-            angle: Math.PI / 3,
-            distance: 4,
+            alpha: 0.82,
+            blur: 8,
+            angle: Math.PI / 2.8,
+            distance: 5,
           },
         },
       });
 
       winText.anchor.set(0.5, 0.5);
-      winText.position.set(
-        (this.cols * this.cellSize) / 2,
-        (this.rows * this.cellSize) / 2,
-      );
+      winText.position.set(centerX, centerY);
 
       this.animationContainer.addChild(winText);
 
@@ -2470,9 +2470,18 @@ export class GridRenderer {
       const animateFloat = () => {
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        winText.y = (this.rows * this.cellSize) / 2 - progress * 60;
-        winText.alpha = 1 - progress;
-        winText.scale.set(1 + progress * 0.3);
+        const easedRise = 1 - Math.pow(1 - progress, 1.7);
+        const holdPortion = 0.62;
+        const fadeProgress =
+          progress <= holdPortion
+            ? 0
+            : (progress - holdPortion) / (1 - holdPortion);
+        const popIn = Math.sin(Math.min(progress / 0.24, 1) * Math.PI) * 0.12;
+        const settleScale = 1.06 - progress * 0.04;
+
+        winText.y = centerY - easedRise * 74;
+        winText.alpha = 1 - Math.pow(fadeProgress, 1.12);
+        winText.scale.set(Math.max(1, settleScale + popIn));
 
         if (progress < 1) {
           requestAnimationFrame(animateFloat);

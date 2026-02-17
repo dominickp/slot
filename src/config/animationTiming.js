@@ -17,7 +17,7 @@ export const ANIMATION_TIMING = {
       // Maximum number of cascades animated before fast-forwarding.
       maxAnimatedCascades: 8,
       // Duration of the floating win text animation.
-      winTextMs: 900,
+      winTextMs: 1050,
     },
     triggerEffects: {
       // Scatter pulse duration on base-spin bonus trigger.
@@ -71,7 +71,7 @@ export const ANIMATION_TIMING = {
       // Pre-spin blur animation duration.
       spinStartMs: 500,
       // Floating win text animation duration.
-      winFloatMs: 800,
+      winFloatMs: 1050,
     },
     stagger: {
       // Column stagger for spin transition entry.
