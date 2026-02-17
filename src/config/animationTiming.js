@@ -98,6 +98,8 @@ export const ANIMATION_TIMING = {
       revealMediumThreshold: 12,
       // Threshold for large reveal pacing.
       revealLargeThreshold: 20,
+      // Pause after all reveals complete before rainbow/collector/clover actions.
+      postRevealPauseMs: 520,
       // Badge duration for clover multiplier display.
       cloverBadgeMs: 360,
       // Delay after clover badge before burst packets launch.

@@ -2430,29 +2430,6 @@ export class GridRenderer {
       }
 
       if (reveals.length > 0) {
-        const rainbowFocusPromise =
-          this.bonusVisuals?.rainbowTriggered &&
-          Array.isArray(this.bonusVisuals?.rainbowPositions) &&
-          this.bonusVisuals.rainbowPositions.length > 0
-            ? this._animateFocusedTileAtCell(
-                this.bonusVisuals.rainbowPositions[0].x,
-                this.bonusVisuals.rainbowPositions[0].y,
-                Math.max(
-                  ANIMATION_TIMING.renderer.bonusSequence.rainbowFocusMinMs,
-                  reveals.length *
-                    ANIMATION_TIMING.renderer.bonusSequence
-                      .rainbowFocusPerRevealMs +
-                    ANIMATION_TIMING.renderer.bonusSequence.rainbowFocusBaseMs,
-                ),
-                {
-                  accentColor: 0x93d1ff,
-                  maxScale: 1.16,
-                  growMs: 150,
-                  shrinkMs: 170,
-                },
-              )
-            : null;
-
         const sortedReveals = [...reveals].sort((left, right) => {
           if (left.y === right.y) {
             return left.x - right.x;
@@ -2482,8 +2459,30 @@ export class GridRenderer {
           ),
         );
 
-        if (rainbowFocusPromise) {
-          await rainbowFocusPromise;
+        await this._wait(ANIMATION_TIMING.renderer.bonusSequence.postRevealPauseMs);
+
+        if (
+          this.bonusVisuals?.rainbowTriggered &&
+          Array.isArray(this.bonusVisuals?.rainbowPositions) &&
+          this.bonusVisuals.rainbowPositions.length > 0
+        ) {
+          await this._animateFocusedTileAtCell(
+            this.bonusVisuals.rainbowPositions[0].x,
+            this.bonusVisuals.rainbowPositions[0].y,
+            Math.max(
+              ANIMATION_TIMING.renderer.bonusSequence.rainbowFocusMinMs,
+              reveals.length *
+                ANIMATION_TIMING.renderer.bonusSequence
+                  .rainbowFocusPerRevealMs +
+                ANIMATION_TIMING.renderer.bonusSequence.rainbowFocusBaseMs,
+            ),
+            {
+              accentColor: 0x93d1ff,
+              maxScale: 1.16,
+              growMs: 150,
+              shrinkMs: 170,
+            },
+          );
         }
       }
 
@@ -2819,20 +2818,6 @@ export class GridRenderer {
       this.render(this.lastRenderedGrid, new Set(), {
         showBonusOverlays: true,
       });
-
-      if (
-        collectorSteps.length > 0 &&
-        Number(round.roundCollectionValue || 0) > 0
-      ) {
-        const totalCredits = round.roundCollectionValue * betAmount;
-        await this._animateBadgeAtCell(
-          Math.floor(this.cols / 2),
-          Math.floor(this.rows / 2),
-          `COLLECTED ${this._formatBonusValue(totalCredits)}`,
-          0xffe27a,
-          ANIMATION_TIMING.renderer.bonusSequence.roundCollectedBadgeMs,
-        );
-      }
 
       await this._wait(
         ANIMATION_TIMING.renderer.bonusSequence.betweenRoundsGapMs,
