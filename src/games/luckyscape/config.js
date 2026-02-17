@@ -283,6 +283,17 @@ export const LUCKY_ESCAPE_CONFIG = {
     soundEnabled: true,
     particleEffects: true,
   },
+
+  // Internal debug mode controls (kept gated to avoid accidental user access)
+  debug: {
+    enabled: false,
+    forceConnectionAndRainbow: true,
+    gate: {
+      allowedHosts: ["localhost", "127.0.0.1"],
+      queryParam: "debug",
+      enabledValues: ["1", "true", "on", "yes"],
+    },
+  },
 };
 
 /**

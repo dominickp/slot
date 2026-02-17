@@ -238,6 +238,29 @@ npm test -- --coverage
 #### Current Test Suites
 - **cascadeDetector.test.js** - Tests for cluster detection algorithm (49 tests)
   - Basic horizontal/vertical/L-shaped cluster detection
+
+### Local debug mode (QA only)
+
+For local scenario testing, there is a gated debug mode that forces each spin to contain:
+- at least one Rainbow symbol
+- at least one valid connection (cluster win)
+- a visible on-screen `DEBUG MODE` indicator
+
+The gate requires:
+1. Running on `localhost` or `127.0.0.1`
+2. A debug query param
+
+Enable it by opening the game URL with:
+
+```text
+?debug=1
+```
+
+You can also use `?debug=true`, `?debug=on`, or `?debug=yes`.
+
+Disable it by removing/changing that query param.
+
+Example disabled URL: no `debug` query parameter.
   - Cluster size payout scaling
   - Wild symbol substitution
   - Multiple simultaneous clusters

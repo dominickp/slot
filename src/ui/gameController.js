@@ -18,8 +18,17 @@ export class GameController {
   constructor(containerElement) {
     this.container = containerElement;
 
+    this.debugModeEnabled = this._resolveDebugModeEnabled();
+    const gameConfig = {
+      ...LUCKY_ESCAPE_CONFIG,
+      debug: {
+        ...(LUCKY_ESCAPE_CONFIG?.debug || {}),
+        enabled: this.debugModeEnabled,
+      },
+    };
+
     // Initialize game
-    this.game = new LuckyScapeSlot(LUCKY_ESCAPE_CONFIG);
+    this.game = new LuckyScapeSlot(gameConfig);
 
     // Initialize renderer
     const rendererContainer = document.createElement("div");
@@ -62,6 +71,14 @@ export class GameController {
     this.bonusTotalValueEl =
       this.bonusTotalOverlay.querySelector("#bonusTotalValue");
 
+    this.debugIndicatorEl = document.createElement("div");
+    this.debugIndicatorEl.className = "debug-indicator";
+    this.debugIndicatorEl.textContent = "DEBUG MODE";
+    if (!this.debugModeEnabled) {
+      this.debugIndicatorEl.style.display = "none";
+    }
+    rendererContainer.appendChild(this.debugIndicatorEl);
+
     // Game state
     this.isSpinning = false;
     this.currentBalance = 1000;
@@ -88,8 +105,44 @@ export class GameController {
       winText: ANIMATION_TIMING.controller.spinFlow.winTextMs,
     };
 
+    if (this.debugModeEnabled) {
+      console.warn(
+        "[Debug] LuckyScape debug mode enabled: forcing rainbow + guaranteed connection each spin.",
+      );
+    }
+
     // Initialize UI
     this.ready = this._initialize();
+  }
+
+  _resolveDebugModeEnabled() {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    const debugConfig = LUCKY_ESCAPE_CONFIG?.debug || {};
+    const gate = debugConfig.gate || {};
+
+    const allowedHosts = Array.isArray(gate.allowedHosts)
+      ? gate.allowedHosts
+      : ["localhost", "127.0.0.1"];
+    const host = String(window.location?.hostname || "").toLowerCase();
+    const hostAllowed = allowedHosts.some(
+      (entry) => String(entry || "").toLowerCase() === host,
+    );
+
+    if (!hostAllowed) {
+      return false;
+    }
+
+    const queryParam = String(gate.queryParam || "debug");
+    const enabledValues = Array.isArray(gate.enabledValues)
+      ? gate.enabledValues.map((entry) => String(entry).toLowerCase())
+      : ["1", "true", "on", "yes"];
+    const params = new URLSearchParams(window.location.search);
+    const queryValue = String(params.get(queryParam) || "").toLowerCase();
+
+    return queryValue.length > 0 && enabledValues.includes(queryValue);
   }
 
   async _initialize() {
@@ -490,7 +543,9 @@ export class GameController {
 
     const accumulatedHighlights = new Set(spinResult.initialWins || []);
     for (const cascade of spinResult.cascades || []) {
-      for (const key of cascade.winPositions || []) {
+      const highlightPositions =
+        cascade.connectionPositions || cascade.winPositions || new Set();
+      for (const key of highlightPositions) {
         accumulatedHighlights.add(key);
       }
     }

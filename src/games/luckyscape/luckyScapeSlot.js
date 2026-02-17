@@ -66,6 +66,11 @@ export class LuckyScapeSlot extends BaseSlot {
     this.chainRoundsTriggered = 0;
     this.bonusEventTimeline = [];
     this.bonusHadRainbowActivationThisSession = false;
+
+    this.debugModeEnabled = Boolean(config?.debug?.enabled);
+    this.debugForceConnectionAndRainbow =
+      this.debugModeEnabled &&
+      Boolean(config?.debug?.forceConnectionAndRainbow);
   }
 
   async spin(backend, betAmount = 10) {
@@ -84,6 +89,8 @@ export class LuckyScapeSlot extends BaseSlot {
       this._injectRainbowIfMissing();
       this._enforceSingleRainbowPerSpin();
     }
+
+    this._applyDebugSpinGuarantees();
 
     const cascades = [];
     let initialWinPositions = new Set();
@@ -107,7 +114,11 @@ export class LuckyScapeSlot extends BaseSlot {
       finalWinPositions = new Set(winResult.winPositions);
 
       const beforeGrid = CascadeEngine.cloneGrid(this.currentGrid);
-      const removePositions = new Set(winResult.winPositions);
+      const connectionPositions = new Set(winResult.winPositions);
+      const removePositions = this.detector.getSuperCascadeRemovalPositions(
+        this.currentGrid,
+        winResult,
+      );
 
       this.totalWinFromSpin += winResult.totalWin;
 
@@ -127,6 +138,7 @@ export class LuckyScapeSlot extends BaseSlot {
         beforeGrid,
         afterGrid: CascadeEngine.cloneGrid(cascadeResult.grid),
         winPositions: new Set(removePositions),
+        connectionPositions,
         moveData: cascadeResult.moveData,
       });
 
@@ -551,6 +563,84 @@ export class LuckyScapeSlot extends BaseSlot {
     }
 
     return 1;
+  }
+
+  _applyDebugSpinGuarantees() {
+    if (!this.debugForceConnectionAndRainbow) {
+      return;
+    }
+
+    this._injectRainbowIfMissing();
+    this._enforceSingleRainbowPerSpin();
+
+    const currentWins = this.detector.findWins(this.currentGrid);
+    if (currentWins.clusters.length > 0) {
+      return;
+    }
+
+    const forcedPattern = this._pickDebugConnectionPattern();
+    if (!forcedPattern) {
+      return;
+    }
+
+    const symbolId = this._rollDebugRegularSymbol();
+    for (const { x, y } of forcedPattern) {
+      this.currentGrid[y][x] = symbolId;
+    }
+  }
+
+  _pickDebugConnectionPattern() {
+    const rainbowKeys = new Set(
+      this._findSymbolPositions(9).map((entry) => `${entry.x},${entry.y}`),
+    );
+
+    for (let y = 0; y < this.gridHeight; y++) {
+      for (let x = 0; x <= this.gridWidth - 5; x++) {
+        const pattern = [
+          { x, y },
+          { x: x + 1, y },
+          { x: x + 2, y },
+          { x: x + 3, y },
+          { x: x + 4, y },
+        ];
+
+        const intersectsRainbow = pattern.some(({ x: px, y: py }) =>
+          rainbowKeys.has(`${px},${py}`),
+        );
+
+        if (!intersectsRainbow) {
+          return pattern;
+        }
+      }
+    }
+
+    for (let x = 0; x < this.gridWidth; x++) {
+      for (let y = 0; y <= this.gridHeight - 5; y++) {
+        const pattern = [
+          { x, y },
+          { x, y: y + 1 },
+          { x, y: y + 2 },
+          { x, y: y + 3 },
+          { x, y: y + 4 },
+        ];
+
+        const intersectsRainbow = pattern.some(({ x: px, y: py }) =>
+          rainbowKeys.has(`${px},${py}`),
+        );
+
+        if (!intersectsRainbow) {
+          return pattern;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  _rollDebugRegularSymbol() {
+    const regularSymbols = [...CascadeDetector.REGULAR_SYMBOL_IDS];
+    const index = this.rng.nextInt(0, regularSymbols.length - 1);
+    return regularSymbols[index];
   }
 
   _getSymbolWeightsForCurrentSpin({

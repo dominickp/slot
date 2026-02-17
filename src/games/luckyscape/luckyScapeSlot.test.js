@@ -102,3 +102,55 @@ describe("LuckyScapeSlot minimum bonus rainbow safeguard", () => {
     expect(slot._shouldForceMinimumBonusRainbowSpin()).toBe(false);
   });
 });
+
+describe("LuckyScapeSlot super-cascade removal integration", () => {
+  it("removes extra matching symbols outside the connected cluster", async () => {
+    const slot = new LuckyScapeSlot();
+
+    slot._generateRandomGrid = () => [
+      [1, 1, 1, 1, 1, 2],
+      [2, 2, 2, 2, 2, 2],
+      [1, 3, 3, 3, 3, 3],
+      [4, 4, 4, 4, 4, 4],
+      [5, 5, 5, 5, 5, 5],
+    ];
+    slot._getSymbolWeightsForCurrentSpin = () => [{ id: 2, weight: 1 }];
+
+    const result = await slot.spin(null, 1);
+
+    expect(result.cascades.length).toBeGreaterThan(0);
+    expect(result.cascades[0].winPositions.has("0,0")).toBe(true);
+    expect(result.cascades[0].winPositions.has("0,2")).toBe(true);
+    expect(result.cascades[0].connectionPositions.has("0,0")).toBe(true);
+    expect(result.cascades[0].connectionPositions.has("0,2")).toBe(false);
+  });
+});
+
+describe("LuckyScapeSlot debug spin guarantees", () => {
+  it("forces at least one rainbow and one connection when debug mode is enabled", () => {
+    const slot = new LuckyScapeSlot({
+      debug: {
+        enabled: true,
+        forceConnectionAndRainbow: true,
+      },
+    });
+
+    slot.currentGrid = [
+      [1, 2, 3, 4, 5, 11],
+      [12, 13, 14, 15, 1, 2],
+      [3, 4, 5, 11, 12, 13],
+      [14, 15, 1, 2, 3, 4],
+      [5, 11, 12, 13, 14, 15],
+    ];
+
+    slot._applyDebugSpinGuarantees();
+
+    const rainbowCount = slot.currentGrid
+      .flat()
+      .filter((symbol) => symbol === 9).length;
+    const winCount = slot.detector.findWins(slot.currentGrid).clusters.length;
+
+    expect(rainbowCount).toBe(1);
+    expect(winCount).toBeGreaterThan(0);
+  });
+});
