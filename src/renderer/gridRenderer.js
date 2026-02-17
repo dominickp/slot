@@ -458,7 +458,8 @@ export class GridRenderer {
       : [];
 
     return rainbowPositions.some(
-      (entry) => Number(entry?.x) === Number(x) && Number(entry?.y) === Number(y),
+      (entry) =>
+        Number(entry?.x) === Number(x) && Number(entry?.y) === Number(y),
     );
   }
 
@@ -2477,7 +2478,9 @@ export class GridRenderer {
           ),
         );
 
-        await this._wait(ANIMATION_TIMING.renderer.bonusSequence.postRevealPauseMs);
+        await this._wait(
+          ANIMATION_TIMING.renderer.bonusSequence.postRevealPauseMs,
+        );
 
         if (
           this.bonusVisuals?.rainbowTriggered &&
