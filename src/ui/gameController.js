@@ -641,8 +641,10 @@ export class GameController {
     }
 
     const collectorSummary = this._getCollectorSummary(spinResult, betAmount);
-    this.lastWin = this._roundCredits(spinResult.totalWin || 0);
-    this._updateLastWinDisplay();
+    if (!isFreeSpin) {
+      this.lastWin = this._roundCredits(spinResult.totalWin || 0);
+      this._updateLastWinDisplay();
+    }
 
     if (spinResult.totalWin > 0) {
       this.currentBalance = this._roundCredits(
@@ -735,6 +737,9 @@ export class GameController {
     }
 
     this._updateBonusSpinProgress();
+
+    this.lastWin = this._roundCredits(bonusTotalWin);
+    this._updateLastWinDisplay();
 
     return bonusTotalWin;
   }
