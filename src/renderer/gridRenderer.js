@@ -447,6 +447,21 @@ export class GridRenderer {
     );
   }
 
+  _isRainbowCell(x, y) {
+    const baseSymbol = this.lastRenderedGrid?.[y]?.[x];
+    if (baseSymbol === SYMBOLS.RAINBOW) {
+      return true;
+    }
+
+    const rainbowPositions = Array.isArray(this.bonusVisuals?.rainbowPositions)
+      ? this.bonusVisuals.rainbowPositions
+      : [];
+
+    return rainbowPositions.some(
+      (entry) => Number(entry?.x) === Number(x) && Number(entry?.y) === Number(y),
+    );
+  }
+
   _clearAnimationLayer() {
     if (!this.animationContainer) {
       return;
@@ -1467,13 +1482,16 @@ export class GridRenderer {
       (source) => {
         const sourceKey = `${source.x}_${source.y}`;
         const existingSource = this.revealedSymbolMap.get(sourceKey) || {};
+        const isRainbowCell = this._isRainbowCell(source.x, source.y);
         const text =
           existingSource.label ||
           source.label ||
           this._formatBonusValue(source.value ?? 0);
         const color = existingSource.accentColor ?? 0xffe7ba;
 
-        if (sourceKey !== collectorKey && existingSource) {
+        if (sourceKey !== collectorKey && isRainbowCell) {
+          this.revealedSymbolMap.delete(sourceKey);
+        } else if (sourceKey !== collectorKey && existingSource) {
           this.revealedSymbolMap.set(sourceKey, {
             ...existingSource,
             label: "",
@@ -2622,16 +2640,23 @@ export class GridRenderer {
               continue;
             }
 
+            if (this._isRainbowCell(source.x, source.y)) {
+              this.revealedSymbolMap.delete(sourceKey);
+              continue;
+            }
+
+            const existingSource = this.revealedSymbolMap.get(sourceKey) || {};
+
             if (source.type === "clover") {
               this.revealedSymbolMap.set(sourceKey, {
-                symbolId: SYMBOLS.EMPTY,
+                ...existingSource,
+                symbolId: REVEAL_SYMBOLS.CLOVER,
                 label: "",
                 accentColor: 0x52c86e,
               });
               continue;
             }
 
-            const existingSource = this.revealedSymbolMap.get(sourceKey) || {};
             if (source.type === "collector") {
               this.revealedSymbolMap.set(sourceKey, {
                 ...existingSource,
@@ -2694,12 +2719,17 @@ export class GridRenderer {
                   new Promise((resolve) => {
                     setTimeout(() => {
                       const revealData = this._buildRevealTileData(reveal);
+                      const isRainbowRevealCell = this._isRainbowCell(
+                        reveal.x,
+                        reveal.y,
+                      );
+                      const preserveVisibleTile = !isRainbowRevealCell;
                       this._animateTileSpinRevealAtCell(
                         reveal.x,
                         reveal.y,
                         revealData,
                         revealDuration,
-                        { startFromEmpty: true },
+                        { startFromEmpty: !preserveVisibleTile },
                       ).then(resolve);
                     }, index * revealStagger);
                   }),

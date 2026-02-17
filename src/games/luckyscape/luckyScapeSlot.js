@@ -119,6 +119,9 @@ export class LuckyScapeSlot extends BaseSlot {
         this.currentGrid,
         winResult,
       );
+      for (const connectionKey of connectionPositions) {
+        removePositions.add(connectionKey);
+      }
 
       this.totalWinFromSpin += winResult.totalWin;
 

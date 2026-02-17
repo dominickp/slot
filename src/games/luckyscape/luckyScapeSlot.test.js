@@ -152,6 +152,33 @@ describe("LuckyScapeSlot super-cascade removal integration", () => {
     expect(result.cascades[0].connectionPositions.has("0,0")).toBe(true);
     expect(result.cascades[0].connectionPositions.has("0,2")).toBe(false);
   });
+
+  it("always removes every connected position even if super-cascade under-returns", async () => {
+    const slot = new LuckyScapeSlot();
+
+    slot._generateRandomGrid = () => [
+      [1, 1, 1, 1, 1, 2],
+      [2, 3, 4, 5, 11, 12],
+      [13, 14, 15, 2, 3, 4],
+      [5, 11, 12, 13, 14, 15],
+      [2, 3, 4, 5, 11, 12],
+    ];
+    slot._getSymbolWeightsForCurrentSpin = () => [{ id: 2, weight: 1 }];
+
+    const originalSuperRemoval =
+      slot.detector.getSuperCascadeRemovalPositions.bind(slot.detector);
+    slot.detector.getSuperCascadeRemovalPositions = () => new Set(["0,0"]);
+
+    const result = await slot.spin(null, 1);
+
+    slot.detector.getSuperCascadeRemovalPositions = originalSuperRemoval;
+
+    expect(result.cascades.length).toBeGreaterThan(0);
+    expect(result.cascades[0].connectionPositions.has("0,0")).toBe(true);
+    expect(result.cascades[0].connectionPositions.has("4,0")).toBe(true);
+    expect(result.cascades[0].winPositions.has("0,0")).toBe(true);
+    expect(result.cascades[0].winPositions.has("4,0")).toBe(true);
+  });
 });
 
 describe("LuckyScapeSlot debug spin guarantees", () => {
