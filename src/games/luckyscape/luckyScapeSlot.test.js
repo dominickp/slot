@@ -153,4 +153,29 @@ describe("LuckyScapeSlot debug spin guarantees", () => {
     expect(rainbowCount).toBe(1);
     expect(winCount).toBeGreaterThan(0);
   });
+
+  it("forces at least one collector reveal during chain round in debug mode", () => {
+    const slot = new LuckyScapeSlot({
+      debug: {
+        enabled: true,
+        forceConnectionAndRainbow: true,
+      },
+    });
+
+    slot.goldenSquares = new Set(["0,0", "1,0", "2,0", "3,0", "4,0"]);
+    slot._getGoldenSquareOutcomeChances = () => ({
+      coin: 1,
+      clover: 0,
+      pot: 0,
+    });
+    slot._rollCoinValue = () => 1;
+    slot.rng.nextFloat = () => 0;
+
+    const round = slot._executeSingleChainRound(1);
+
+    expect(round.potCount).toBeGreaterThan(0);
+    expect(
+      slot.bonusEventTimeline[0].reveals.some((r) => r.type === "collector"),
+    ).toBe(true);
+  });
 });

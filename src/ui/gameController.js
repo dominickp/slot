@@ -615,6 +615,7 @@ export class GameController {
         betAmount,
         onCloverMultiply: () => this.soundManager.playCloverMultiply(),
         onCollectorCollect: () => this.soundManager.playCollectorCollect(),
+        onCollectorTick: () => this.soundManager.playCollectorPop(),
       });
     }
 

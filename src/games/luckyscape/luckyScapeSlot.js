@@ -977,6 +977,56 @@ export class LuckyScapeSlot extends BaseSlot {
       }
     }
 
+    if (this.debugForceConnectionAndRainbow && collectorQueue.length === 0) {
+      const forcedCollectorKey = sortedGoldenKeys.find((key) => {
+        const tile = tileState.get(key);
+        return tile && tile.type !== "collector_empty";
+      });
+
+      if (forcedCollectorKey) {
+        const { x, y } = parseKey(forcedCollectorKey);
+        const currentTile = tileState.get(forcedCollectorKey);
+        if (currentTile?.type === "clover") {
+          const cloverIndex = initialCloverKeys.indexOf(forcedCollectorKey);
+          if (cloverIndex >= 0) {
+            initialCloverKeys.splice(cloverIndex, 1);
+          }
+
+          const cloverValueIndex = this.cloverSymbolsHit.findIndex(
+            (value) => value === currentTile.value,
+          );
+          if (cloverValueIndex >= 0) {
+            this.cloverSymbolsHit.splice(cloverValueIndex, 1);
+          }
+        }
+
+        tileState.set(forcedCollectorKey, {
+          key: forcedCollectorKey,
+          x,
+          y,
+          type: "collector_empty",
+          value: 1,
+        });
+
+        const revealIndex = eventRound.reveals.findIndex(
+          (entry) => entry.x === x && entry.y === y,
+        );
+        if (revealIndex >= 0) {
+          eventRound.reveals[revealIndex] = {
+            x,
+            y,
+            type: "collector",
+            value: 1,
+          };
+        } else {
+          eventRound.reveals.push({ x, y, type: "collector", value: 1 });
+        }
+
+        this.potSymbolsHit.push(1);
+        queueCollector(forcedCollectorKey);
+      }
+    }
+
     applyCloverMultipliers(initialCloverKeys, eventRound.cloverHits);
 
     let runningCollectedTotal = 0;

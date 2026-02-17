@@ -55,9 +55,9 @@ export const ANIMATION_TIMING = {
       // Center callout animation duration.
       centerCalloutMs: 820,
       // Token travel duration from sources to pot.
-      collectFlowTravelMs: 560,
+      collectFlowTravelMs: 760,
       // Pot result badge duration after collection completes.
-      collectFlowBadgeMs: 620,
+      collectFlowBadgeMs: 760,
       // Scatter pulse default duration.
       scatterTriggerMs: 900,
       // Spin transition duration for initial board animation.
@@ -113,7 +113,13 @@ export const ANIMATION_TIMING = {
       // Gap after post-collect updates before next action.
       postCollectSettleGapMs: 80,
       // Delay after each collector step completes.
-      collectorStepGapMs: 180,
+      collectorStepGapMs: 320,
+      // Per-source collector value tick display duration.
+      collectorTickMs: 34,
+      // Delay between collector value ticks.
+      collectorTickGapMs: 14,
+      // Pause after collector suction/count-up before post-collect reveals.
+      collectorPostAnimationDelayMs: 220,
       // Duration for round total collection badge.
       roundCollectedBadgeMs: 420,
       // Delay between feature rounds.
@@ -125,9 +131,9 @@ export const ANIMATION_TIMING = {
       // Minimum clover focus duration.
       cloverFocusMinMs: 560,
       // Collector focus duration when sources exist.
-      collectorFocusWithSourcesMs: 1320,
+      collectorFocusWithSourcesMs: 1840,
       // Collector focus duration when no sources exist.
-      collectorFocusWithoutSourcesMs: 760,
+      collectorFocusWithoutSourcesMs: 980,
       // Rainbow focus base duration.
       rainbowFocusBaseMs: 420,
       // Rainbow focus extra duration per reveal.

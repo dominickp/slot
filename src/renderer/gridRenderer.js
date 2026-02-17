@@ -836,6 +836,7 @@ export class GridRenderer {
         maxScale = 1.18,
         growMs = 170,
         shrinkMs = 170,
+        renderTileSprite = true,
       } = options;
 
       const safeGrowMs = Math.max(80, Math.min(duration / 2, growMs));
@@ -845,12 +846,14 @@ export class GridRenderer {
       const overlay = new PIXI.Container();
       overlay.position.set(center.x, center.y);
 
-      const focusTile = this._createCellSizedSprite(symbolId, 0);
-      focusTile.width = width;
-      focusTile.height = height;
-      focusTile.pivot.set(width / 2, height / 2);
-      focusTile.position.set(0, 0);
-      overlay.addChild(focusTile);
+      if (renderTileSprite) {
+        const focusTile = this._createCellSizedSprite(symbolId, 0);
+        focusTile.width = width;
+        focusTile.height = height;
+        focusTile.pivot.set(width / 2, height / 2);
+        focusTile.position.set(0, 0);
+        overlay.addChild(focusTile);
+      }
 
       const glow = new PIXI.Graphics();
       glow.roundRect(-width / 2, -height / 2, width, height, 14);
@@ -1362,8 +1365,31 @@ export class GridRenderer {
     });
   }
 
-  async _animateCollectFlowToPot(sources, collectorStep, betAmount) {
+  async _animateCollectFlowToPot(sources, collectorStep, options = {}) {
     await this.ready;
+
+    const { onCollectorTick = null } = options;
+    const collectorKey = `${collectorStep.x}_${collectorStep.y}`;
+    const existingCollector = this.revealedSymbolMap.get(collectorKey) || {};
+    const targetValue = Math.max(0, Number(collectorStep?.collectedValue || 0));
+    const integerTarget = Math.floor(targetValue);
+    const hasFraction = targetValue - integerTarget > 0.000001;
+
+    const setCollectorValue = (value) => {
+      this.revealedSymbolMap.set(collectorKey, {
+        ...existingCollector,
+        symbolId: REVEAL_SYMBOLS.POT,
+        label: this._formatBonusValue(value),
+        accentColor: 0xffc77a,
+      });
+      this.render(this.lastRenderedGrid, new Set(), {
+        showBonusOverlays: true,
+      });
+    };
+
+    let runningWholeValue = 0;
+    let nextWholeTick = 1;
+    setCollectorValue(0);
 
     const collectorCenter = this._cellCenter(collectorStep.x, collectorStep.y);
 
@@ -1403,6 +1429,23 @@ export class GridRenderer {
           const elapsed = Date.now() - startTime;
           const progress = Math.min(elapsed / duration, 1);
           const eased = 1 - Math.pow(1 - progress, 2.5);
+          const progressValue = targetValue * eased;
+
+          while (
+            nextWholeTick <= integerTarget &&
+            progressValue >= nextWholeTick
+          ) {
+            runningWholeValue = nextWholeTick;
+            setCollectorValue(runningWholeValue);
+            if (typeof onCollectorTick === "function") {
+              onCollectorTick({
+                collectorStep,
+                runningValue: runningWholeValue,
+                tickAmount: 1,
+              });
+            }
+            nextWholeTick += 1;
+          }
 
           for (const item of tokens) {
             item.token.x =
@@ -1416,26 +1459,49 @@ export class GridRenderer {
           if (progress < 1) {
             requestAnimationFrame(animate);
           } else {
+            if (hasFraction || targetValue > runningWholeValue) {
+              setCollectorValue(targetValue);
+            }
             resolve();
           }
         };
 
         animate();
       });
+    } else {
+      const tickMs = Number(
+        ANIMATION_TIMING.renderer.bonusSequence.collectorTickMs || 34,
+      );
+      const tickGapMs = Number(
+        ANIMATION_TIMING.renderer.bonusSequence.collectorTickGapMs || 14,
+      );
+
+      for (let value = 1; value <= integerTarget; value++) {
+        runningWholeValue = value;
+        setCollectorValue(runningWholeValue);
+        if (typeof onCollectorTick === "function") {
+          onCollectorTick({
+            collectorStep,
+            runningValue: runningWholeValue,
+            tickAmount: 1,
+          });
+        }
+
+        await this._wait(tickMs);
+        if (value < integerTarget) {
+          await this._wait(tickGapMs);
+        }
+      }
+
+      if (hasFraction || targetValue > runningWholeValue) {
+        setCollectorValue(targetValue);
+      }
     }
 
     for (const item of tokens) {
       this.animationContainer.removeChild(item.token);
       item.token.destroy({ children: true });
     }
-
-    await this._animateBadgeAtCell(
-      collectorStep.x,
-      collectorStep.y,
-      `POT +${this._formatBonusValue(collectorStep.collectedValue * betAmount)}`,
-      0xffc77a,
-      ANIMATION_TIMING.renderer.defaults.collectFlowBadgeMs,
-    );
   }
 
   _enforcePersistentPot() {
@@ -1643,7 +1709,6 @@ export class GridRenderer {
 
           const progress = Math.min(localElapsed / duration, 1);
           const easedOut = 1 - (1 - progress) * (1 - progress);
-          const easedIn = progress * progress;
 
           if (lane.outgoing) {
             lane.outgoing.y = lane.targetY + outDistance * easedOut;
@@ -2210,6 +2275,7 @@ export class GridRenderer {
       betAmount = 1,
       onCloverMultiply = null,
       onCollectorCollect = null,
+      onCollectorTick = null,
     } = options;
     if (!Array.isArray(eventRounds) || eventRounds.length === 0) {
       return;
@@ -2408,10 +2474,13 @@ export class GridRenderer {
               maxScale: 1.2,
               growMs: 180,
               shrinkMs: 180,
+              renderTileSprite: false,
             },
           );
 
-          await this._animateCollectFlowToPot(sources, step, betAmount);
+          await this._animateCollectFlowToPot(sources, step, {
+            onCollectorTick,
+          });
 
           for (const source of clearedSources) {
             const sourceKey = `${source.x}_${source.y}`;
@@ -2461,18 +2530,10 @@ export class GridRenderer {
 
           await potFocusPromise;
 
-          const collectorKey = `${step.x}_${step.y}`;
-          const existing = this.revealedSymbolMap.get(collectorKey) || {};
-          this.revealedSymbolMap.set(collectorKey, {
-            ...existing,
-            symbolId: REVEAL_SYMBOLS.POT,
-            label: this._formatBonusValue(step.collectedValue),
-            accentColor: 0xffc77a,
-          });
-
-          this.render(this.lastRenderedGrid, new Set(), {
-            showBonusOverlays: true,
-          });
+          await this._wait(
+            ANIMATION_TIMING.renderer.bonusSequence
+              .collectorPostAnimationDelayMs,
+          );
 
           const postCollectReveals = Array.isArray(step.postCollectReveals)
             ? step.postCollectReveals

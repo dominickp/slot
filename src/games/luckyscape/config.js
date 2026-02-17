@@ -89,6 +89,7 @@ export const LUCKY_ESCAPE_CONFIG = {
       rainbow: withBasePath("assets/audio/rainbow.ogg"),
       "clover-multiply": withBasePath("assets/audio/clover_multiply.ogg"),
       "collector-collect": withBasePath("assets/audio/collector_collect.ogg"),
+      "collector-pop": withBasePath("assets/audio/collector_pop.ogg"),
       "big-win": withBasePath("assets/audio/big_win.ogg"),
       "bg-music": withBasePath("assets/audio/background_music.ogg"),
     },

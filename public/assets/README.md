@@ -52,6 +52,7 @@ Create these files in `public/assets/audio/`:
 - `rainbow.ogg`
 - `clover_multiply.ogg`
 - `collector_collect.ogg`
+- `collector_pop.ogg`
 - `big_win.ogg`
 - `background_music.ogg`
 

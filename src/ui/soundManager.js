@@ -378,6 +378,21 @@ export class SoundManager {
     });
   }
 
+  playCollectorPop() {
+    this._playHookOrFallback("collector-pop", () => {
+      if (this._playAsset("collector-pop")) {
+        return;
+      }
+      this.playTone({
+        frequency: 420,
+        type: "triangle",
+        duration: 0.045,
+        volume: 0.09,
+        sweepTo: 360,
+      });
+    });
+  }
+
   playBigWin() {
     this._playHookOrFallback("big-win", () => {
       if (this._playAsset("big-win")) {
