@@ -81,6 +81,34 @@ describe("LuckyScapeSlot collector payout consistency", () => {
     expect(chanceAtThreeCollectors).toBeLessThan(chanceAtOneCollector);
     expect(chanceAtThreeCollectors).toBeGreaterThan(0);
   });
+
+  it("includes coins revealed after collector suction in round payout", () => {
+    const slot = new LuckyScapeSlot();
+
+    slot.goldenSquares = new Set(["0,0", "1,0"]);
+    slot._getGoldenSquareOutcomeChances = () => ({
+      coin: 0.5,
+      clover: 0,
+      pot: 0.5,
+    });
+    slot._getAdjustedPotChance = (basePotChance) => basePotChance;
+
+    const coinValues = [5, 7];
+    slot._rollCoinValue = () => coinValues.shift();
+
+    const floatRolls = [0.6, 0.1, 0.1];
+    let floatIndex = 0;
+    slot.rng.nextFloat = () => {
+      const roll = floatRolls[floatIndex] ?? 0;
+      floatIndex += 1;
+      return roll;
+    };
+
+    const round = slot._executeSingleChainRound(1);
+
+    expect(round.potCount).toBe(1);
+    expect(round.roundCollectionValue).toBe(12);
+  });
 });
 
 describe("LuckyScapeSlot minimum bonus rainbow safeguard", () => {

@@ -1144,8 +1144,7 @@ export class LuckyScapeSlot extends BaseSlot {
 
     eventRound.roundCollectionValue = Math.min(
       10000,
-      totalCollectedByCollectors +
-        (eventRound.collectorSteps.length === 0 ? finalCoins : 0),
+      totalCollectedByCollectors + finalCoins,
     );
     eventRound.potCount = eventRound.collectorSteps.length;
 

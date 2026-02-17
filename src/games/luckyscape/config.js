@@ -103,6 +103,14 @@ export const LUCKY_ESCAPE_CONFIG = {
       silver: 0xd69763,
       gold: 0x6fb5e8,
     },
+    collectorSuctionMotion: {
+      curveStrength: 0.5,
+      curveLift: 0.5,
+      controlPointT: 0.46,
+      jitterAmplitude: 1.5,
+      jitterFrequency: 1.0,
+      durationScale: 1.35,
+    },
   },
 
   // Win mechanics

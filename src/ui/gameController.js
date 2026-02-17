@@ -59,6 +59,7 @@ export class GameController {
         0, 90, 180, 270,
       ],
       coinTierColors: gameConfig?.visuals?.coinTierColors || {},
+      collectorSuctionMotion: gameConfig?.visuals?.collectorSuctionMotion || {},
     });
 
     this.bonusTotalOverlay = document.createElement("div");
@@ -86,6 +87,7 @@ export class GameController {
     this.currentBalance = 1000;
     this.totalSpins = 0;
     this.totalWins = 0;
+    this.lastWin = 0;
     this.autoPlayEnabled = false;
     this.autoPlayTimer = null;
     this.isConfirmOpen = false;
@@ -202,6 +204,7 @@ export class GameController {
     const bonusSpinStat = document.getElementById("bonusSpinStat");
     const bonusSpinProgress = document.getElementById("bonusSpinProgress");
     const totalWinEl = document.getElementById("totalWin");
+    const lastWinEl = document.getElementById("lastWin");
     const gameContainer = document.querySelector(".game-container");
 
     if (gameContainer) {
@@ -277,6 +280,9 @@ export class GameController {
     if (totalWinEl) {
       totalWinEl.textContent = this._formatCredits(this.totalWins);
     }
+    if (lastWinEl) {
+      lastWinEl.textContent = this._formatCredits(this.lastWin);
+    }
     volumeSlider.value = String(Math.round(this.soundManager.volume * 100));
     volumeValue.textContent = `${Math.round(this.soundManager.volume * 100)}%`;
 
@@ -309,6 +315,7 @@ export class GameController {
       bonusSpinStat,
       bonusSpinProgress,
       totalWinEl,
+      lastWinEl,
     };
 
     this._updateControlButtons();
@@ -634,6 +641,8 @@ export class GameController {
     }
 
     const collectorSummary = this._getCollectorSummary(spinResult, betAmount);
+    this.lastWin = this._roundCredits(spinResult.totalWin || 0);
+    this._updateLastWinDisplay();
 
     if (spinResult.totalWin > 0) {
       this.currentBalance = this._roundCredits(
@@ -791,6 +800,14 @@ export class GameController {
     }
 
     this.ui.totalWinEl.textContent = this._formatCredits(this.totalWins);
+  }
+
+  _updateLastWinDisplay() {
+    if (!this.ui?.lastWinEl) {
+      return;
+    }
+
+    this.ui.lastWinEl.textContent = this._formatCredits(this.lastWin);
   }
 
   _showBonusIntro(bonusMode, scatterCount, options = {}) {

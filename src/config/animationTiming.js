@@ -17,7 +17,7 @@ export const ANIMATION_TIMING = {
       // Maximum number of cascades animated before fast-forwarding.
       maxAnimatedCascades: 8,
       // Duration of the floating win text animation.
-      winTextMs: 520,
+      winTextMs: 900,
     },
     triggerEffects: {
       // Scatter pulse duration on base-spin bonus trigger.

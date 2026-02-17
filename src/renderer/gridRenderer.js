@@ -86,6 +86,14 @@ const DEFAULT_COIN_TIER_COLORS = {
   silver: 0xd7e2f0,
   gold: 0xffd94a,
 };
+const DEFAULT_COLLECTOR_SUCTION_MOTION = {
+  curveStrength: 0.18,
+  curveLift: 0.1,
+  controlPointT: 0.45,
+  jitterAmplitude: 1,
+  jitterFrequency: 1,
+  durationScale: 1,
+};
 
 export class GridRenderer {
   constructor(containerElement, options = {}) {
@@ -107,6 +115,9 @@ export class GridRenderer {
     );
     this.coinTierColors = this._normalizeCoinTierColors(
       options.coinTierColors || {},
+    );
+    this.collectorSuctionMotion = this._normalizeCollectorSuctionMotion(
+      options.collectorSuctionMotion || {},
     );
     this.rotationByCell = new Map();
     this.assetCacheBustToken = Date.now();
@@ -197,6 +208,65 @@ export class GridRenderer {
         DEFAULT_COIN_TIER_COLORS.silver,
       ),
       gold: normalizeHexColor(rawColors.gold, DEFAULT_COIN_TIER_COLORS.gold),
+    };
+  }
+
+  _normalizeCollectorSuctionMotion(rawMotion = {}) {
+    const toFinite = (value, fallback) => {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : fallback;
+    };
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+    return {
+      curveStrength: clamp(
+        toFinite(
+          rawMotion.curveStrength,
+          DEFAULT_COLLECTOR_SUCTION_MOTION.curveStrength,
+        ),
+        0,
+        0.6,
+      ),
+      curveLift: clamp(
+        toFinite(
+          rawMotion.curveLift,
+          DEFAULT_COLLECTOR_SUCTION_MOTION.curveLift,
+        ),
+        0,
+        0.4,
+      ),
+      controlPointT: clamp(
+        toFinite(
+          rawMotion.controlPointT,
+          DEFAULT_COLLECTOR_SUCTION_MOTION.controlPointT,
+        ),
+        0.2,
+        0.8,
+      ),
+      jitterAmplitude: clamp(
+        toFinite(
+          rawMotion.jitterAmplitude,
+          DEFAULT_COLLECTOR_SUCTION_MOTION.jitterAmplitude,
+        ),
+        0,
+        3,
+      ),
+      jitterFrequency: clamp(
+        toFinite(
+          rawMotion.jitterFrequency,
+          DEFAULT_COLLECTOR_SUCTION_MOTION.jitterFrequency,
+        ),
+        0.3,
+        3,
+      ),
+      durationScale: clamp(
+        toFinite(
+          rawMotion.durationScale,
+          DEFAULT_COLLECTOR_SUCTION_MOTION.durationScale,
+        ),
+        0.6,
+        2.5,
+      ),
     };
   }
 
@@ -1391,6 +1461,7 @@ export class GridRenderer {
     let nextWholeTick = 1;
 
     const collectorCenter = this._cellCenter(collectorStep.x, collectorStep.y);
+    const suctionMotion = this.collectorSuctionMotion;
 
     const movingValues = (Array.isArray(sources) ? sources : []).map(
       (source) => {
@@ -1419,7 +1490,7 @@ export class GridRenderer {
 
     setCollectorValue(0);
 
-    const tokens = movingValues.map(({ source, text, color }) => {
+    const tokens = movingValues.map(({ source, text, color }, index) => {
       const token = new PIXI.Container();
 
       const valueLabel = new PIXI.Text({
@@ -1439,12 +1510,42 @@ export class GridRenderer {
       const start = this._cellCenter(source.x, source.y);
       token.position.set(start.x, start.y);
       this.animationContainer.addChild(token);
-      return { token, start };
+
+      const travelDx = collectorCenter.x - start.x;
+      const travelDy = collectorCenter.y - start.y;
+      const controlPointT = suctionMotion.controlPointT;
+      const lateralMagnitude = Math.max(
+        this.cellSize * 0.08,
+        Math.min(
+          this.cellSize * 0.28,
+          Math.hypot(travelDx, travelDy) * suctionMotion.curveStrength,
+        ),
+      );
+      const directionSeed = (source.x + source.y + index) % 2 === 0 ? 1 : -1;
+      const control = {
+        x:
+          start.x + travelDx * controlPointT + directionSeed * lateralMagnitude,
+        y:
+          start.y +
+          travelDy * Math.max(0.1, controlPointT - 0.1) -
+          this.cellSize * suctionMotion.curveLift,
+      };
+
+      return {
+        token,
+        start,
+        control,
+        jitterAmp: suctionMotion.jitterAmplitude * (1.1 + (index % 3) * 0.35),
+        jitterFreq: suctionMotion.jitterFrequency * (7.5 + (index % 4) * 1.15),
+        jitterPhase: (index % 5) * 0.7,
+      };
     });
 
     if (tokens.length > 0) {
       await new Promise((resolve) => {
-        const duration = ANIMATION_TIMING.renderer.defaults.collectFlowTravelMs;
+        const duration =
+          ANIMATION_TIMING.renderer.defaults.collectFlowTravelMs *
+          suctionMotion.durationScale;
         const startTime = Date.now();
 
         const animate = () => {
@@ -1470,10 +1571,22 @@ export class GridRenderer {
           }
 
           for (const item of tokens) {
-            item.token.x =
-              item.start.x + (collectorCenter.x - item.start.x) * eased;
-            item.token.y =
-              item.start.y + (collectorCenter.y - item.start.y) * eased;
+            const oneMinus = 1 - eased;
+            const curvedX =
+              oneMinus * oneMinus * item.start.x +
+              2 * oneMinus * eased * item.control.x +
+              eased * eased * collectorCenter.x;
+            const curvedY =
+              oneMinus * oneMinus * item.start.y +
+              2 * oneMinus * eased * item.control.y +
+              eased * eased * collectorCenter.y;
+            const jitter =
+              Math.sin(progress * item.jitterFreq + item.jitterPhase) *
+              item.jitterAmp *
+              (1 - eased);
+
+            item.token.x = curvedX + jitter;
+            item.token.y = curvedY - jitter * 0.25;
             item.token.alpha = 1 - progress * 0.35;
             item.token.scale.set(1 - progress * 0.62);
           }
