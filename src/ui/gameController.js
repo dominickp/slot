@@ -90,6 +90,7 @@ export class GameController {
         0, 90, 180, 270,
       ],
       coinTierColors: gameConfig?.visuals?.coinTierColors || {},
+      cloverMultiplierColors: gameConfig?.visuals?.cloverMultiplierColors || {},
       collectorSuctionMotion: gameConfig?.visuals?.collectorSuctionMotion || {},
     });
 

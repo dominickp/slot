@@ -94,6 +94,11 @@ const DEFAULT_COLLECTOR_SUCTION_MOTION = {
   jitterFrequency: 1,
   durationScale: 1,
 };
+const DEFAULT_CLOVER_MULTIPLIER_COLORS = {
+  primary: 0xff4f63,
+  soft: 0xffc2cb,
+  dark: 0x4a1a20,
+};
 
 export class GridRenderer {
   constructor(containerElement, options = {}) {
@@ -115,6 +120,9 @@ export class GridRenderer {
     );
     this.coinTierColors = this._normalizeCoinTierColors(
       options.coinTierColors || {},
+    );
+    this.cloverMultiplierColors = this._normalizeCloverMultiplierColors(
+      options.cloverMultiplierColors || {},
     );
     this.collectorSuctionMotion = this._normalizeCollectorSuctionMotion(
       options.collectorSuctionMotion || {},
@@ -208,6 +216,38 @@ export class GridRenderer {
         DEFAULT_COIN_TIER_COLORS.silver,
       ),
       gold: normalizeHexColor(rawColors.gold, DEFAULT_COIN_TIER_COLORS.gold),
+    };
+  }
+
+  _normalizeCloverMultiplierColors(rawColors = {}) {
+    const normalizeHexColor = (value, fallback) => {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+      }
+
+      if (typeof value === "string") {
+        const trimmed = value.trim().replace(/^#/, "");
+        if (/^[0-9a-fA-F]{6}$/.test(trimmed)) {
+          return Number.parseInt(trimmed, 16);
+        }
+      }
+
+      return fallback;
+    };
+
+    return {
+      primary: normalizeHexColor(
+        rawColors.primary,
+        DEFAULT_CLOVER_MULTIPLIER_COLORS.primary,
+      ),
+      soft: normalizeHexColor(
+        rawColors.soft,
+        DEFAULT_CLOVER_MULTIPLIER_COLORS.soft,
+      ),
+      dark: normalizeHexColor(
+        rawColors.dark,
+        DEFAULT_CLOVER_MULTIPLIER_COLORS.dark,
+      ),
     };
   }
 
@@ -1012,14 +1052,15 @@ export class GridRenderer {
 
     const start = this._cellCenter(cloverHit.x, cloverHit.y);
     const multiplierLabel = `x${this._formatBonusValue(cloverHit.multiplier)}`;
+    const cloverColors = this.cloverMultiplierColors;
 
     const packets = targets.map((target) => {
       const packet = new PIXI.Container();
 
       const badge = new PIXI.Graphics();
       badge.roundRect(-22, -14, 44, 28, 10);
-      badge.fill({ color: 0x294527, alpha: 0.86 });
-      badge.stroke({ color: 0x7fe18f, width: 2 });
+      badge.fill({ color: cloverColors.dark, alpha: 0.86 });
+      badge.stroke({ color: cloverColors.primary, width: 2 });
       packet.addChild(badge);
 
       const text = new PIXI.Text({
@@ -1028,7 +1069,7 @@ export class GridRenderer {
           fontFamily: "Arial",
           fontSize: 14,
           fontWeight: "bold",
-          fill: 0xd8ffe0,
+          fill: cloverColors.soft,
           align: "center",
         },
       });
@@ -1254,7 +1295,7 @@ export class GridRenderer {
       return {
         symbolId,
         label: `x${this._formatBonusValue(reveal.value)}`,
-        accentColor: 0x52c86e,
+        accentColor: this.cloverMultiplierColors.primary,
       };
     }
 
@@ -2623,7 +2664,7 @@ export class GridRenderer {
               cloverFocusDuration,
             ),
             {
-              accentColor: 0x67e07f,
+              accentColor: this.cloverMultiplierColors.primary,
               maxScale: 1.18,
               growMs: 170,
               shrinkMs: 170,
@@ -2634,7 +2675,7 @@ export class GridRenderer {
             cloverHit.x,
             cloverHit.y,
             `x${this._formatBonusValue(cloverHit.multiplier)}`,
-            0x67e07f,
+            this.cloverMultiplierColors.primary,
             ANIMATION_TIMING.renderer.bonusSequence.cloverBadgeMs,
           );
 
@@ -2745,7 +2786,7 @@ export class GridRenderer {
                 ...existingSource,
                 symbolId: REVEAL_SYMBOLS.CLOVER,
                 label: "",
-                accentColor: 0x52c86e,
+                accentColor: this.cloverMultiplierColors.primary,
               });
               continue;
             }
@@ -2874,7 +2915,7 @@ export class GridRenderer {
                       .cloverFocusPerTargetMs,
               ),
               {
-                accentColor: 0x67e07f,
+                accentColor: this.cloverMultiplierColors.primary,
                 maxScale: 1.18,
                 growMs: 170,
                 shrinkMs: 170,
@@ -2885,7 +2926,7 @@ export class GridRenderer {
               cloverHit.x,
               cloverHit.y,
               `x${this._formatBonusValue(cloverHit.multiplier)}`,
-              0x67e07f,
+              this.cloverMultiplierColors.primary,
               ANIMATION_TIMING.renderer.bonusSequence.postCollectCloverBadgeMs,
             );
 
