@@ -14,6 +14,33 @@ import { LUCKY_ESCAPE_CONFIG } from "../games/luckyscape/config.js";
 import { ANIMATION_TIMING } from "../config/animationTiming.js";
 import { SoundManager } from "./soundManager.js";
 
+const DEFAULT_BONUS_WIN_CELEBRATION = {
+  title: "Bonus Total Win",
+  countUp: {
+    unitStep: 1,
+    startTickMs: 44,
+    endTickMs: 11,
+    maxDurationMs: 3200,
+    holdFinalMs: 900,
+  },
+  tiers: [
+    { id: "nice", label: "NICE WIN", multiplier: 8, accentColor: "#7cf0b5" },
+    { id: "big", label: "BIG WIN", multiplier: 20, accentColor: "#6ea8ff" },
+    { id: "epic", label: "EPIC WIN", multiplier: 40, accentColor: "#8b6dff" },
+    {
+      id: "legendary",
+      label: "LEGENDARY WIN",
+      multiplier: 75,
+      accentColor: "#ffd972",
+    },
+  ],
+  defaultTier: {
+    id: "bonus",
+    label: "BONUS WIN",
+    accentColor: "#9db2db",
+  },
+};
+
 export class GameController {
   constructor(containerElement) {
     this.container = containerElement;
@@ -26,6 +53,10 @@ export class GameController {
         enabled: this.debugModeEnabled,
       },
     };
+
+    this.bonusWinCelebration = this._normalizeBonusWinCelebrationConfig(
+      gameConfig?.visuals?.bonusWinCelebration,
+    );
 
     // Initialize game
     this.game = new LuckyScapeSlot(gameConfig);
@@ -66,13 +97,17 @@ export class GameController {
     this.bonusTotalOverlay.className = "bonus-total-overlay";
     this.bonusTotalOverlay.innerHTML = `
       <div class="bonus-total-content">
-        <div class="bonus-total-label">Bonus Total Win</div>
+        <div class="bonus-total-label">${this.bonusWinCelebration.title}</div>
+        <div class="bonus-total-tier" id="bonusTotalTier">${this.bonusWinCelebration.defaultTier.label}</div>
         <div class="bonus-total-value" id="bonusTotalValue">0</div>
       </div>
     `;
     rendererContainer.appendChild(this.bonusTotalOverlay);
+    this.bonusTotalTierEl =
+      this.bonusTotalOverlay.querySelector("#bonusTotalTier");
     this.bonusTotalValueEl =
       this.bonusTotalOverlay.querySelector("#bonusTotalValue");
+    this.bonusTotalAnimationToken = 0;
 
     this.debugIndicatorEl = document.createElement("div");
     this.debugIndicatorEl.className = "debug-indicator";
@@ -404,7 +439,7 @@ export class GameController {
           spinResult.scatterCount,
         );
         const bonusTotalWin = await this._playFreeSpins(betAmount);
-        this._showBonusTotalOverlay(bonusTotalWin);
+        await this._showBonusTotalOverlay(bonusTotalWin, betAmount);
       }
 
       await this._delay(ANIMATION_TIMING.controller.pauses.postBaseSpinMs);
@@ -503,7 +538,7 @@ export class GameController {
         betAmount,
       });
       const bonusTotalWin = await this._playFreeSpins(betAmount);
-      this._showBonusTotalOverlay(bonusTotalWin);
+      await this._showBonusTotalOverlay(bonusTotalWin, betAmount);
     } catch (error) {
       console.error("Bonus buy error:", error);
       this._showResult(`Error: ${error.message}`, "loss");
@@ -1157,6 +1192,111 @@ export class GameController {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  _normalizeBonusWinCelebrationConfig(rawConfig = {}) {
+    const base = DEFAULT_BONUS_WIN_CELEBRATION;
+    const countUp = rawConfig?.countUp || {};
+
+    const clamp = (value, min, max, fallback) => {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return fallback;
+      }
+      return Math.max(min, Math.min(max, numeric));
+    };
+
+    const tiers = Array.isArray(rawConfig?.tiers)
+      ? rawConfig.tiers
+          .map((tier, index) => ({
+            id: String(tier?.id || `tier-${index + 1}`),
+            label: String(tier?.label || "BONUS WIN"),
+            multiplier: Math.max(0, Number(tier?.multiplier || 0)),
+            accentColor: String(tier?.accentColor || "").trim() || null,
+          }))
+          .filter((tier) => Number.isFinite(tier.multiplier))
+          .sort((left, right) => left.multiplier - right.multiplier)
+      : [];
+
+    return {
+      title: String(rawConfig?.title || base.title),
+      countUp: {
+        unitStep: Math.max(
+          1,
+          Math.round(clamp(countUp?.unitStep, 1, 1000, base.countUp.unitStep)),
+        ),
+        startTickMs: clamp(
+          countUp?.startTickMs,
+          8,
+          240,
+          base.countUp.startTickMs,
+        ),
+        endTickMs: clamp(countUp?.endTickMs, 4, 160, base.countUp.endTickMs),
+        maxDurationMs: clamp(
+          countUp?.maxDurationMs,
+          700,
+          12000,
+          base.countUp.maxDurationMs,
+        ),
+        holdFinalMs: clamp(
+          countUp?.holdFinalMs,
+          120,
+          5000,
+          base.countUp.holdFinalMs,
+        ),
+      },
+      tiers:
+        tiers.length > 0
+          ? tiers
+          : base.tiers.map((tier) => ({
+              ...tier,
+            })),
+      defaultTier: {
+        id: String(rawConfig?.defaultTier?.id || base.defaultTier.id),
+        label: String(rawConfig?.defaultTier?.label || base.defaultTier.label),
+        accentColor:
+          String(rawConfig?.defaultTier?.accentColor || "").trim() ||
+          base.defaultTier.accentColor,
+      },
+    };
+  }
+
+  _resolveBonusWinTier(totalWin, betAmount) {
+    const safeBet = Math.max(0, Number(betAmount || 0));
+    const safeTotal = Math.max(0, Number(totalWin || 0));
+    const multiplier = safeBet > 0 ? safeTotal / safeBet : 0;
+    const tiers = this.bonusWinCelebration?.tiers || [];
+
+    let activeTier =
+      this.bonusWinCelebration?.defaultTier ||
+      DEFAULT_BONUS_WIN_CELEBRATION.defaultTier;
+
+    for (const tier of tiers) {
+      if (multiplier >= tier.multiplier) {
+        activeTier = tier;
+      }
+    }
+
+    return activeTier;
+  }
+
+  _applyBonusTotalTier(tier, withPulse = false) {
+    if (!this.bonusTotalOverlay || !this.bonusTotalTierEl || !tier) {
+      return;
+    }
+
+    this.bonusTotalOverlay.dataset.tier = tier.id;
+    this.bonusTotalOverlay.style.setProperty(
+      "--bonus-tier-accent",
+      tier.accentColor || this.bonusWinCelebration.defaultTier.accentColor,
+    );
+    this.bonusTotalTierEl.textContent = tier.label;
+
+    if (withPulse) {
+      this.bonusTotalOverlay.classList.remove("tier-bump");
+      void this.bonusTotalOverlay.offsetWidth;
+      this.bonusTotalOverlay.classList.add("tier-bump");
+    }
+  }
+
   _showBonusBuyConfirm({ modeName, cost, betAmount, multiplier }) {
     if (this.isConfirmOpen) {
       return Promise.resolve(false);
@@ -1214,13 +1354,76 @@ export class GameController {
     this._updateControlButtons();
   }
 
-  _showBonusTotalOverlay(totalWin) {
+  async _showBonusTotalOverlay(totalWin, betAmount) {
     if (!this.bonusTotalOverlay || !this.bonusTotalValueEl) {
       return;
     }
 
-    this.bonusTotalValueEl.textContent = this._formatCredits(totalWin || 0);
+    const animationToken = ++this.bonusTotalAnimationToken;
+    const targetTotal = this._roundCredits(totalWin || 0);
+    const countConfig = this.bonusWinCelebration.countUp;
+    const unitStep = Math.max(1, Math.round(countConfig.unitStep));
+    const targetUnits = Math.max(0, Math.floor(targetTotal));
+    const totalSteps = Math.max(1, Math.ceil(targetUnits / unitStep));
+
+    let startTickMs = Math.max(countConfig.endTickMs, countConfig.startTickMs);
+    let endTickMs = Math.max(2, countConfig.endTickMs);
+    const estimatedDuration = (startTickMs + endTickMs) * 0.5 * totalSteps;
+    if (estimatedDuration > countConfig.maxDurationMs) {
+      const speedScale = estimatedDuration / countConfig.maxDurationMs;
+      startTickMs = Math.max(4, startTickMs / speedScale);
+      endTickMs = Math.max(2, endTickMs / speedScale);
+    }
+
+    this.bonusTotalOverlay.classList.remove("tier-bump", "final-pop");
+    this.bonusTotalOverlay.classList.add("animating");
     this.bonusTotalOverlay.classList.add("show");
+
+    let currentUnits = 0;
+    let activeTier = this._resolveBonusWinTier(0, betAmount);
+    this._applyBonusTotalTier(activeTier, false);
+    this.bonusTotalValueEl.textContent = this._formatCredits(0);
+
+    for (let stepIndex = 0; currentUnits < targetUnits; stepIndex += 1) {
+      if (animationToken !== this.bonusTotalAnimationToken) {
+        return;
+      }
+
+      currentUnits = Math.min(targetUnits, currentUnits + unitStep);
+      const roundedValue = this._roundCredits(currentUnits);
+      this.bonusTotalValueEl.textContent = this._formatCredits(roundedValue);
+      this.soundManager.playBonusCountTick(currentUnits, targetUnits);
+
+      const nextTier = this._resolveBonusWinTier(roundedValue, betAmount);
+      if (nextTier.id !== activeTier.id) {
+        activeTier = nextTier;
+        this._applyBonusTotalTier(activeTier, true);
+        this.soundManager.playBonusTierUp();
+      }
+
+      const progress = Math.min(1, (stepIndex + 1) / totalSteps);
+      const eased = progress * progress;
+      const nextTickMs = startTickMs + (endTickMs - startTickMs) * eased;
+      await this._delay(nextTickMs);
+    }
+
+    if (animationToken !== this.bonusTotalAnimationToken) {
+      return;
+    }
+
+    const finalTier = this._resolveBonusWinTier(targetTotal, betAmount);
+    this._applyBonusTotalTier(finalTier, true);
+    this.bonusTotalValueEl.textContent = this._formatCredits(targetTotal);
+    this.bonusTotalOverlay.classList.add("final-pop");
+    this.soundManager.playBigWin();
+
+    await this._delay(countConfig.holdFinalMs);
+
+    if (animationToken !== this.bonusTotalAnimationToken) {
+      return;
+    }
+
+    this.bonusTotalOverlay.classList.remove("animating");
   }
 
   _hideBonusTotalOverlay() {
@@ -1228,7 +1431,15 @@ export class GameController {
       return;
     }
 
-    this.bonusTotalOverlay.classList.remove("show");
+    this.bonusTotalAnimationToken += 1;
+    this.bonusTotalOverlay.classList.remove(
+      "show",
+      "animating",
+      "tier-bump",
+      "final-pop",
+    );
+    this.bonusTotalOverlay.dataset.tier = "";
+    this.bonusTotalOverlay.style.removeProperty("--bonus-tier-accent");
   }
 
   async _validateConfiguredAssets() {

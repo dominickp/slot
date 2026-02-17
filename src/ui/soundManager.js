@@ -421,6 +421,46 @@ export class SoundManager {
     });
   }
 
+  playBonusCountTick(current = 0, target = 0) {
+    this._playHookOrFallback("bonus-count-tick", () => {
+      if (this._playAsset("bonus-count-tick")) {
+        return;
+      }
+
+      const progress = target > 0 ? Math.min(1, current / target) : 0;
+      const frequency = 440 + progress * 240;
+
+      this.playTone({
+        frequency,
+        type: "triangle",
+        duration: 0.03,
+        volume: 0.05,
+      });
+    });
+  }
+
+  playBonusTierUp() {
+    this._playHookOrFallback("bonus-tier-up", () => {
+      if (this._playAsset("bonus-tier-up")) {
+        return;
+      }
+
+      this.playTone({
+        frequency: 540,
+        type: "triangle",
+        duration: 0.08,
+        volume: 0.11,
+      });
+      this.playTone({
+        frequency: 760,
+        type: "triangle",
+        duration: 0.11,
+        volume: 0.1,
+        delay: 0.04,
+      });
+    });
+  }
+
   _volumeToGain(volume) {
     // Square curve gives better low-volume control while allowing louder output at top end.
     return Math.max(0.0001, Math.pow(volume, 2) * 0.8);

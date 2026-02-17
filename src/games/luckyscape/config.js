@@ -111,6 +111,47 @@ export const LUCKY_ESCAPE_CONFIG = {
       jitterFrequency: 1.0,
       durationScale: 1.35,
     },
+    bonusWinCelebration: {
+      title: "Bonus Total Win",
+      countUp: {
+        unitStep: 1,
+        startTickMs: 44,
+        endTickMs: 11,
+        maxDurationMs: 3200,
+        holdFinalMs: 900,
+      },
+      tiers: [
+        {
+          id: "nice",
+          label: "NICE WIN",
+          multiplier: 8,
+          accentColor: "#7cf0b5",
+        },
+        {
+          id: "big",
+          label: "BIG WIN",
+          multiplier: 20,
+          accentColor: "#6ea8ff",
+        },
+        {
+          id: "epic",
+          label: "EPIC WIN",
+          multiplier: 40,
+          accentColor: "#8b6dff",
+        },
+        {
+          id: "legendary",
+          label: "LEGENDARY WIN",
+          multiplier: 75,
+          accentColor: "#ffd972",
+        },
+      ],
+      defaultTier: {
+        id: "bonus",
+        label: "BONUS WIN",
+        accentColor: "#9db2db",
+      },
+    },
   },
 
   // Win mechanics
