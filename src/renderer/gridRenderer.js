@@ -1265,6 +1265,71 @@ export class GridRenderer {
     };
   }
 
+  _manhattanDistanceToClosestOrigin(x, y, origins = []) {
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    for (const origin of origins) {
+      const originX = Number(origin?.x);
+      const originY = Number(origin?.y);
+      if (!Number.isFinite(originX) || !Number.isFinite(originY)) {
+        continue;
+      }
+
+      const distance = Math.abs(x - originX) + Math.abs(y - originY);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+      }
+    }
+
+    return closestDistance;
+  }
+
+  _orderRevealsAsWave(reveals = [], origins = []) {
+    if (!Array.isArray(reveals) || reveals.length <= 1) {
+      return Array.isArray(reveals) ? [...reveals] : [];
+    }
+
+    const validOrigins = Array.isArray(origins)
+      ? origins.filter(
+          (origin) =>
+            Number.isFinite(Number(origin?.x)) &&
+            Number.isFinite(Number(origin?.y)),
+        )
+      : [];
+
+    if (validOrigins.length === 0) {
+      return [...reveals].sort((left, right) => {
+        if (left.y === right.y) {
+          return left.x - right.x;
+        }
+        return left.y - right.y;
+      });
+    }
+
+    return [...reveals].sort((left, right) => {
+      const leftDistance = this._manhattanDistanceToClosestOrigin(
+        left.x,
+        left.y,
+        validOrigins,
+      );
+      const rightDistance = this._manhattanDistanceToClosestOrigin(
+        right.x,
+        right.y,
+        validOrigins,
+      );
+
+      if (leftDistance !== rightDistance) {
+        return leftDistance - rightDistance;
+      }
+
+      if (left.y !== right.y) {
+        return left.y - right.y;
+      }
+
+      return left.x - right.x;
+    });
+  }
+
   _coinTierFromValue(value) {
     if (Number(value) >= 25) {
       return "gold";
@@ -2449,17 +2514,33 @@ export class GridRenderer {
       }
 
       if (reveals.length > 0) {
-        const sortedReveals = [...reveals].sort((left, right) => {
-          if (left.y === right.y) {
-            return left.x - right.x;
-          }
-          return left.y - right.y;
-        });
+        const rainbowWaveActive =
+          Boolean(this.bonusVisuals?.rainbowTriggered) &&
+          Array.isArray(this.bonusVisuals?.rainbowPositions) &&
+          this.bonusVisuals.rainbowPositions.length > 0;
+
+        const sortedReveals = rainbowWaveActive
+          ? this._orderRevealsAsWave(
+              reveals,
+              this.bonusVisuals.rainbowPositions,
+            )
+          : this._orderRevealsAsWave(reveals, []);
 
         const revealCount = sortedReveals.length;
         const revealPacing = getRevealPacing(revealCount);
-        const revealDuration = revealPacing.durationMs;
-        const revealStagger = revealPacing.staggerMs;
+        const revealDuration = rainbowWaveActive
+          ? Math.round(
+              revealPacing.durationMs *
+                ANIMATION_TIMING.renderer.bonusSequence
+                  .rainbowWaveDurationScale,
+            )
+          : revealPacing.durationMs;
+        const revealStagger = rainbowWaveActive
+          ? Math.max(
+              revealPacing.staggerMs,
+              ANIMATION_TIMING.renderer.bonusSequence.rainbowWaveStaggerMs,
+            )
+          : revealPacing.staggerMs;
 
         await Promise.all(
           sortedReveals.map(
@@ -2702,19 +2783,33 @@ export class GridRenderer {
             : [];
 
           if (postCollectReveals.length > 0) {
-            const sortedPostReveals = [...postCollectReveals].sort(
-              (left, right) => {
-                if (left.y === right.y) {
-                  return left.x - right.x;
-                }
-                return left.y - right.y;
-              },
-            );
+            const rainbowWaveActive =
+              Boolean(this.bonusVisuals?.rainbowTriggered) &&
+              Array.isArray(this.bonusVisuals?.rainbowPositions) &&
+              this.bonusVisuals.rainbowPositions.length > 0;
+
+            const sortedPostReveals = rainbowWaveActive
+              ? this._orderRevealsAsWave(
+                  postCollectReveals,
+                  this.bonusVisuals.rainbowPositions,
+                )
+              : this._orderRevealsAsWave(postCollectReveals, []);
 
             const revealCount = sortedPostReveals.length;
             const revealPacing = getRevealPacing(revealCount);
-            const revealDuration = revealPacing.durationMs;
-            const revealStagger = revealPacing.staggerMs;
+            const revealDuration = rainbowWaveActive
+              ? Math.round(
+                  revealPacing.durationMs *
+                    ANIMATION_TIMING.renderer.bonusSequence
+                      .rainbowWaveDurationScale,
+                )
+              : revealPacing.durationMs;
+            const revealStagger = rainbowWaveActive
+              ? Math.max(
+                  revealPacing.staggerMs,
+                  ANIMATION_TIMING.renderer.bonusSequence.rainbowWaveStaggerMs,
+                )
+              : revealPacing.staggerMs;
 
             await Promise.all(
               sortedPostReveals.map(

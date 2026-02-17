@@ -55,6 +55,7 @@ export class LuckyScapeSlot extends BaseSlot {
     this.freeSpinsRemaining = 0;
 
     this.goldenSquares = new Set();
+    this.pendingGoldenSquareReset = false;
 
     this.rainbowTriggered = false;
     this.spinHadRainbowSymbol = false;
@@ -230,6 +231,7 @@ export class LuckyScapeSlot extends BaseSlot {
     this.isInFreeSpins = true;
     this.freeSpinsRemaining = initialSpins;
     this.goldenSquares = new Set();
+    this.pendingGoldenSquareReset = false;
     this.bonusHadRainbowActivationThisSession = false;
     this._resetSpinFeatureState();
   }
@@ -323,6 +325,7 @@ export class LuckyScapeSlot extends BaseSlot {
       this.isInFreeSpins = false;
       this.bonusMode = null;
       this.goldenSquares.clear();
+      this.pendingGoldenSquareReset = false;
       this.bonusHadRainbowActivationThisSession = false;
       return true;
     }
@@ -459,6 +462,13 @@ export class LuckyScapeSlot extends BaseSlot {
 
     if (!shouldPersistAcrossSpins) {
       this.goldenSquares.clear();
+      this.pendingGoldenSquareReset = false;
+      return;
+    }
+
+    if (this.pendingGoldenSquareReset) {
+      this.goldenSquares.clear();
+      this.pendingGoldenSquareReset = false;
       return;
     }
 
@@ -761,6 +771,7 @@ export class LuckyScapeSlot extends BaseSlot {
       if (wasActivated) {
         this.goldenSquares.clear();
       }
+      this.pendingGoldenSquareReset = false;
       return;
     }
 
@@ -769,8 +780,17 @@ export class LuckyScapeSlot extends BaseSlot {
     }
 
     if (!this.bonusMode?.persistGoldenSquaresAfterActivation) {
-      this.goldenSquares.clear();
+      this.pendingGoldenSquareReset = true;
     }
+  }
+
+  finalizeSpinVisualState() {
+    if (!this.pendingGoldenSquareReset) {
+      return;
+    }
+
+    this.goldenSquares.clear();
+    this.pendingGoldenSquareReset = false;
   }
 
   _runGoldenSquareChainRounds(maxRounds) {

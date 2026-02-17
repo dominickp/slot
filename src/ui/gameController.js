@@ -108,6 +108,10 @@ export class GameController {
     this.bonusTotalValueEl =
       this.bonusTotalOverlay.querySelector("#bonusTotalValue");
     this.bonusTotalAnimationToken = 0;
+    this.bonusTotalSkipRequested = false;
+    this.bonusTotalOverlay.addEventListener("click", () => {
+      this._requestSkipBonusTotalAnimation();
+    });
 
     this.debugIndicatorEl = document.createElement("div");
     this.debugIndicatorEl.className = "debug-indicator";
@@ -300,6 +304,12 @@ export class GameController {
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && this.isConfirmOpen) {
         this._resolveBonusBuyConfirm(false);
+        return;
+      }
+
+      if (event.key === "Enter" && this._isBonusTotalAnimating()) {
+        event.preventDefault();
+        this._requestSkipBonusTotalAnimation();
         return;
       }
 
@@ -708,6 +718,10 @@ export class GameController {
 
     if (!this.game.isInFreeSpins) {
       this.renderer.clearBonusVisuals();
+    }
+
+    if (typeof this.game.finalizeSpinVisualState === "function") {
+      this.game.finalizeSpinVisualState();
     }
 
     this._updateBonusSpinProgress();
@@ -1378,6 +1392,7 @@ export class GameController {
     this.bonusTotalOverlay.classList.remove("tier-bump", "final-pop");
     this.bonusTotalOverlay.classList.add("animating");
     this.bonusTotalOverlay.classList.add("show");
+    this.bonusTotalSkipRequested = false;
 
     let currentUnits = 0;
     let activeTier = this._resolveBonusWinTier(0, betAmount);
@@ -1387,6 +1402,10 @@ export class GameController {
     for (let stepIndex = 0; currentUnits < targetUnits; stepIndex += 1) {
       if (animationToken !== this.bonusTotalAnimationToken) {
         return;
+      }
+
+      if (this.bonusTotalSkipRequested) {
+        break;
       }
 
       currentUnits = Math.min(targetUnits, currentUnits + unitStep);
@@ -1417,7 +1436,9 @@ export class GameController {
     this.bonusTotalOverlay.classList.add("final-pop");
     this.soundManager.playBigWin();
 
-    await this._delay(countConfig.holdFinalMs);
+    if (!this.bonusTotalSkipRequested) {
+      await this._delay(countConfig.holdFinalMs);
+    }
 
     if (animationToken !== this.bonusTotalAnimationToken) {
       return;
@@ -1432,6 +1453,7 @@ export class GameController {
     }
 
     this.bonusTotalAnimationToken += 1;
+    this.bonusTotalSkipRequested = false;
     this.bonusTotalOverlay.classList.remove(
       "show",
       "animating",
@@ -1440,6 +1462,21 @@ export class GameController {
     );
     this.bonusTotalOverlay.dataset.tier = "";
     this.bonusTotalOverlay.style.removeProperty("--bonus-tier-accent");
+  }
+
+  _isBonusTotalAnimating() {
+    return Boolean(
+      this.bonusTotalOverlay?.classList.contains("animating") &&
+      this.bonusTotalOverlay?.classList.contains("show"),
+    );
+  }
+
+  _requestSkipBonusTotalAnimation() {
+    if (!this._isBonusTotalAnimating()) {
+      return;
+    }
+
+    this.bonusTotalSkipRequested = true;
   }
 
   async _validateConfiguredAssets() {

@@ -131,6 +131,46 @@ describe("LuckyScapeSlot minimum bonus rainbow safeguard", () => {
   });
 });
 
+describe("LuckyScapeSlot golden square cleanup timing", () => {
+  it("keeps gold squares visible until spin visual finalization in LEPRECHAUN", () => {
+    const slot = new LuckyScapeSlot();
+    slot.isInFreeSpins = true;
+    slot.bonusMode = {
+      id: "LEPRECHAUN",
+      name: "Luck of the Leprechaun",
+      persistGoldenSquaresAfterActivation: false,
+    };
+    slot.goldenSquares = new Set(["0,0", "1,0"]);
+
+    slot._resolveGoldenSquarePostSpinCleanup(true);
+
+    expect(slot.goldenSquares.size).toBe(2);
+    expect(slot.pendingGoldenSquareReset).toBe(true);
+
+    slot.finalizeSpinVisualState();
+
+    expect(slot.goldenSquares.size).toBe(0);
+    expect(slot.pendingGoldenSquareReset).toBe(false);
+  });
+
+  it("clears pending gold squares at next spin prep if visual finalization was skipped", () => {
+    const slot = new LuckyScapeSlot();
+    slot.isInFreeSpins = true;
+    slot.bonusMode = {
+      id: "LEPRECHAUN",
+      name: "Luck of the Leprechaun",
+      persistGoldenSquaresAfterActivation: false,
+    };
+    slot.goldenSquares = new Set(["0,0"]);
+    slot.pendingGoldenSquareReset = true;
+
+    slot._prepareSpinGoldenSquareState();
+
+    expect(slot.goldenSquares.size).toBe(0);
+    expect(slot.pendingGoldenSquareReset).toBe(false);
+  });
+});
+
 describe("LuckyScapeSlot super-cascade removal integration", () => {
   it("removes extra matching symbols outside the connected cluster", async () => {
     const slot = new LuckyScapeSlot();
