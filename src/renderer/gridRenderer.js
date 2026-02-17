@@ -1389,26 +1389,48 @@ export class GridRenderer {
 
     let runningWholeValue = 0;
     let nextWholeTick = 1;
-    setCollectorValue(0);
 
     const collectorCenter = this._cellCenter(collectorStep.x, collectorStep.y);
 
-    const tokens = sources.map((source) => {
+    const movingValues = (Array.isArray(sources) ? sources : []).map(
+      (source) => {
+        const sourceKey = `${source.x}_${source.y}`;
+        const existingSource = this.revealedSymbolMap.get(sourceKey) || {};
+        const text =
+          existingSource.label ||
+          source.label ||
+          this._formatBonusValue(source.value ?? 0);
+        const color = existingSource.accentColor ?? 0xffe7ba;
+
+        if (sourceKey !== collectorKey && existingSource) {
+          this.revealedSymbolMap.set(sourceKey, {
+            ...existingSource,
+            label: "",
+          });
+        }
+
+        return {
+          source,
+          text,
+          color,
+        };
+      },
+    );
+
+    setCollectorValue(0);
+
+    const tokens = movingValues.map(({ source, text, color }) => {
       const token = new PIXI.Container();
-      const orb = new PIXI.Graphics();
-      orb.circle(0, 0, 16);
-      orb.fill({ color: 0xffd27f, alpha: 0.94 });
-      orb.stroke({ color: 0xfff0bf, width: 2 });
-      token.addChild(orb);
 
       const valueLabel = new PIXI.Text({
-        text: source.label ?? this._formatBonusValue(source.value ?? 0),
+        text,
         style: {
           fontFamily: "Arial",
-          fontSize: 13,
+          fontSize: 18,
           fontWeight: "bold",
-          fill: 0x3b2a07,
+          fill: color,
           align: "center",
+          stroke: { color: 0x000000, width: 4, join: "round" },
         },
       });
       valueLabel.anchor.set(0.5, 0.5);
