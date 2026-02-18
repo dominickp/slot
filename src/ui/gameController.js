@@ -643,7 +643,11 @@ export class GameController {
     let spinResult = await this.game.spin(this.backend, betAmount);
 
     // Report spin to backend (accounting) -- only for base game spins, not free spins
-    if (!isFreeSpin && this.backend && typeof this.backend.reportWin === "function") {
+    if (
+      !isFreeSpin &&
+      this.backend &&
+      typeof this.backend.reportWin === "function"
+    ) {
       try {
         await this.backend.reportWin({
           betAmount,
