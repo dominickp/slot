@@ -12,7 +12,19 @@ import RNG from "../core/rng.js";
 export class BackendService {
   constructor(config = {}) {
     this.config = config;
-    this.isDemo = config.demoMode !== false;
+    // Demo mode is now controlled by VITE_DEMO_MODE env var ("false" disables demo mode)
+    const envDemo =
+      typeof import.meta !== "undefined" &&
+      import.meta.env &&
+      typeof import.meta.env.VITE_DEMO_MODE !== "undefined"
+        ? String(import.meta.env.VITE_DEMO_MODE).toLowerCase()
+        : undefined;
+    this.isDemo =
+      typeof config.demoMode !== "undefined"
+        ? config.demoMode
+        : envDemo === "false" || envDemo === "0" || envDemo === "no"
+          ? false
+          : true;
     this.rng = config.rng || new RNG(); // Can pass seed for testing
     this.simulatedDelay = config.simulatedDelay || 100; // ms
     this.apiBaseUrl =
