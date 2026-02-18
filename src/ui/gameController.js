@@ -513,8 +513,10 @@ export class GameController {
           spinResult.bonusMode,
           spinResult.scatterCount,
         );
-        const bonusTotalWin = await this._playFreeSpins(betAmount);
-        await this._showBonusTotalOverlay(bonusTotalWin, betAmount);
+        const spins = spinResult.bonusMode?.initialSpins || 0;
+        const totalBonusCost = betAmount * spins;
+        const bonusTotalWin = await this._playFreeSpins(betAmount, totalBonusCost);
+        await this._showBonusTotalOverlay(bonusTotalWin, totalBonusCost);
       }
 
       await this._delay(ANIMATION_TIMING.controller.pauses.postBaseSpinMs);
@@ -612,8 +614,8 @@ export class GameController {
         multiplier: offer.multiplier,
         betAmount,
       });
-      const bonusTotalWin = await this._playFreeSpins(betAmount);
-      await this._showBonusTotalOverlay(bonusTotalWin, betAmount);
+        const bonusTotalWin = await this._playFreeSpins(betAmount, offer.cost);
+        await this._showBonusTotalOverlay(bonusTotalWin, offer.cost);
     } catch (error) {
       console.error("Bonus buy error:", error);
       this._showResult(`Error: ${error.message}`, "loss");

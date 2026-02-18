@@ -1,3 +1,26 @@
+const CREDITS_RETENTION_DAYS = 180;
+
+function getOldDayKeys(retentionDays: number): string[] {
+  const keys: string[] = [];
+  const now = new Date();
+  for (let i = retentionDays + 1; i < 10000; i++) {
+    // Arbitrary upper bound
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    keys.push(d.toISOString().slice(0, 10));
+    if (keys.length > 400) break; // Avoid runaway loop
+  }
+  return keys;
+}
+
+async function cleanupOldCredits(): Promise<void> {
+  const oldDayKeys = getOldDayKeys(CREDITS_RETENTION_DAYS);
+  for (const dayKey of oldDayKeys) {
+    for await (const entry of kv.list({ prefix: ["credits", dayKey] })) {
+      await kv.delete(entry.key);
+    }
+  }
+}
 const DAILY_BUDGET = Number(Deno.env.get("DAILY_BUDGET") || 1000);
 const MAX_LEADERBOARD_LIMIT = 50;
 const DEFAULT_LEADERBOARD_LIMIT = 20;
@@ -156,21 +179,6 @@ function calculateDemoWin(reelStops: number[], betAmount: number): number {
   return 0;
 }
 
-function generateSpin(betAmount: number): {
-  reelStops: number[];
-  winAmount: number;
-} {
-  const reelCount = 3;
-  const symbolsPerReel = 22;
-
-  const reelStops = Array.from({ length: reelCount }, () =>
-    Math.floor(Math.random() * symbolsPerReel),
-  );
-
-  const winAmount = calculateDemoWin(reelStops, betAmount);
-  return { reelStops, winAmount };
-}
-
 function parseLimit(url: URL): number {
   const raw = Number(
     url.searchParams.get("limit") || DEFAULT_LEADERBOARD_LIMIT,
@@ -201,6 +209,25 @@ async function trimRecentEvents(): Promise<void> {
   }
 }
 
+const MAX_TOP_WINS = 500;
+
+async function trimTopWins(): Promise<void> {
+  let count = 0;
+  const keysToDelete: Deno.KvKey[] = [];
+  for await (const entry of kv.list({ prefix: ["wins", "top"] })) {
+    count += 1;
+    if (count > MAX_TOP_WINS) {
+      keysToDelete.push(entry.key);
+    }
+  }
+  if (keysToDelete.length === 0) {
+    return;
+  }
+  for (const key of keysToDelete) {
+    await kv.delete(key);
+  }
+}
+
 async function recordWinEvent(win: WinEvent): Promise<void> {
   const eventId = createEventId();
   const recentKey: Deno.KvKey = ["wins", "recent", win.at, eventId];
@@ -209,6 +236,7 @@ async function recordWinEvent(win: WinEvent): Promise<void> {
   await kv.set(recentKey, win);
   await kv.set(topKey, win);
   await trimRecentEvents();
+  await trimTopWins();
 }
 
 async function updateCreditsWithRetry(
@@ -241,6 +269,8 @@ async function updateCreditsWithRetry(
 
     const result = await kv.atomic().check(current).set(key, next).commit();
     if (result.ok) {
+      // Clean up old credits asynchronously (don't block response)
+      cleanupOldCredits();
       return { ok: true, remaining };
     }
   }
