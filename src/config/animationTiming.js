@@ -104,6 +104,10 @@ export const ANIMATION_TIMING = {
       revealLargeThreshold: 20,
       // Pause after all reveals complete before rainbow/collector/clover actions.
       postRevealPauseMs: 520,
+      // Slight settle delay immediately after reveal animations complete.
+      postRevealSettleMs: 750,
+      // Slight delay after a clover lands before multiplier processing starts.
+      cloverPreMultiplyMs: 300,
       // Badge duration for clover multiplier display.
       cloverBadgeMs: 360,
       // Delay after clover badge before burst packets launch.

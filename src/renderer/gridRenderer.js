@@ -2798,6 +2798,10 @@ export class GridRenderer {
           ),
         );
 
+        await this._wait(
+          ANIMATION_TIMING.renderer.bonusSequence.postRevealSettleMs,
+        );
+
         if (!rainbowWaveActive) {
           await this._wait(
             ANIMATION_TIMING.renderer.bonusSequence.postRevealPauseMs,
@@ -2807,6 +2811,10 @@ export class GridRenderer {
 
       if (cloverHits.length > 0) {
         for (const cloverHit of cloverHits) {
+          await this._wait(
+            ANIMATION_TIMING.renderer.bonusSequence.cloverPreMultiplyMs,
+          );
+
           if (typeof onCloverMultiply === "function") {
             onCloverMultiply(cloverHit);
           }
@@ -3058,6 +3066,10 @@ export class GridRenderer {
                   }),
               ),
             );
+
+            await this._wait(
+              ANIMATION_TIMING.renderer.bonusSequence.postRevealSettleMs,
+            );
           }
 
           const postCollectCloverHits = Array.isArray(
@@ -3067,6 +3079,10 @@ export class GridRenderer {
             : [];
 
           for (const cloverHit of postCollectCloverHits) {
+            await this._wait(
+              ANIMATION_TIMING.renderer.bonusSequence.cloverPreMultiplyMs,
+            );
+
             if (typeof onCloverMultiply === "function") {
               onCloverMultiply(cloverHit);
             }
