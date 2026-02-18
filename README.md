@@ -36,3 +36,25 @@ npm run build
 
 ## Note
 This is an **educational/demo project**, not intended for real gambling.
+
+## Backend (Deno Deploy) - WIP integration
+
+This repo now includes a backend scaffold in `backend/` for daily credits and leaderboards.
+
+### Frontend env
+
+Set API base URL for real backend mode:
+
+```bash
+# .env.local
+VITE_API_BASE_URL=https://<your-deno-deploy-url>
+```
+
+### Backend local run
+
+```bash
+# Requires Deno 2+ (task includes --unstable-kv for Deno KV)
+deno task --config backend/deno.json dev
+```
+
+See `backend/README.md` for endpoint details and deploy steps.

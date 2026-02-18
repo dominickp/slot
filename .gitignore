@@ -191,3 +191,5 @@ bandit.md
 
 public/assets/symbols/backup/*
 public/assets/audio/backup/*
+backend/data/local-kv.sqlite3-shm
+backend/data/local-kv.sqlite3-wal

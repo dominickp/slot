@@ -15,6 +15,11 @@ export class BackendService {
     this.isDemo = config.demoMode !== false;
     this.rng = config.rng || new RNG(); // Can pass seed for testing
     this.simulatedDelay = config.simulatedDelay || 100; // ms
+    this.apiBaseUrl =
+      config.apiBaseUrl ||
+      (typeof import.meta !== "undefined" && import.meta.env
+        ? import.meta.env.VITE_API_BASE_URL
+        : "");
   }
 
   /**
@@ -91,11 +96,10 @@ export class BackendService {
    */
   async _apiSpin(gameId, betAmount) {
     try {
-      const response = await fetch("/api/game/spin", {
+      const response = await fetch(this._apiUrl("/api/spin"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${this._getSessionToken()}`,
         },
         body: JSON.stringify({
           gameId,
@@ -105,7 +109,12 @@ export class BackendService {
       });
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.statusCode}`);
+        const errorPayload = await response
+          .json()
+          .catch(() => ({ error: "Unknown API error" }));
+        throw new Error(
+          `API error ${response.status}: ${errorPayload.error || "Request failed"}`,
+        );
       }
 
       return await response.json();
@@ -122,6 +131,77 @@ export class BackendService {
   _getSessionToken() {
     // In real implementation, get from session storage
     return "demo-token";
+  }
+
+  /**
+   * Get player credit state from backend
+   */
+  async getPlayerState() {
+    if (this.isDemo) {
+      return {
+        ok: true,
+        remainingCredits: null,
+        dailyBudget: null,
+        resetAt: null,
+        serverTime: Date.now(),
+      };
+    }
+
+    return this._apiGet("/api/player/state");
+  }
+
+  /**
+   * Get recent wins leaderboard
+   */
+  async getRecentWins(limit = 20) {
+    if (this.isDemo) {
+      return { ok: true, rows: [] };
+    }
+
+    return this._apiGet(`/api/leaderboard/recent?limit=${Number(limit) || 20}`);
+  }
+
+  /**
+   * Get top wins leaderboard
+   */
+  async getTopWins(limit = 20) {
+    if (this.isDemo) {
+      return { ok: true, rows: [] };
+    }
+
+    return this._apiGet(`/api/leaderboard/top?limit=${Number(limit) || 20}`);
+  }
+
+  async _apiGet(path) {
+    const response = await fetch(this._apiUrl(path), {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorPayload = await response
+        .json()
+        .catch(() => ({ error: "Unknown API error" }));
+      throw new Error(
+        `API error ${response.status}: ${errorPayload.error || "Request failed"}`,
+      );
+    }
+
+    return response.json();
+  }
+
+  _apiUrl(path) {
+    if (!this.apiBaseUrl) {
+      throw new Error(
+        "VITE_API_BASE_URL is not configured; set demoMode=true or provide an API base URL.",
+      );
+    }
+
+    const base = String(this.apiBaseUrl).replace(/\/$/, "");
+    const suffix = String(path).startsWith("/") ? path : `/${path}`;
+    return `${base}${suffix}`;
   }
 
   /**
