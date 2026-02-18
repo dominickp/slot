@@ -1807,6 +1807,12 @@ export class GridRenderer {
         token,
         start,
         control,
+        launchDelayMs:
+          index *
+          Number(
+            ANIMATION_TIMING.renderer.bonusSequence
+              .collectorSourceLaunchStaggerMs || 85,
+          ),
         jitterAmp: suctionMotion.jitterAmplitude * (1.1 + (index % 3) * 0.35),
         jitterFreq: suctionMotion.jitterFrequency * (7.5 + (index % 4) * 1.15),
         jitterPhase: (index % 5) * 0.7,
@@ -1815,9 +1821,12 @@ export class GridRenderer {
 
     if (tokens.length > 0) {
       await new Promise((resolve) => {
-        const duration =
+        const travelDuration =
           ANIMATION_TIMING.renderer.defaults.collectFlowTravelMs *
           suctionMotion.durationScale;
+        const totalLaunchDelay =
+          tokens.length > 1 ? tokens[tokens.length - 1].launchDelayMs : 0;
+        const duration = travelDuration + totalLaunchDelay;
         const startTime = Date.now();
 
         const animate = () => {
@@ -1843,24 +1852,35 @@ export class GridRenderer {
           }
 
           for (const item of tokens) {
-            const oneMinus = 1 - eased;
+            const localElapsed = Math.max(0, elapsed - item.launchDelayMs);
+            const localProgress = Math.min(localElapsed / travelDuration, 1);
+            const localEased = 1 - Math.pow(1 - localProgress, 2.5);
+            const oneMinus = 1 - localEased;
             const curvedX =
               oneMinus * oneMinus * item.start.x +
-              2 * oneMinus * eased * item.control.x +
-              eased * eased * collectorCenter.x;
+              2 * oneMinus * localEased * item.control.x +
+              localEased * localEased * collectorCenter.x;
             const curvedY =
               oneMinus * oneMinus * item.start.y +
-              2 * oneMinus * eased * item.control.y +
-              eased * eased * collectorCenter.y;
+              2 * oneMinus * localEased * item.control.y +
+              localEased * localEased * collectorCenter.y;
             const jitter =
-              Math.sin(progress * item.jitterFreq + item.jitterPhase) *
+              Math.sin(localProgress * item.jitterFreq + item.jitterPhase) *
               item.jitterAmp *
-              (1 - eased);
+              (1 - localEased);
+
+            if (elapsed < item.launchDelayMs) {
+              item.token.x = item.start.x;
+              item.token.y = item.start.y;
+              item.token.alpha = 1;
+              item.token.scale.set(1);
+              continue;
+            }
 
             item.token.x = curvedX + jitter;
             item.token.y = curvedY - jitter * 0.25;
-            item.token.alpha = 1 - progress * 0.35;
-            item.token.scale.set(1 - progress * 0.62);
+            item.token.alpha = 1 - localProgress * 0.35;
+            item.token.scale.set(1 - localProgress * 0.62);
           }
 
           if (progress < 1) {

@@ -128,6 +128,8 @@ export const ANIMATION_TIMING = {
       collectorTickMs: 34,
       // Delay between collector value ticks.
       collectorTickGapMs: 14,
+      // Stagger between source token launches during collector suction.
+      collectorSourceLaunchStaggerMs: 85,
       // Pause after collector suction/count-up before post-collect reveals.
       collectorPostAnimationDelayMs: 220,
       // Duration for round total collection badge.

@@ -138,16 +138,17 @@ export class LuckyScapeSlot extends BaseSlot {
         },
       );
 
+      this.currentGrid = cascadeResult.grid;
+      this._enforceSingleRainbowPerSpin();
+
       cascades.push({
         beforeGrid,
-        afterGrid: CascadeEngine.cloneGrid(cascadeResult.grid),
+        afterGrid: CascadeEngine.cloneGrid(this.currentGrid),
         winPositions: new Set(removePositions),
         connectionPositions,
         moveData: cascadeResult.moveData,
       });
 
-      this.currentGrid = cascadeResult.grid;
-      this._enforceSingleRainbowPerSpin();
       this.cascadeCount += 1;
       cascadeIndex += 1;
     }
