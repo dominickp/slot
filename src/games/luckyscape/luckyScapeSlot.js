@@ -75,55 +75,6 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   async spin(backend, betAmount = 10) {
-    // If backend is provided and not in demo mode, use backend for spin
-    if (
-      backend &&
-      backend.isDemo === false &&
-      typeof backend.requestSpin === "function"
-    ) {
-      try {
-        const apiResult = await backend.requestSpin(this.config.id, betAmount);
-        // Only return if apiResult is valid and contains a grid or cascades (minimum for UI)
-        if (
-          apiResult &&
-          typeof apiResult === "object" &&
-          (Array.isArray(apiResult.grid) || Array.isArray(apiResult.cascades))
-        ) {
-          // Patch: Map winAmount to totalWin for UI compatibility
-          const totalWin =
-            typeof apiResult.totalWin === "number"
-              ? apiResult.totalWin
-              : typeof apiResult.winAmount === "number"
-                ? apiResult.winAmount
-                : 0;
-          // Convert arrays to Set if needed for compatibility
-          const toSet = (val) =>
-            val instanceof Set ? val : new Set(val || []);
-          return {
-            ...apiResult,
-            totalWin,
-            // fallback fields for compatibility
-            grid: apiResult.grid || this.currentGrid,
-            cascades: apiResult.cascades || [],
-            initialWins: toSet(apiResult.initialWins),
-            winPositions: toSet(apiResult.winPositions),
-            bonusMode: apiResult.bonusMode || null,
-            scatterCount: apiResult.scatterCount || 0,
-            scatterPositions: apiResult.scatterPositions || [],
-            bonusFeatures: apiResult.bonusFeatures || [],
-          };
-        }
-        // If apiResult is missing required fields, fall through to local logic
-      } catch (err) {
-        console.error(
-          "[LuckyScapeSlot] Backend spin failed, falling back to local logic",
-          err,
-        );
-        // Optionally, you could throw here instead
-      }
-      // If backend failed, fall through to local logic
-    }
-
     // --- Local fallback logic (demo mode or no backend) ---
     this.totalWinFromSpin = 0;
     this.cascadeCount = 0;
@@ -231,6 +182,18 @@ export class LuckyScapeSlot extends BaseSlot {
         (this.totalWinFromSpin * Number(betAmount) + Number.EPSILON) * 100,
       ) / 100;
 
+    if (backend && typeof backend.reportWin === "function") {
+      try {
+        await backend.reportWin({
+          betAmount,
+          winAmount: totalWin,
+          gameId: this.config.id,
+        });
+      } catch (err) {
+        console.error("[LuckyScapeSlot] Failed to report win to backend", err);
+      }
+    }
+
     if (this.isInFreeSpins && this.bonusMode) {
       this.bonusMode.onSpinComplete(totalWin);
       this.freeSpinsRemaining = this.bonusMode.remaining;
@@ -242,11 +205,13 @@ export class LuckyScapeSlot extends BaseSlot {
       winPositions: finalWinPositions,
       cascades,
       totalWin,
-      cascadeCount: this.cascadeCount,
       bonusMode,
       scatterCount: scatterResult.count,
       scatterPositions: scatterResult.positions,
-      bonusFeatures: this.getBonusFeatureDisplay(),
+      bonusFeatures: {
+        rainbowTriggered: this.rainbowTriggered,
+        bonusEventTimeline: this.bonusEventTimeline,
+      },
     };
   }
 

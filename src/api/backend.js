@@ -35,105 +35,52 @@ export class BackendService {
   }
 
   /**
-   * Request spin outcome from backend
+   * Report the result of a spin or bonus to the backend
    *
-   * @param {string} gameId - Which game to spin
-   * @param {number} betAmount - The bet amount
-   * @returns {Promise} Spin result { reelStops, winAmount, features, ... }
+   * @param {Object} params
+   *   - betAmount: The cost of the spin or bonus
+   *   - winAmount: The win amount for the spin or bonus
+   *   - gameId: (optional) Which game
+   *   - bonusType: (optional) If this is a bonus buy, the type
+   *   - extra: (optional) Any extra metadata
+   * @returns {Promise} Backend response (updated balance, confirmation, etc)
    */
-  async requestSpin(gameId, betAmount) {
+  async reportWin({ betAmount, winAmount, gameId, bonusType, extra }) {
     if (this.isDemo) {
-      return this._simulatedSpin(gameId, betAmount);
-    } else {
-      return this._apiSpin(gameId, betAmount);
+      // Simulate local accounting only
+      return {
+        ok: true,
+        remainingCredits: null,
+        winAmount,
+        betAmount,
+        gameId,
+        bonusType,
+        ...extra,
+        serverTime: Date.now(),
+      };
     }
-  }
-
-  /**
-   * Simulated backend spin (for demo)
-   * @private
-   */
-  async _simulatedSpin(gameId, betAmount) {
-    // Simulate network delay
-    await this._delay(this.simulatedDelay);
-
-    // Generate random reel positions
-    const reelCount = 3;
-    const symbolsPerReel = 22; // Standard slot machine
-
-    const reelStops = [];
-    for (let i = 0; i < reelCount; i++) {
-      reelStops.push(this.rng.nextInt(0, symbolsPerReel - 1));
+    const response = await fetch(this._apiUrl("/api/report-win"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        betAmount,
+        winAmount,
+        gameId,
+        bonusType,
+        ...extra,
+      }),
+    });
+    if (!response.ok) {
+      const errorPayload = await response
+        .json()
+        .catch(() => ({ error: "Unknown API error" }));
+      throw new Error(
+        `API error ${response.status}: ${errorPayload.error || "Request failed"}`,
+      );
     }
-
-    // Simulate payout calculation
-    // (In real game, this would check actual paytable)
-    const winAmount = this._calculateDemoWin(reelStops, betAmount);
-
-    return {
-      reelStops,
-      winAmount,
-      betAmount,
-      rtp: 0.96,
-      features: [],
-      timestamp: Date.now(),
-      signature: "demo",
-    };
-  }
-
-  /**
-   * Calculate demo win amount (simple logic)
-   * @private
-   */
-  _calculateDemoWin(reelStops, betAmount) {
-    // Check for matching symbols
-    if (reelStops[0] === reelStops[1] && reelStops[1] === reelStops[2]) {
-      // All three match
-      const multiplier = reelStops[0] < 10 ? 100 : 50; // Higher cards pay less
-      return multiplier * betAmount;
-    }
-
-    if (reelStops[0] === reelStops[1] || reelStops[1] === reelStops[2]) {
-      // Two match
-      const multiplier = reelStops[0] < 10 ? 10 : 5;
-      return multiplier * betAmount;
-    }
-
-    return 0; // No win
-  }
-
-  /**
-   * Real API spin (for production)
-   * @private
-   */
-  async _apiSpin(gameId, betAmount) {
-    try {
-      const response = await fetch(this._apiUrl("/api/spin"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          gameId,
-          betAmount,
-          timestamp: Date.now(),
-        }),
-      });
-
-      if (!response.ok) {
-        const errorPayload = await response
-          .json()
-          .catch(() => ({ error: "Unknown API error" }));
-        throw new Error(
-          `API error ${response.status}: ${errorPayload.error || "Request failed"}`,
-        );
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("[BackendService] API error:", error);
-      throw error;
-    }
+    return response.json();
   }
 
   /**

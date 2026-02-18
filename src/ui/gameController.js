@@ -641,6 +641,19 @@ export class GameController {
     await this.renderer.animateSpinStart(160);
     // --- Use backend for spin ---
     let spinResult = await this.game.spin(this.backend, betAmount);
+
+    // Report spin to backend (accounting)
+    if (this.backend && typeof this.backend.reportWin === "function") {
+      try {
+        await this.backend.reportWin({
+          betAmount,
+          winAmount: spinResult.totalWin || 0,
+          gameId: this.game.config.id,
+        });
+      } catch (err) {
+        console.error("[GameController] Failed to report win to backend", err);
+      }
+    }
     // Patch: If backend result is minimal, fill in grid/cascades for UI
     if (spinResult && spinResult.reelStops && !spinResult.grid) {
       // Generate a grid for the UI to display based on reelStops (fallback)
@@ -887,6 +900,22 @@ export class GameController {
     this.lastWin = this._roundCredits(bonusTotalWin);
     this._updateLastWinDisplay();
 
+    // Report total bonus win to backend after all free spins
+    if (this.backend && typeof this.backend.reportWin === "function") {
+      try {
+        await this.backend.reportWin({
+          betAmount, // cost per spin, or pass total cost if available
+          winAmount: bonusTotalWin,
+          gameId: this.game.config.id,
+          bonusType: this.game.bonusMode ? this.game.bonusMode.name : undefined,
+        });
+      } catch (err) {
+        console.error(
+          "[GameController] Failed to report bonus win to backend",
+          err,
+        );
+      }
+    }
     return bonusTotalWin;
   }
 
