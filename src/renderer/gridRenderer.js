@@ -80,6 +80,7 @@ const REVEAL_SYMBOLS = {
 };
 
 const TILE_SYMBOL_PADDING = 7;
+const BONUS_LABEL_BOTTOM_INSET = 10;
 const MAX_RENDER_RESOLUTION = 2;
 const DEFAULT_GRID_COLORS = {
   boardBackground: 0x1a1a2e,
@@ -942,7 +943,10 @@ export class GridRenderer {
             });
 
             label.anchor.set(0.5, 1);
-            label.position.set(this.cellSize / 2, this.cellSize - 10);
+            label.position.set(
+              this.cellSize / 2,
+              this.cellSize - BONUS_LABEL_BOTTOM_INSET,
+            );
             cellContainer.addChild(label);
           }
         } else {
@@ -1044,6 +1048,13 @@ export class GridRenderer {
     return {
       x: x * this.cellSize + this.cellSize / 2,
       y: y * this.cellSize + this.cellSize / 2,
+    };
+  }
+
+  _cellBonusLabelPosition(x, y) {
+    return {
+      x: x * this.cellSize + this.cellSize / 2,
+      y: y * this.cellSize + this.cellSize - BONUS_LABEL_BOTTOM_INSET,
     };
   }
 
@@ -1776,10 +1787,10 @@ export class GridRenderer {
           stroke: { color: 0x000000, width: 4, join: "round" },
         },
       });
-      valueLabel.anchor.set(0.5, 0.5);
+      valueLabel.anchor.set(0.5, 1);
       token.addChild(valueLabel);
 
-      const start = this._cellCenter(source.x, source.y);
+      const start = this._cellBonusLabelPosition(source.x, source.y);
       token.position.set(start.x, start.y);
       this.animationContainer.addChild(token);
 
