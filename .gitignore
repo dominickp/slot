@@ -188,3 +188,5 @@ $RECYCLE.BIN/
 
 # End of https://www.toptal.com/developers/gitignore/api/windows,visualstudiocode,node
 bandit.md
+
+public/assets/symbols/backup/*
