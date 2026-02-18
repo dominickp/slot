@@ -14,8 +14,11 @@ export class SoundManager {
     this.soundAssetMap = {};
     this.soundAssetTemplates = new Map();
     this.soundAssetStatus = new Map();
+    this.soundAssetImmediateAttempted = new Set();
     this.backgroundMusic = null;
+    this.backgroundMusicPath = null;
     this.backgroundMusicVolumeScale = 0.35;
+    this.backgroundMusicMuted = false;
     this.backgroundMusicPathStatus = new Map();
   }
 
@@ -23,8 +26,17 @@ export class SoundManager {
     this.soundAssetMap = { ...assetMap };
     this.soundAssetTemplates.clear();
     this.soundAssetStatus.clear();
+    this.soundAssetImmediateAttempted.clear();
     this.backgroundMusicPathStatus.clear();
     this._stopBackgroundMusic();
+
+    for (const [key, rawPath] of Object.entries(this.soundAssetMap)) {
+      const assetPath = String(rawPath || "").trim();
+      if (!assetPath || key === "bg-music") {
+        continue;
+      }
+      this._primeSoundAsset(key, assetPath);
+    }
   }
 
   setSoundHook(key, handler) {
@@ -63,6 +75,19 @@ export class SoundManager {
 
     if (status !== "ready") {
       this._primeSoundAsset(key, assetPath);
+
+      if (!this.soundAssetImmediateAttempted.has(key)) {
+        this.soundAssetImmediateAttempted.add(key);
+        try {
+          const immediate = new Audio(assetPath);
+          immediate.volume = Math.max(0, Math.min(1, this.volume));
+          immediate.play().catch(() => {});
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
       return false;
     }
 
@@ -133,6 +158,26 @@ export class SoundManager {
     const nextVolume = Number.isFinite(volume) ? volume : this.volume;
     this.volume = Math.max(0, Math.min(1, nextVolume));
     this._applyMasterGain();
+  }
+
+  setBackgroundMusicVolumeScale(scale) {
+    const numeric = Number(scale);
+    this.backgroundMusicVolumeScale = Number.isFinite(numeric)
+      ? Math.max(0, Math.min(1, numeric))
+      : 0.35;
+    this._syncBackgroundMusicVolume();
+  }
+
+  setBackgroundMusicMuted(muted) {
+    this.backgroundMusicMuted = Boolean(muted);
+    this._syncBackgroundMusicVolume();
+
+    if (this.backgroundMusicMuted) {
+      this._stopBackgroundMusic();
+      return;
+    }
+
+    this._startBackgroundMusicIfAvailable();
   }
 
   async ensureReady() {
@@ -485,7 +530,7 @@ export class SoundManager {
   }
 
   _startBackgroundMusicIfAvailable() {
-    if (!this.enabled) {
+    if (!this.enabled || this.backgroundMusicMuted) {
       return;
     }
 
@@ -495,10 +540,6 @@ export class SoundManager {
     }
 
     const pathStatus = this.backgroundMusicPathStatus.get(musicPath);
-    if (pathStatus === "checking") {
-      return;
-    }
-
     if (pathStatus === "invalid") {
       return;
     }
@@ -510,15 +551,19 @@ export class SoundManager {
           musicPath,
           isValid ? "valid" : "invalid",
         );
-        if (isValid) {
-          this._startBackgroundMusicIfAvailable();
+
+        if (!isValid && this.backgroundMusicPath === musicPath) {
+          this._stopBackgroundMusic();
+          this.backgroundMusic = null;
+          this.backgroundMusicPath = null;
         }
       });
-      return;
     }
 
-    if (!this.backgroundMusic) {
+    if (!this.backgroundMusic || this.backgroundMusicPath !== musicPath) {
+      this._stopBackgroundMusic();
       this.backgroundMusic = new Audio(musicPath);
+      this.backgroundMusicPath = musicPath;
       this.backgroundMusic.loop = true;
       this.backgroundMusic.preload = "auto";
       this._syncBackgroundMusicVolume();
@@ -571,9 +616,13 @@ export class SoundManager {
       return;
     }
 
-    const target = this.enabled
-      ? Math.max(0, Math.min(1, this.volume * this.backgroundMusicVolumeScale))
-      : 0;
+    const target =
+      this.enabled && !this.backgroundMusicMuted
+        ? Math.max(
+            0,
+            Math.min(1, this.volume * this.backgroundMusicVolumeScale),
+          )
+        : 0;
     this.backgroundMusic.volume = target;
   }
 }

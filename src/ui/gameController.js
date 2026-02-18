@@ -14,6 +14,10 @@ import { LUCKY_ESCAPE_CONFIG } from "../games/luckyscape/config.js";
 import { ANIMATION_TIMING } from "../config/animationTiming.js";
 import { SoundManager } from "./soundManager.js";
 
+const STORAGE_KEYS = {
+  bgMusicMuted: "luckyscape:bgMusicMuted",
+};
+
 const DEFAULT_BONUS_WIN_CELEBRATION = {
   title: "Bonus Total Win",
   countUp: {
@@ -143,6 +147,11 @@ export class GameController {
     this.soundManager.setSoundAssetMap(
       LUCKY_ESCAPE_CONFIG?.assets?.sounds || {},
     );
+    this.soundManager.setBackgroundMusicVolumeScale(
+      gameConfig?.audio?.backgroundMusicVolumeScale,
+    );
+    this.backgroundMusicMuted = this._loadBackgroundMusicMutedPreference();
+    this.soundManager.setBackgroundMusicMuted(this.backgroundMusicMuted);
     this.timings = {
       spinDrop: ANIMATION_TIMING.controller.spinFlow.spinDropMs,
       cascade: ANIMATION_TIMING.controller.spinFlow.cascadeMs,
@@ -196,6 +205,7 @@ export class GameController {
   async _initialize() {
     this._initializeUI();
     this._validateConfiguredAssets();
+    this.soundManager.ensureReady().catch(() => {});
     await this.renderer.ready;
     this._renderInitialGrid();
     this.ui.spinBtn.disabled = false;
@@ -210,6 +220,7 @@ export class GameController {
     const spinBtn = document.getElementById("spinBtn");
     const autoplayBtn = document.getElementById("autoplayBtn");
     const soundBtn = document.getElementById("soundBtn");
+    const bgMusicBtn = document.getElementById("bgMusicBtn");
     const volumeSlider = document.getElementById("volumeSlider");
     const volumeValue = document.getElementById("volumeValue");
     const buyBonusBtn = document.getElementById("buyBonusBtn");
@@ -255,6 +266,8 @@ export class GameController {
       gameContainer.style.display = "none";
     }
 
+    this._bindInitialAudioUnlock();
+
     // Bind spin button
     spinBtn.addEventListener("click", () => this.handleSpin("manual"));
     autoplayBtn.addEventListener("click", () => this._toggleAutoplay());
@@ -266,6 +279,20 @@ export class GameController {
       this._updateControlButtons();
       this.soundManager.playButton();
     });
+    if (bgMusicBtn) {
+      bgMusicBtn.addEventListener("click", async () => {
+        this.backgroundMusicMuted = !this.backgroundMusicMuted;
+        this.soundManager.setBackgroundMusicMuted(this.backgroundMusicMuted);
+        this._saveBackgroundMusicMutedPreference(this.backgroundMusicMuted);
+
+        if (this.soundManager.enabled && !this.backgroundMusicMuted) {
+          await this.soundManager.ensureReady();
+        }
+
+        this._updateControlButtons();
+        this.soundManager.playButton();
+      });
+    }
     volumeSlider.addEventListener("input", async () => {
       const normalized = Number(volumeSlider.value) / 100;
       this.soundManager.setVolume(normalized);
@@ -341,6 +368,7 @@ export class GameController {
       spinBtn,
       autoplayBtn,
       soundBtn,
+      bgMusicBtn,
       volumeSlider,
       volumeValue,
       buyBonusBtn,
@@ -386,13 +414,16 @@ export class GameController {
    * Handle spin button click
    */
   async handleSpin(source = "manual") {
+    if (source === "manual") {
+      this.soundManager.playButton();
+    }
+
     await this.ready;
 
     if (this.isSpinning) return;
 
     if (source === "manual") {
       await this.soundManager.ensureReady();
-      this.soundManager.playButton();
     }
 
     this._hideBonusTotalOverlay();
@@ -972,6 +1003,10 @@ export class GameController {
 
     this.ui.autoplayBtn.textContent = `AUTOPLAY: ${this.autoPlayEnabled ? "ON" : "OFF"}`;
     this.ui.soundBtn.textContent = `SOUND: ${this.soundManager.enabled ? "ON" : "OFF"}`;
+    if (this.ui.bgMusicBtn) {
+      this.ui.bgMusicBtn.textContent = `BG MUSIC: ${this.backgroundMusicMuted ? "OFF" : "ON"}`;
+      this.ui.bgMusicBtn.disabled = !this.soundManager.enabled;
+    }
     this.ui.volumeSlider.disabled = !this.soundManager.enabled;
 
     const leprechaunOffer = byMode.LEPRECHAUN;
@@ -1040,6 +1075,46 @@ export class GameController {
     }
 
     return this._formatters.get(key);
+  }
+
+  _bindInitialAudioUnlock() {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const unlock = async () => {
+      document.removeEventListener("pointerdown", unlock, true);
+      document.removeEventListener("keydown", unlock, true);
+      await this.soundManager.ensureReady();
+    };
+
+    document.addEventListener("pointerdown", unlock, true);
+    document.addEventListener("keydown", unlock, true);
+  }
+
+  _loadBackgroundMusicMutedPreference() {
+    if (typeof window === "undefined" || !window.localStorage) {
+      return false;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEYS.bgMusicMuted);
+      return raw === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  _saveBackgroundMusicMutedPreference(muted) {
+    if (typeof window === "undefined" || !window.localStorage) {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(STORAGE_KEYS.bgMusicMuted, muted ? "1" : "0");
+    } catch {
+      // no-op (storage may be unavailable)
+    }
   }
 
   _getFreeSpinProgress() {

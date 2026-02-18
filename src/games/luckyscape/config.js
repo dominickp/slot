@@ -85,7 +85,7 @@ export const LUCKY_ESCAPE_CONFIG = {
       cascade: withBasePath("assets/audio/cascade.ogg"),
       win: withBasePath("assets/audio/win.ogg"),
       "bonus-start": withBasePath("assets/audio/bonus_start.ogg"),
-      "free-spin-start": withBasePath("assets/audio/free_spin_start.ogg"),
+      "free-spin-start": withBasePath("assets/audio/spin_start.ogg"),
       rainbow: withBasePath("assets/audio/rainbow.ogg"),
       "clover-multiply": withBasePath("assets/audio/clover_multiply.ogg"),
       "collector-collect": withBasePath("assets/audio/collector_collect.ogg"),
@@ -349,6 +349,10 @@ export const LUCKY_ESCAPE_CONFIG = {
     turbo: true,
     soundEnabled: true,
     particleEffects: true,
+  },
+
+  audio: {
+    backgroundMusicVolumeScale: 0.1,
   },
 
   // Internal debug mode controls (kept gated to avoid accidental user access)
