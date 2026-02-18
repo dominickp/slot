@@ -182,17 +182,7 @@ export class LuckyScapeSlot extends BaseSlot {
         (this.totalWinFromSpin * Number(betAmount) + Number.EPSILON) * 100,
       ) / 100;
 
-    if (backend && typeof backend.reportWin === "function") {
-      try {
-        await backend.reportWin({
-          betAmount,
-          winAmount: totalWin,
-          gameId: this.config.id,
-        });
-      } catch (err) {
-        console.error("[LuckyScapeSlot] Failed to report win to backend", err);
-      }
-    }
+    // (No backend.reportWin here; reporting is handled by the UI layer per refactor plan)
 
     if (this.isInFreeSpins && this.bonusMode) {
       this.bonusMode.onSpinComplete(totalWin);

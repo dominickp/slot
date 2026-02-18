@@ -26,16 +26,6 @@ type WinEvent = {
   playerTag: string;
 };
 
-type SpinResponse = {
-  ok: boolean;
-  reelStops: number[];
-  winAmount: number;
-  betAmount: number;
-  remainingCredits: number;
-  dailyBudget: number;
-  serverTime: number;
-};
-
 function resolveKvTarget(): string | undefined {
   if (KV_MODE === "managed") {
     return undefined;
@@ -277,10 +267,17 @@ async function handlePlayerState(request: Request): Promise<Response> {
   );
 }
 
-async function handleSpin(request: Request): Promise<Response> {
-  const origin = getOrigin(request);
+type ReportWinPayload = {
+  betAmount: number;
+  winAmount: number;
+  gameId?: string;
+  bonusType?: string;
+  [key: string]: unknown;
+};
 
-  let payload: { gameId?: string; betAmount?: number };
+async function handleReportWin(request: Request): Promise<Response> {
+  const origin = getOrigin(request);
+  let payload: ReportWinPayload;
   try {
     payload = await request.json();
   } catch {
@@ -291,12 +288,21 @@ async function handleSpin(request: Request): Promise<Response> {
     );
   }
 
-  const gameId = String(payload.gameId || "luckyscape");
   const betAmount = Number(payload.betAmount);
+  const winAmount = Number(payload.winAmount);
+  const gameId = String(payload.gameId || "luckyscape");
+  const bonusType = payload.bonusType ? String(payload.bonusType) : undefined;
 
-  if (!Number.isFinite(betAmount) || betAmount <= 0) {
+  if (!Number.isFinite(betAmount) || betAmount < 0) {
     return jsonResponse(
-      { ok: false, error: "betAmount must be > 0" },
+      { ok: false, error: "betAmount must be >= 0" },
+      400,
+      origin,
+    );
+  }
+  if (!Number.isFinite(winAmount) || winAmount < 0) {
+    return jsonResponse(
+      { ok: false, error: "winAmount must be >= 0" },
       400,
       origin,
     );
@@ -306,45 +312,43 @@ async function handleSpin(request: Request): Promise<Response> {
   const playerTag = createPlayerTag(ipHash);
   const dayKey = getDayKey();
 
-  const spin = generateSpin(betAmount);
   const creditsUpdate = await updateCreditsWithRetry(
     dayKey,
     ipHash,
     betAmount,
-    spin.winAmount,
+    winAmount,
   );
-
   if (!creditsUpdate.ok) {
     return jsonResponse(
-      {
-        ok: false,
-        error: creditsUpdate.reason,
-      },
+      { ok: false, error: creditsUpdate.reason },
       409,
       origin,
     );
   }
 
-  if (spin.winAmount > 0) {
+  if (winAmount > 0) {
     await recordWinEvent({
-      amount: spin.winAmount,
+      amount: winAmount,
       gameId,
       at: Date.now(),
       playerTag,
     });
   }
 
-  const response: SpinResponse = {
-    ok: true,
-    reelStops: spin.reelStops,
-    winAmount: spin.winAmount,
-    betAmount,
-    remainingCredits: creditsUpdate.remaining,
-    dailyBudget: DAILY_BUDGET,
-    serverTime: Date.now(),
-  };
-
-  return jsonResponse(response, 200, origin);
+  return jsonResponse(
+    {
+      ok: true,
+      remainingCredits: creditsUpdate.remaining,
+      betAmount,
+      winAmount,
+      gameId,
+      bonusType,
+      dailyBudget: DAILY_BUDGET,
+      serverTime: Date.now(),
+    },
+    200,
+    origin,
+  );
 }
 
 async function handleLeaderboardRecent(request: Request): Promise<Response> {
@@ -405,8 +409,8 @@ Deno.serve((request) => {
     return handlePlayerState(request);
   }
 
-  if (url.pathname === "/api/spin" && request.method === "POST") {
-    return handleSpin(request);
+  if (url.pathname === "/api/report-win" && request.method === "POST") {
+    return handleReportWin(request);
   }
 
   if (url.pathname === "/api/leaderboard/recent" && request.method === "GET") {
