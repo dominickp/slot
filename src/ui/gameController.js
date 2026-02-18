@@ -89,6 +89,8 @@ export class GameController {
       randomRotationAnglesDeg: gameConfig?.visuals?.randomRotationAnglesDeg || [
         0, 90, 180, 270,
       ],
+      gridColors: gameConfig?.visuals?.gridColors || {},
+      highlightColors: gameConfig?.visuals?.highlightColors || {},
       coinTierColors: gameConfig?.visuals?.coinTierColors || {},
       cloverMultiplierColors: gameConfig?.visuals?.cloverMultiplierColors || {},
       collectorSuctionMotion: gameConfig?.visuals?.collectorSuctionMotion || {},

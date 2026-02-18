@@ -81,6 +81,15 @@ const REVEAL_SYMBOLS = {
 
 const TILE_SYMBOL_PADDING = 7;
 const MAX_RENDER_RESOLUTION = 2;
+const DEFAULT_GRID_COLORS = {
+  boardBackground: 0x1a1a2e,
+  cellFill: 0x333333,
+  cellBorder: 0x555555,
+};
+const DEFAULT_HIGHLIGHT_COLORS = {
+  goldFill: 0x8a6a24,
+  goldInnerGlow: 0xe6bc5a,
+};
 const DEFAULT_COIN_TIER_COLORS = {
   bronze: 0xd69763,
   silver: 0xd7e2f0,
@@ -117,6 +126,10 @@ export class GridRenderer {
     );
     this.randomRotationAnglesDeg = this._normalizeRotationAngles(
       options.randomRotationAnglesDeg || [0, 90, 180, 270],
+    );
+    this.gridColors = this._normalizeGridColors(options.gridColors || {});
+    this.highlightColors = this._normalizeHighlightColors(
+      options.highlightColors || {},
     );
     this.coinTierColors = this._normalizeCoinTierColors(
       options.coinTierColors || {},
@@ -216,6 +229,66 @@ export class GridRenderer {
         DEFAULT_COIN_TIER_COLORS.silver,
       ),
       gold: normalizeHexColor(rawColors.gold, DEFAULT_COIN_TIER_COLORS.gold),
+    };
+  }
+
+  _normalizeGridColors(rawColors = {}) {
+    const normalizeHexColor = (value, fallback) => {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+      }
+
+      if (typeof value === "string") {
+        const trimmed = value.trim().replace(/^#/, "");
+        if (/^[0-9a-fA-F]{6}$/.test(trimmed)) {
+          return Number.parseInt(trimmed, 16);
+        }
+      }
+
+      return fallback;
+    };
+
+    return {
+      boardBackground: normalizeHexColor(
+        rawColors.boardBackground,
+        DEFAULT_GRID_COLORS.boardBackground,
+      ),
+      cellFill: normalizeHexColor(
+        rawColors.cellFill,
+        DEFAULT_GRID_COLORS.cellFill,
+      ),
+      cellBorder: normalizeHexColor(
+        rawColors.cellBorder,
+        DEFAULT_GRID_COLORS.cellBorder,
+      ),
+    };
+  }
+
+  _normalizeHighlightColors(rawColors = {}) {
+    const normalizeHexColor = (value, fallback) => {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+      }
+
+      if (typeof value === "string") {
+        const trimmed = value.trim().replace(/^#/, "");
+        if (/^[0-9a-fA-F]{6}$/.test(trimmed)) {
+          return Number.parseInt(trimmed, 16);
+        }
+      }
+
+      return fallback;
+    };
+
+    return {
+      goldFill: normalizeHexColor(
+        rawColors.goldFill,
+        DEFAULT_HIGHLIGHT_COLORS.goldFill,
+      ),
+      goldInnerGlow: normalizeHexColor(
+        rawColors.goldInnerGlow,
+        DEFAULT_HIGHLIGHT_COLORS.goldInnerGlow,
+      ),
     };
   }
 
@@ -632,15 +705,18 @@ export class GridRenderer {
     background.rect(0, 0, this.cellSize, this.cellSize);
 
     if (highlighted || bonusGolden) {
-      background.fill({ color: 0x8a6a24, alpha: 1 });
+      background.fill({ color: this.highlightColors.goldFill, alpha: 1 });
 
       const innerGlow = new PIXI.Graphics();
       innerGlow.rect(4, 4, this.cellSize - 8, this.cellSize - 8);
-      innerGlow.fill({ color: 0xe6bc5a, alpha: highlighted ? 0.42 : 0.28 });
+      innerGlow.fill({
+        color: this.highlightColors.goldInnerGlow,
+        alpha: highlighted ? 0.42 : 0.28,
+      });
       background.addChild(innerGlow);
     } else {
-      background.fill(0x333333);
-      background.stroke({ color: 0x555555, width: 2 });
+      background.fill(this.gridColors.cellFill);
+      background.stroke({ color: this.gridColors.cellBorder, width: 2 });
     }
 
     if (activeRainbow && (highlighted || bonusGolden)) {
@@ -666,7 +742,7 @@ export class GridRenderer {
     const appOptions = {
       width: this.cols * this.cellSize + this.padding * 2,
       height: this.rows * this.cellSize + this.padding * 2,
-      backgroundColor: 0x1a1a2e,
+      backgroundColor: this.gridColors.boardBackground,
       antialias: true,
       resolution: Math.min(
         MAX_RENDER_RESOLUTION,

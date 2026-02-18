@@ -96,8 +96,17 @@ export const LUCKY_ESCAPE_CONFIG = {
   },
 
   visuals: {
-    randomRotationSymbolIds: [4, 5],
+    randomRotationSymbolIds: [4, 5, 14, 15],
     randomRotationAnglesDeg: [0, 90, 180, 270],
+    gridColors: {
+      boardBackground: 0x1a1a2e,
+      cellFill: "#2d2d2d",
+      cellBorder: 0x555555,
+    },
+    highlightColors: {
+      goldFill: "#3a86ce",
+      goldInnerGlow: "#24313a",
+    },
     coinTierColors: {
       bronze: 0x67e07f,
       silver: 0xd69763,
