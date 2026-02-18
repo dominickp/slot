@@ -91,6 +91,8 @@ export class GameController {
       ],
       gridColors: gameConfig?.visuals?.gridColors || {},
       highlightColors: gameConfig?.visuals?.highlightColors || {},
+      focusPulseColors: gameConfig?.visuals?.focusPulseColors || {},
+      collectorColors: gameConfig?.visuals?.collectorColors || {},
       coinTierColors: gameConfig?.visuals?.coinTierColors || {},
       cloverMultiplierColors: gameConfig?.visuals?.cloverMultiplierColors || {},
       collectorSuctionMotion: gameConfig?.visuals?.collectorSuctionMotion || {},
@@ -653,7 +655,11 @@ export class GameController {
     this.renderer.setPersistentConnectionHighlights(accumulatedHighlights);
 
     this.renderer.render(spinResult.grid, revealHoldWins);
-    this._syncBonusVisuals();
+    if (this.game.isInFreeSpins) {
+      this._syncBonusVisuals();
+    } else {
+      this.renderer.setBonusVisuals(spinResult?.bonusFeatures || {});
+    }
 
     const eventRounds = Array.isArray(
       spinResult?.bonusFeatures?.bonusEventTimeline,
@@ -663,6 +669,10 @@ export class GameController {
 
     if (spinResult?.bonusFeatures?.rainbowTriggered) {
       this.soundManager.playRainbow();
+
+      if (eventRounds.length === 0) {
+        await this.renderer.animateRainbowActivationFocus(1);
+      }
     }
 
     if (eventRounds.length > 0) {

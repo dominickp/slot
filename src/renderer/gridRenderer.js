@@ -90,6 +90,14 @@ const DEFAULT_HIGHLIGHT_COLORS = {
   goldFill: 0x8a6a24,
   goldInnerGlow: 0xe6bc5a,
 };
+const DEFAULT_FOCUS_PULSE_COLORS = {
+  collector: 0xffc77a,
+  rainbow: 0x93d1ff,
+};
+const DEFAULT_COLLECTOR_COLORS = {
+  valueText: 0xffc77a,
+  tokenText: 0xffe7ba,
+};
 const DEFAULT_COIN_TIER_COLORS = {
   bronze: 0xd69763,
   silver: 0xd7e2f0,
@@ -130,6 +138,12 @@ export class GridRenderer {
     this.gridColors = this._normalizeGridColors(options.gridColors || {});
     this.highlightColors = this._normalizeHighlightColors(
       options.highlightColors || {},
+    );
+    this.focusPulseColors = this._normalizeFocusPulseColors(
+      options.focusPulseColors || {},
+    );
+    this.collectorColors = this._normalizeCollectorColors(
+      options.collectorColors || {},
     );
     this.coinTierColors = this._normalizeCoinTierColors(
       options.coinTierColors || {},
@@ -320,6 +334,62 @@ export class GridRenderer {
       dark: normalizeHexColor(
         rawColors.dark,
         DEFAULT_CLOVER_MULTIPLIER_COLORS.dark,
+      ),
+    };
+  }
+
+  _normalizeFocusPulseColors(rawColors = {}) {
+    const normalizeHexColor = (value, fallback) => {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+      }
+
+      if (typeof value === "string") {
+        const trimmed = value.trim().replace(/^#/, "");
+        if (/^[0-9a-fA-F]{6}$/.test(trimmed)) {
+          return Number.parseInt(trimmed, 16);
+        }
+      }
+
+      return fallback;
+    };
+
+    return {
+      collector: normalizeHexColor(
+        rawColors.collector,
+        DEFAULT_FOCUS_PULSE_COLORS.collector,
+      ),
+      rainbow: normalizeHexColor(
+        rawColors.rainbow,
+        DEFAULT_FOCUS_PULSE_COLORS.rainbow,
+      ),
+    };
+  }
+
+  _normalizeCollectorColors(rawColors = {}) {
+    const normalizeHexColor = (value, fallback) => {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+      }
+
+      if (typeof value === "string") {
+        const trimmed = value.trim().replace(/^#/, "");
+        if (/^[0-9a-fA-F]{6}$/.test(trimmed)) {
+          return Number.parseInt(trimmed, 16);
+        }
+      }
+
+      return fallback;
+    };
+
+    return {
+      valueText: normalizeHexColor(
+        rawColors.valueText,
+        DEFAULT_COLLECTOR_COLORS.valueText,
+      ),
+      tokenText: normalizeHexColor(
+        rawColors.tokenText,
+        DEFAULT_COLLECTOR_COLORS.tokenText,
       ),
     };
   }
@@ -1378,7 +1448,7 @@ export class GridRenderer {
     return {
       symbolId,
       label: "",
-      accentColor: 0xffb873,
+      accentColor: this.collectorColors.valueText,
     };
   }
 
@@ -1648,7 +1718,7 @@ export class GridRenderer {
         ...existingCollector,
         symbolId: REVEAL_SYMBOLS.POT,
         label: this._formatBonusValue(value),
-        accentColor: 0xffc77a,
+        accentColor: this.collectorColors.valueText,
       });
       this.render(this.lastRenderedGrid, new Set(), {
         showBonusOverlays: true,
@@ -1670,7 +1740,8 @@ export class GridRenderer {
           existingSource.label ||
           source.label ||
           this._formatBonusValue(source.value ?? 0);
-        const color = existingSource.accentColor ?? 0xffe7ba;
+        const color =
+          existingSource.accentColor ?? this.collectorColors.tokenText;
 
         if (sourceKey !== collectorKey && isRainbowCell) {
           this.revealedSymbolMap.delete(sourceKey);
@@ -1859,7 +1930,7 @@ export class GridRenderer {
       ...existing,
       symbolId: REVEAL_SYMBOLS.POT,
       label: existing.label || "",
-      accentColor: 0xffb873,
+      accentColor: existing.accentColor ?? this.collectorColors.valueText,
     });
   }
 
@@ -1953,6 +2024,39 @@ export class GridRenderer {
       item.symbolNode.rotation = item.baseRotation;
       item.symbolNode.position.set(item.baseX, item.baseY);
     }
+  }
+
+  async animateRainbowActivationFocus(revealCount = 1) {
+    await this.ready;
+
+    if (
+      !this.bonusVisuals?.rainbowTriggered ||
+      !Array.isArray(this.bonusVisuals?.rainbowPositions) ||
+      this.bonusVisuals.rainbowPositions.length === 0
+    ) {
+      return;
+    }
+
+    const safeRevealCount = Number.isFinite(Number(revealCount))
+      ? Math.max(1, Number(revealCount))
+      : 1;
+
+    await this._animateFocusedTileAtCell(
+      this.bonusVisuals.rainbowPositions[0].x,
+      this.bonusVisuals.rainbowPositions[0].y,
+      Math.max(
+        ANIMATION_TIMING.renderer.bonusSequence.rainbowFocusMinMs,
+        safeRevealCount *
+          ANIMATION_TIMING.renderer.bonusSequence.rainbowFocusPerRevealMs +
+          ANIMATION_TIMING.renderer.bonusSequence.rainbowFocusBaseMs,
+      ),
+      {
+        accentColor: this.focusPulseColors.rainbow,
+        maxScale: 1.16,
+        growMs: 150,
+        shrinkMs: 170,
+      },
+    );
   }
 
   async animateSpinTransition(
@@ -2634,6 +2738,7 @@ export class GridRenderer {
       const collectorSteps = Array.isArray(round.collectorSteps)
         ? round.collectorSteps
         : [];
+      let rainbowActivationFocusPlayed = false;
 
       if (reveals.length === 0 && collectorSteps.length === 0) {
         continue;
@@ -2668,6 +2773,14 @@ export class GridRenderer {
             )
           : revealPacing.staggerMs;
 
+        if (rainbowWaveActive) {
+          await this.animateRainbowActivationFocus(revealCount);
+          rainbowActivationFocusPlayed = true;
+          await this._wait(
+            ANIMATION_TIMING.renderer.bonusSequence.postRevealPauseMs,
+          );
+        }
+
         await Promise.all(
           sortedReveals.map(
             (reveal, index) =>
@@ -2685,31 +2798,9 @@ export class GridRenderer {
           ),
         );
 
-        await this._wait(
-          ANIMATION_TIMING.renderer.bonusSequence.postRevealPauseMs,
-        );
-
-        if (
-          this.bonusVisuals?.rainbowTriggered &&
-          Array.isArray(this.bonusVisuals?.rainbowPositions) &&
-          this.bonusVisuals.rainbowPositions.length > 0
-        ) {
-          await this._animateFocusedTileAtCell(
-            this.bonusVisuals.rainbowPositions[0].x,
-            this.bonusVisuals.rainbowPositions[0].y,
-            Math.max(
-              ANIMATION_TIMING.renderer.bonusSequence.rainbowFocusMinMs,
-              reveals.length *
-                ANIMATION_TIMING.renderer.bonusSequence
-                  .rainbowFocusPerRevealMs +
-                ANIMATION_TIMING.renderer.bonusSequence.rainbowFocusBaseMs,
-            ),
-            {
-              accentColor: 0x93d1ff,
-              maxScale: 1.16,
-              growMs: 150,
-              shrinkMs: 170,
-            },
+        if (!rainbowWaveActive) {
+          await this._wait(
+            ANIMATION_TIMING.renderer.bonusSequence.postRevealPauseMs,
           );
         }
       }
@@ -2832,7 +2923,7 @@ export class GridRenderer {
             step.y,
             potFocusDuration,
             {
-              accentColor: 0xffc77a,
+              accentColor: this.focusPulseColors.collector,
               maxScale: 1.2,
               growMs: 180,
               shrinkMs: 180,
@@ -2872,7 +2963,7 @@ export class GridRenderer {
                 ...existingSource,
                 symbolId: REVEAL_SYMBOLS.POT,
                 label: "",
-                accentColor: 0xffb873,
+                accentColor: this.collectorColors.valueText,
               });
               continue;
             }
@@ -2936,6 +3027,14 @@ export class GridRenderer {
                   ANIMATION_TIMING.renderer.bonusSequence.rainbowWaveStaggerMs,
                 )
               : revealPacing.staggerMs;
+
+            if (rainbowWaveActive && !rainbowActivationFocusPlayed) {
+              await this.animateRainbowActivationFocus(revealCount);
+              rainbowActivationFocusPlayed = true;
+              await this._wait(
+                ANIMATION_TIMING.renderer.bonusSequence.postRevealPauseMs,
+              );
+            }
 
             await Promise.all(
               sortedPostReveals.map(

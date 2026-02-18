@@ -104,8 +104,16 @@ export const LUCKY_ESCAPE_CONFIG = {
       cellBorder: 0x555555,
     },
     highlightColors: {
-      goldFill: "#3a86ce",
-      goldInnerGlow: "#24313a",
+      goldFill: "#2f6ca5",
+      goldInnerGlow: "#1a232a",
+    },
+    focusPulseColors: {
+      collector: "#cb0b88",
+      rainbow: 0x93d1ff,
+    },
+    collectorColors: {
+      valueText: "#e876c2",
+      tokenText: "#e876c2",
     },
     coinTierColors: {
       bronze: 0x67e07f,
