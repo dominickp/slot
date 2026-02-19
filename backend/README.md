@@ -1,6 +1,5 @@
 # Slot Backend (Deno Deploy + Deno KV)
 
-
 Minimal backend for:
 - Daily credits per anonymous player (IP hash)
 - Win reporting endpoint (client handles all game logic)
@@ -19,7 +18,6 @@ Prereqs: Deno 2+
 Note: local `Deno.openKv()` currently requires `--unstable-kv`.
 The provided tasks already include it.
 
-
 By default, local development uses a persistent KV file at `backend/data/local-kv.sqlite3`.
 
 ```bash
@@ -36,7 +34,6 @@ To run local code against your hosted Deno Deploy KV, use managed mode + tunnel:
 $env:KV_MODE='managed'
 deno task --config backend/deno.json dev:managed
 ```
-
 
 This is the recommended way to validate cloud KV behavior before production rollout.
 

@@ -1,26 +1,3 @@
-const CREDITS_RETENTION_DAYS = 180;
-
-function getOldDayKeys(retentionDays: number): string[] {
-  const keys: string[] = [];
-  const now = new Date();
-  for (let i = retentionDays + 1; i < 10000; i++) {
-    // Arbitrary upper bound
-    const d = new Date(now);
-    d.setDate(now.getDate() - i);
-    keys.push(d.toISOString().slice(0, 10));
-    if (keys.length > 400) break; // Avoid runaway loop
-  }
-  return keys;
-}
-
-async function cleanupOldCredits(): Promise<void> {
-  const oldDayKeys = getOldDayKeys(CREDITS_RETENTION_DAYS);
-  for (const dayKey of oldDayKeys) {
-    for await (const entry of kv.list({ prefix: ["credits", dayKey] })) {
-      await kv.delete(entry.key);
-    }
-  }
-}
 const DAILY_BUDGET = Number(Deno.env.get("DAILY_BUDGET") || 1000);
 const MAX_LEADERBOARD_LIMIT = 50;
 const DEFAULT_LEADERBOARD_LIMIT = 20;
@@ -40,6 +17,7 @@ const KV_MODE = String(Deno.env.get("KV_MODE") || "auto").toLowerCase();
 type CreditsRecord = {
   remaining: number;
   updatedAt: number;
+  lastResetDay: string; // Tracks when the user last received their daily allowance
 };
 
 type WinEvent = {
@@ -141,42 +119,42 @@ function getIpHash(ip: string): Promise<string> {
   return sha256Hex(`${ip}:${APP_SECRET}`);
 }
 
-function creditsKey(dayKey: string, ipHash: string): Deno.KvKey {
-  return ["credits", dayKey, ipHash];
+function creditsKey(ipHash: string): Deno.KvKey {
+  // We store one persistent record per player.
+  return ["credits", ipHash];
 }
 
 async function getOrInitCredits(
   dayKey: string,
   ipHash: string,
 ): Promise<CreditsRecord> {
-  const key = creditsKey(dayKey, ipHash);
+  const key = creditsKey(ipHash);
   const existing = await kv.get<CreditsRecord>(key);
 
   if (existing.value) {
-    return existing.value;
+    let record = existing.value;
+
+    // Apply daily top-up if it's a new day
+    if (record.lastResetDay !== dayKey) {
+      const updatedRemaining = Math.max(record.remaining, DAILY_BUDGET);
+      record = {
+        remaining: updatedRemaining,
+        updatedAt: Date.now(),
+        lastResetDay: dayKey,
+      };
+      await kv.set(key, record);
+    }
+    return record;
   }
 
   const initialRecord: CreditsRecord = {
     remaining: DAILY_BUDGET,
     updatedAt: Date.now(),
+    lastResetDay: dayKey,
   };
 
   await kv.set(key, initialRecord);
   return initialRecord;
-}
-
-function calculateDemoWin(reelStops: number[], betAmount: number): number {
-  if (reelStops[0] === reelStops[1] && reelStops[1] === reelStops[2]) {
-    const multiplier = reelStops[0] < 10 ? 100 : 50;
-    return multiplier * betAmount;
-  }
-
-  if (reelStops[0] === reelStops[1] || reelStops[1] === reelStops[2]) {
-    const multiplier = reelStops[0] < 10 ? 10 : 5;
-    return multiplier * betAmount;
-  }
-
-  return 0;
 }
 
 function parseLimit(url: URL): number {
@@ -248,29 +226,37 @@ async function updateCreditsWithRetry(
   | { ok: true; remaining: number }
   | { ok: false; reason: "INSUFFICIENT_CREDITS" }
 > {
-  const key = creditsKey(dayKey, ipHash);
+  const key = creditsKey(ipHash);
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const current = await kv.get<CreditsRecord>(key);
+
+    // Default to a fresh state if the user has no record
     const base = current.value || {
       remaining: DAILY_BUDGET,
       updatedAt: Date.now(),
+      lastResetDay: dayKey,
     };
 
-    if (betAmount > base.remaining) {
+    // Calculate effective balance based on daily rollover logic
+    let effectiveRemaining = base.remaining;
+    if (base.lastResetDay !== dayKey) {
+      effectiveRemaining = Math.max(effectiveRemaining, DAILY_BUDGET);
+    }
+
+    if (betAmount > effectiveRemaining) {
       return { ok: false, reason: "INSUFFICIENT_CREDITS" };
     }
 
-    const remaining = Math.max(0, base.remaining - betAmount + winAmount);
+    const remaining = Math.max(0, effectiveRemaining - betAmount + winAmount);
     const next: CreditsRecord = {
       remaining,
       updatedAt: Date.now(),
+      lastResetDay: dayKey,
     };
 
     const result = await kv.atomic().check(current).set(key, next).commit();
     if (result.ok) {
-      // Clean up old credits asynchronously (don't block response)
-      cleanupOldCredits();
       return { ok: true, remaining };
     }
   }
