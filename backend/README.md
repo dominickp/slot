@@ -2,13 +2,13 @@
 
 Minimal backend for:
 - Daily credits per anonymous player (IP hash)
-- Spin endpoint
+- Win reporting endpoint (client handles all game logic)
 - Recent/top leaderboard endpoints
 
 ## Endpoints
 - `GET /health`
 - `GET /api/player/state`
-- `POST /api/spin`
+- `POST /api/report-win`
 - `GET /api/leaderboard/recent?limit=20`
 - `GET /api/leaderboard/top?limit=20`
 
@@ -24,6 +24,8 @@ By default, local development uses a persistent KV file at `backend/data/local-k
 deno task --config backend/deno.json dev
 ```
 
+The service should be running at http://localhost:8000
+
 ### Use hosted KV from local machine (via Deno tunnel)
 
 To run local code against your hosted Deno Deploy KV, use managed mode + tunnel:
@@ -34,6 +36,25 @@ deno task --config backend/deno.json dev:managed
 ```
 
 This is the recommended way to validate cloud KV behavior before production rollout.
+
+---
+
+### API Contract Change
+
+**Note:** The backend no longer provides a `/api/spin` endpoint. All game logic (spins, bonus, etc.) is handled client-side. The client must POST the bet and win results to `/api/report-win` after each spin or bonus sequence:
+
+```
+POST /api/report-win
+{
+	betAmount: number,   // cost of spin or bonus
+	winAmount: number,   // win amount for spin or bonus
+	gameId?: string,     // optional game identifier
+	bonusType?: string,  // optional bonus type
+	...extra             // any extra metadata
+}
+```
+
+The backend will deduct the bet, credit the win, update the player's balance, and record the win for the leaderboard.
 
 If you run directly (without tasks), include:
 

@@ -39,45 +39,7 @@ export class GameEngine {
    * Request spin from backend (or simulated backend)
    * @param {BackendService} backend - API service
    */
-  async requestSpin(backend) {
-    if (!this.stateMachine.is("IDLE")) {
-      console.warn(
-        "[GameEngine] Cannot spin from state:",
-        this.stateMachine.getState(),
-      );
-      return false;
-    }
-
-    if (this.playerBalance < this.betAmount) {
-      console.warn("[GameEngine] Insufficient balance");
-      return false;
-    }
-
-    try {
-      this.stateMachine.transition("AWAITING_RESULT");
-
-      // Deduct bet
-      this.playerBalance -= this.betAmount;
-
-      // Request result from backend
-      this.currentResult = await backend.requestSpin(
-        this.gameConfig.id,
-        this.betAmount,
-      );
-
-      console.log("[GameEngine] Received spin result:", this.currentResult);
-
-      this.stateMachine.transition("SPINNING");
-      return true;
-    } catch (error) {
-      console.error("[GameEngine] Spin error:", error);
-
-      // Refund bet on error
-      this.playerBalance += this.betAmount;
-      this.stateMachine.transition("ERROR");
-      return false;
-    }
-  }
+  // requestSpin removed: use game logic and call backend.reportWin after spin
 
   /**
    * Complete animation and show results

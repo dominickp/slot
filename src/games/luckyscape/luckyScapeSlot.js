@@ -75,6 +75,7 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   async spin(backend, betAmount = 10) {
+    // --- Local fallback logic (demo mode or no backend) ---
     this.totalWinFromSpin = 0;
     this.cascadeCount = 0;
     this._resetSpinFeatureState();
@@ -181,6 +182,8 @@ export class LuckyScapeSlot extends BaseSlot {
         (this.totalWinFromSpin * Number(betAmount) + Number.EPSILON) * 100,
       ) / 100;
 
+    // (No backend.reportWin here; reporting is handled by the UI layer per refactor plan)
+
     if (this.isInFreeSpins && this.bonusMode) {
       this.bonusMode.onSpinComplete(totalWin);
       this.freeSpinsRemaining = this.bonusMode.remaining;
@@ -192,11 +195,13 @@ export class LuckyScapeSlot extends BaseSlot {
       winPositions: finalWinPositions,
       cascades,
       totalWin,
-      cascadeCount: this.cascadeCount,
       bonusMode,
       scatterCount: scatterResult.count,
       scatterPositions: scatterResult.positions,
-      bonusFeatures: this.getBonusFeatureDisplay(),
+      bonusFeatures: {
+        rainbowTriggered: this.rainbowTriggered,
+        bonusEventTimeline: this.bonusEventTimeline,
+      },
     };
   }
 
@@ -503,7 +508,10 @@ export class LuckyScapeSlot extends BaseSlot {
       return false;
     }
 
-    if (this.bonusMode.id !== "GLITTER_GOLD") {
+    if (
+      this.bonusMode.id !== "GLITTER_GOLD" &&
+      this.bonusMode.id !== "LEPRECHAUN"
+    ) {
       return false;
     }
 

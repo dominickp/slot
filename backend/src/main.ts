@@ -17,6 +17,7 @@ const KV_MODE = String(Deno.env.get("KV_MODE") || "auto").toLowerCase();
 type CreditsRecord = {
   remaining: number;
   updatedAt: number;
+  lastResetDay: string; // Tracks when the user last received their daily allowance
 };
 
 type WinEvent = {
@@ -24,16 +25,6 @@ type WinEvent = {
   gameId: string;
   at: number;
   playerTag: string;
-};
-
-type SpinResponse = {
-  ok: boolean;
-  reelStops: number[];
-  winAmount: number;
-  betAmount: number;
-  remainingCredits: number;
-  dailyBudget: number;
-  serverTime: number;
 };
 
 function resolveKvTarget(): string | undefined {
@@ -128,57 +119,42 @@ function getIpHash(ip: string): Promise<string> {
   return sha256Hex(`${ip}:${APP_SECRET}`);
 }
 
-function creditsKey(dayKey: string, ipHash: string): Deno.KvKey {
-  return ["credits", dayKey, ipHash];
+function creditsKey(ipHash: string): Deno.KvKey {
+  // We store one persistent record per player.
+  return ["credits", ipHash];
 }
 
 async function getOrInitCredits(
   dayKey: string,
   ipHash: string,
 ): Promise<CreditsRecord> {
-  const key = creditsKey(dayKey, ipHash);
+  const key = creditsKey(ipHash);
   const existing = await kv.get<CreditsRecord>(key);
 
   if (existing.value) {
-    return existing.value;
+    let record = existing.value;
+
+    // Apply daily top-up if it's a new day
+    if (record.lastResetDay !== dayKey) {
+      const updatedRemaining = Math.max(record.remaining, DAILY_BUDGET);
+      record = {
+        remaining: updatedRemaining,
+        updatedAt: Date.now(),
+        lastResetDay: dayKey,
+      };
+      await kv.set(key, record);
+    }
+    return record;
   }
 
   const initialRecord: CreditsRecord = {
     remaining: DAILY_BUDGET,
     updatedAt: Date.now(),
+    lastResetDay: dayKey,
   };
 
   await kv.set(key, initialRecord);
   return initialRecord;
-}
-
-function calculateDemoWin(reelStops: number[], betAmount: number): number {
-  if (reelStops[0] === reelStops[1] && reelStops[1] === reelStops[2]) {
-    const multiplier = reelStops[0] < 10 ? 100 : 50;
-    return multiplier * betAmount;
-  }
-
-  if (reelStops[0] === reelStops[1] || reelStops[1] === reelStops[2]) {
-    const multiplier = reelStops[0] < 10 ? 10 : 5;
-    return multiplier * betAmount;
-  }
-
-  return 0;
-}
-
-function generateSpin(betAmount: number): {
-  reelStops: number[];
-  winAmount: number;
-} {
-  const reelCount = 3;
-  const symbolsPerReel = 22;
-
-  const reelStops = Array.from({ length: reelCount }, () =>
-    Math.floor(Math.random() * symbolsPerReel),
-  );
-
-  const winAmount = calculateDemoWin(reelStops, betAmount);
-  return { reelStops, winAmount };
 }
 
 function parseLimit(url: URL): number {
@@ -211,6 +187,25 @@ async function trimRecentEvents(): Promise<void> {
   }
 }
 
+const MAX_TOP_WINS = 500;
+
+async function trimTopWins(): Promise<void> {
+  let count = 0;
+  const keysToDelete: Deno.KvKey[] = [];
+  for await (const entry of kv.list({ prefix: ["wins", "top"] })) {
+    count += 1;
+    if (count > MAX_TOP_WINS) {
+      keysToDelete.push(entry.key);
+    }
+  }
+  if (keysToDelete.length === 0) {
+    return;
+  }
+  for (const key of keysToDelete) {
+    await kv.delete(key);
+  }
+}
+
 async function recordWinEvent(win: WinEvent): Promise<void> {
   const eventId = createEventId();
   const recentKey: Deno.KvKey = ["wins", "recent", win.at, eventId];
@@ -219,6 +214,7 @@ async function recordWinEvent(win: WinEvent): Promise<void> {
   await kv.set(recentKey, win);
   await kv.set(topKey, win);
   await trimRecentEvents();
+  await trimTopWins();
 }
 
 async function updateCreditsWithRetry(
@@ -230,23 +226,33 @@ async function updateCreditsWithRetry(
   | { ok: true; remaining: number }
   | { ok: false; reason: "INSUFFICIENT_CREDITS" }
 > {
-  const key = creditsKey(dayKey, ipHash);
+  const key = creditsKey(ipHash);
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const current = await kv.get<CreditsRecord>(key);
+
+    // Default to a fresh state if the user has no record
     const base = current.value || {
       remaining: DAILY_BUDGET,
       updatedAt: Date.now(),
+      lastResetDay: dayKey,
     };
 
-    if (betAmount > base.remaining) {
+    // Calculate effective balance based on daily rollover logic
+    let effectiveRemaining = base.remaining;
+    if (base.lastResetDay !== dayKey) {
+      effectiveRemaining = Math.max(effectiveRemaining, DAILY_BUDGET);
+    }
+
+    if (betAmount > effectiveRemaining) {
       return { ok: false, reason: "INSUFFICIENT_CREDITS" };
     }
 
-    const remaining = Math.max(0, base.remaining - betAmount + winAmount);
+    const remaining = Math.max(0, effectiveRemaining - betAmount + winAmount);
     const next: CreditsRecord = {
       remaining,
       updatedAt: Date.now(),
+      lastResetDay: dayKey,
     };
 
     const result = await kv.atomic().check(current).set(key, next).commit();
@@ -277,10 +283,17 @@ async function handlePlayerState(request: Request): Promise<Response> {
   );
 }
 
-async function handleSpin(request: Request): Promise<Response> {
-  const origin = getOrigin(request);
+type ReportWinPayload = {
+  betAmount: number;
+  winAmount: number;
+  gameId?: string;
+  bonusType?: string;
+  [key: string]: unknown;
+};
 
-  let payload: { gameId?: string; betAmount?: number };
+async function handleReportWin(request: Request): Promise<Response> {
+  const origin = getOrigin(request);
+  let payload: ReportWinPayload;
   try {
     payload = await request.json();
   } catch {
@@ -291,12 +304,21 @@ async function handleSpin(request: Request): Promise<Response> {
     );
   }
 
-  const gameId = String(payload.gameId || "luckyscape");
   const betAmount = Number(payload.betAmount);
+  const winAmount = Number(payload.winAmount);
+  const gameId = String(payload.gameId || "luckyscape");
+  const bonusType = payload.bonusType ? String(payload.bonusType) : undefined;
 
-  if (!Number.isFinite(betAmount) || betAmount <= 0) {
+  if (!Number.isFinite(betAmount) || betAmount < 0) {
     return jsonResponse(
-      { ok: false, error: "betAmount must be > 0" },
+      { ok: false, error: "betAmount must be >= 0" },
+      400,
+      origin,
+    );
+  }
+  if (!Number.isFinite(winAmount) || winAmount < 0) {
+    return jsonResponse(
+      { ok: false, error: "winAmount must be >= 0" },
       400,
       origin,
     );
@@ -306,45 +328,43 @@ async function handleSpin(request: Request): Promise<Response> {
   const playerTag = createPlayerTag(ipHash);
   const dayKey = getDayKey();
 
-  const spin = generateSpin(betAmount);
   const creditsUpdate = await updateCreditsWithRetry(
     dayKey,
     ipHash,
     betAmount,
-    spin.winAmount,
+    winAmount,
   );
-
   if (!creditsUpdate.ok) {
     return jsonResponse(
-      {
-        ok: false,
-        error: creditsUpdate.reason,
-      },
+      { ok: false, error: creditsUpdate.reason },
       409,
       origin,
     );
   }
 
-  if (spin.winAmount > 0) {
+  if (winAmount > 0) {
     await recordWinEvent({
-      amount: spin.winAmount,
+      amount: winAmount,
       gameId,
       at: Date.now(),
       playerTag,
     });
   }
 
-  const response: SpinResponse = {
-    ok: true,
-    reelStops: spin.reelStops,
-    winAmount: spin.winAmount,
-    betAmount,
-    remainingCredits: creditsUpdate.remaining,
-    dailyBudget: DAILY_BUDGET,
-    serverTime: Date.now(),
-  };
-
-  return jsonResponse(response, 200, origin);
+  return jsonResponse(
+    {
+      ok: true,
+      remainingCredits: creditsUpdate.remaining,
+      betAmount,
+      winAmount,
+      gameId,
+      bonusType,
+      dailyBudget: DAILY_BUDGET,
+      serverTime: Date.now(),
+    },
+    200,
+    origin,
+  );
 }
 
 async function handleLeaderboardRecent(request: Request): Promise<Response> {
@@ -405,8 +425,8 @@ Deno.serve((request) => {
     return handlePlayerState(request);
   }
 
-  if (url.pathname === "/api/spin" && request.method === "POST") {
-    return handleSpin(request);
+  if (url.pathname === "/api/report-win" && request.method === "POST") {
+    return handleReportWin(request);
   }
 
   if (url.pathname === "/api/leaderboard/recent" && request.method === "GET") {

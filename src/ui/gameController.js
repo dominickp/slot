@@ -1,18 +1,9 @@
-/**
- * Game Controller
- *
- * Orchestrates the game flow:
- * - User input (spin button)
- * - Game logic (LuckyScapeSlot)
- * - Rendering (GridRenderer)
- * - Animations
- */
-
 import { LuckyScapeSlot } from "../games/luckyscape/luckyScapeSlot.js";
 import { GridRenderer } from "../renderer/gridRenderer.js";
 import { LUCKY_ESCAPE_CONFIG } from "../games/luckyscape/config.js";
 import { ANIMATION_TIMING } from "../config/animationTiming.js";
 import { SoundManager } from "./soundManager.js";
+import BackendService from "../api/backend.js";
 
 const STORAGE_KEYS = {
   bgMusicMuted: "luckyscape:bgMusicMuted",
@@ -46,6 +37,26 @@ const DEFAULT_BONUS_WIN_CELEBRATION = {
 };
 
 export class GameController {
+  // Fetch player state from backend and update balance
+  async _fetchAndSetPlayerState() {
+    try {
+      const state = await this.backend.getPlayerState();
+      if (state && typeof state.remainingCredits === "number") {
+        this.currentBalance = state.remainingCredits;
+        this._updateBalance && this._updateBalance();
+        console.log("[GameController] Loaded player state from backend", state);
+      } else {
+        console.warn(
+          "[GameController] Backend did not return credits, using default balance",
+        );
+      }
+    } catch (err) {
+      console.error(
+        "[GameController] Failed to fetch player state from backend",
+        err,
+      );
+    }
+  }
   constructor(containerElement) {
     this.container = containerElement;
 
@@ -65,6 +76,24 @@ export class GameController {
     // Initialize game
     this.game = new LuckyScapeSlot(gameConfig);
 
+    // --- BackendService wiring ---
+    this.backend = new BackendService();
+    // Debug logging for env and backend mode
+    console.log("[GameController] BackendService instantiated", {
+      isDemo: this.backend.isDemo,
+      apiBaseUrl: this.backend.apiBaseUrl,
+      envDemo:
+        typeof import.meta !== "undefined" && import.meta.env
+          ? import.meta.env.VITE_DEMO_MODE
+          : undefined,
+      envApi:
+        typeof import.meta !== "undefined" && import.meta.env
+          ? import.meta.env.VITE_API_BASE_URL
+          : undefined,
+    });
+
+    // Fetch player state from backend on load
+    this._fetchAndSetPlayerState();
     // Initialize renderer
     const rendererContainer = document.createElement("div");
     rendererContainer.style.cssText = `
@@ -484,8 +513,13 @@ export class GameController {
           spinResult.bonusMode,
           spinResult.scatterCount,
         );
-        const bonusTotalWin = await this._playFreeSpins(betAmount);
-        await this._showBonusTotalOverlay(bonusTotalWin, betAmount);
+        const spins = spinResult.bonusMode?.initialSpins || 0;
+        const totalBonusCost = betAmount * spins;
+        const bonusTotalWin = await this._playFreeSpins(
+          betAmount,
+          totalBonusCost,
+        );
+        await this._showBonusTotalOverlay(bonusTotalWin, totalBonusCost);
       }
 
       await this._delay(ANIMATION_TIMING.controller.pauses.postBaseSpinMs);
@@ -583,8 +617,8 @@ export class GameController {
         multiplier: offer.multiplier,
         betAmount,
       });
-      const bonusTotalWin = await this._playFreeSpins(betAmount);
-      await this._showBonusTotalOverlay(bonusTotalWin, betAmount);
+      const bonusTotalWin = await this._playFreeSpins(betAmount, offer.cost);
+      await this._showBonusTotalOverlay(bonusTotalWin, offer.cost);
     } catch (error) {
       console.error("Bonus buy error:", error);
       this._showResult(`Error: ${error.message}`, "loss");
@@ -610,7 +644,48 @@ export class GameController {
     const previousGrid = this.game.currentGrid.map((row) => [...row]);
 
     await this.renderer.animateSpinStart(160);
-    const spinResult = await this.game.spin(null, betAmount);
+    // --- Use backend for spin ---
+    let spinResult = await this.game.spin(this.backend, betAmount);
+
+    // Report spin to backend (accounting) -- only for base game spins, not free spins
+    if (
+      !isFreeSpin &&
+      this.backend &&
+      typeof this.backend.reportWin === "function"
+    ) {
+      try {
+        await this.backend.reportWin({
+          betAmount,
+          winAmount: spinResult.totalWin || 0,
+          gameId: this.game.config.id,
+        });
+      } catch (err) {
+        console.error("[GameController] Failed to report win to backend", err);
+      }
+    }
+    // Patch: If backend result is minimal, fill in grid/cascades for UI
+    if (spinResult && spinResult.reelStops && !spinResult.grid) {
+      // Generate a grid for the UI to display based on reelStops (fallback)
+      // This is a placeholder: you may want to map reelStops to a grid more accurately
+      const grid = Array.from({ length: 5 }, (_, row) =>
+        Array.from({ length: 3 }, (_, col) => spinResult.reelStops[col] || 0),
+      );
+      spinResult.grid = grid;
+      spinResult.cascades = [];
+      spinResult.initialWins = new Set();
+      spinResult.winPositions = new Set();
+      spinResult.bonusMode = null;
+      spinResult.scatterCount = 0;
+      spinResult.scatterPositions = [];
+      spinResult.bonusFeatures = {};
+    }
+    // Ensure totalWin is always set for UI compatibility
+    if (
+      typeof spinResult.totalWin !== "number" &&
+      typeof spinResult.winAmount === "number"
+    ) {
+      spinResult.totalWin = spinResult.winAmount;
+    }
 
     const initialGrid =
       spinResult.cascades && spinResult.cascades.length > 0
@@ -834,6 +909,22 @@ export class GameController {
     this.lastWin = this._roundCredits(bonusTotalWin);
     this._updateLastWinDisplay();
 
+    // Report total bonus win to backend after all free spins
+    if (this.backend && typeof this.backend.reportWin === "function") {
+      try {
+        await this.backend.reportWin({
+          betAmount, // cost per spin, or pass total cost if available
+          winAmount: bonusTotalWin,
+          gameId: this.game.config.id,
+          bonusType: this.game.bonusMode ? this.game.bonusMode.name : undefined,
+        });
+      } catch (err) {
+        console.error(
+          "[GameController] Failed to report bonus win to backend",
+          err,
+        );
+      }
+    }
     return bonusTotalWin;
   }
 
