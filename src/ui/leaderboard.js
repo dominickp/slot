@@ -24,7 +24,7 @@ function createLeaderboardRow(entry) {
 }
 
 export async function renderLeaderboard(container) {
-  container.innerHTML = `<div class="leaderboard-title">Top Wins</div><div class="leaderboard-loading">Loading...</div>`;
+  container.innerHTML = `<div class="leaderboard-loading">Loading...</div>`;
   try {
     const data = await backend.getTopWins(10);
     if (!data.ok || !Array.isArray(data.rows))
