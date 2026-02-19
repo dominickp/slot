@@ -1,14 +1,20 @@
 /* Main stylesheet for the slot project */
 #leaderboard-wrapper {
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  /* Column 1: Flexible, Column 2: App Width, Column 3: Flexible (Mirror) */
+  grid-template-columns: 1fr auto 1fr;
   align-items: flex-start;
-  justify-content: center;
   width: 100%;
-  max-width: 1280px;
-  gap: 32px;
+  /* Remove max-width here so the "center" is the actual center of the screen */
+  max-width: none;
 }
+
 #leaderboard-panel {
+  grid-column: 1; /* Place in the first column */
+  justify-self: end; /* Push it to the right so it touches the app */
+  margin-right: 24px;
+
+  /* Keep your existing styles below */
   min-width: 260px;
   max-width: 320px;
   background: var(--panel-soft);
@@ -16,9 +22,7 @@
   border-radius: 18px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   padding: 18px 12px 18px 18px;
-  margin-right: 0;
   color: var(--text);
-  font-size: 15px;
 }
 .leaderboard-title {
   font-size: 20px;
@@ -54,21 +58,14 @@
   font-size: 14px;
   padding: 10px 0;
 }
-#leaderboard-panel {
-  min-width: 260px;
-  max-width: 320px;
-  background: var(--panel-soft);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
-  padding: 18px 12px 18px 18px;
-  margin-right: 0;
-  color: var(--text);
-  font-size: 15px;
-}
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
   #leaderboard-panel {
     display: none;
+  }
+  #leaderboard-wrapper {
+    /* Collapse back to a single column when leaderboard is hidden */
+    display: flex;
+    justify-content: center;
   }
 }
 * {
@@ -106,6 +103,7 @@ body {
 }
 
 #app {
+  grid-column: 2; /* Place in the center column */
   width: 100%;
   max-width: 980px;
   background: var(--panel);
