@@ -508,7 +508,10 @@ export class LuckyScapeSlot extends BaseSlot {
       return false;
     }
 
-    if (this.bonusMode.id !== "GLITTER_GOLD") {
+    if (
+      this.bonusMode.id !== "GLITTER_GOLD" &&
+      this.bonusMode.id !== "LEPRECHAUN"
+    ) {
       return false;
     }
 
