@@ -26,6 +26,8 @@ By default, local development uses a persistent KV file at `backend/data/local-k
 deno task --config backend/deno.json dev
 ```
 
+The service should be running at http://localhost:8000
+
 ### Use hosted KV from local machine (via Deno tunnel)
 
 To run local code against your hosted Deno Deploy KV, use managed mode + tunnel:
