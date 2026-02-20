@@ -653,15 +653,21 @@ export class GameController {
       this.backend &&
       typeof this.backend.reportWin === "function"
     ) {
-      try {
-        await this.backend.reportWin({
-          betAmount,
-          winAmount: spinResult.totalWin || 0,
-          gameId: this.game.config.id,
+      // Fire-and-forget, update balance if response returns remainingCredits
+      this.backend.reportWin({
+        betAmount,
+        winAmount: spinResult.totalWin || 0,
+        gameId: this.game.config.id,
+      })
+        .then((result) => {
+          if (result && typeof result.remainingCredits === "number") {
+            this.currentBalance = result.remainingCredits;
+            this._updateBalance && this._updateBalance();
+          }
+        })
+        .catch((err) => {
+          console.error("[GameController] Failed to report win to backend", err);
         });
-      } catch (err) {
-        console.error("[GameController] Failed to report win to backend", err);
-      }
     }
     // Patch: If backend result is minimal, fill in grid/cascades for UI
     if (spinResult && spinResult.reelStops && !spinResult.grid) {
@@ -909,21 +915,26 @@ export class GameController {
     this.lastWin = this._roundCredits(bonusTotalWin);
     this._updateLastWinDisplay();
 
-    // Report total bonus win to backend after all free spins
+    // Report total bonus win to backend after all free spins (fire-and-forget)
     if (this.backend && typeof this.backend.reportWin === "function") {
-      try {
-        await this.backend.reportWin({
-          betAmount, // cost per spin, or pass total cost if available
-          winAmount: bonusTotalWin,
-          gameId: this.game.config.id,
-          bonusType: this.game.bonusMode ? this.game.bonusMode.name : undefined,
+      this.backend.reportWin({
+        betAmount, // cost per spin, or pass total cost if available
+        winAmount: bonusTotalWin,
+        gameId: this.game.config.id,
+        bonusType: this.game.bonusMode ? this.game.bonusMode.name : undefined,
+      })
+        .then((result) => {
+          if (result && typeof result.remainingCredits === "number") {
+            this.currentBalance = result.remainingCredits;
+            this._updateBalance && this._updateBalance();
+          }
+        })
+        .catch((err) => {
+          console.error(
+            "[GameController] Failed to report bonus win to backend",
+            err,
+          );
         });
-      } catch (err) {
-        console.error(
-          "[GameController] Failed to report bonus win to backend",
-          err,
-        );
-      }
     }
     return bonusTotalWin;
   }
