@@ -22,6 +22,7 @@ type CreditsRecord = {
 
 type WinEvent = {
   amount: number;
+  betAmount: number;
   gameId: string;
   at: number;
   playerTag: string;
@@ -292,6 +293,7 @@ type ReportWinPayload = {
 };
 
 async function handleReportWin(request: Request): Promise<Response> {
+  await new Promise((r) => setTimeout(r, 2000)); // TEMP DELAY
   const origin = getOrigin(request);
   let payload: ReportWinPayload;
   try {
@@ -345,6 +347,7 @@ async function handleReportWin(request: Request): Promise<Response> {
   if (winAmount > 0) {
     await recordWinEvent({
       amount: winAmount,
+      betAmount,
       gameId,
       at: Date.now(),
       playerTag,
@@ -437,9 +440,47 @@ Deno.serve((request) => {
     return handleLeaderboardTop(request);
   }
 
+  // Add /status endpoint
+  if (url.pathname === "/api/status") {
+    return handleStatus(request);
+  }
+
   return jsonResponse(
     { ok: false, error: "Not found" },
     404,
     getOrigin(request),
   );
 });
+
+/**
+ * Returns today's win stats: count, total wagered, total won
+ */
+async function getTodayStats(): Promise<{
+  winCount: number;
+  totalWagered: number;
+  totalWon: number;
+}> {
+  const todayKey = getDayKey();
+  let winCount = 0;
+  let totalWagered = 0;
+  let totalWon = 0;
+
+  for await (const entry of kv.list({ prefix: ["wins", "recent"] })) {
+    const win = entry.value as WinEvent;
+    // win.at is a timestamp, convert to dayKey
+    const eventDay = getDayKey(new Date(win.at));
+    if (eventDay === todayKey) {
+      winCount++;
+      totalWagered += win.betAmount;
+      totalWon += win.amount;
+    }
+  }
+  return { winCount, totalWagered, totalWon };
+}
+
+// Add status endpoint
+async function handleStatus(request: Request): Promise<Response> {
+  const origin = getOrigin(request);
+  const stats = await getTodayStats();
+  return jsonResponse(stats, 200, origin);
+}

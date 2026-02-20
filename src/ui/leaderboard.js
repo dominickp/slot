@@ -17,7 +17,8 @@ function createLeaderboardRow(entry) {
   const row = document.createElement("tr");
   row.innerHTML = `
     <td>${entry.playerTag}</td>
-    <td>${entry.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+    <td>${entry.betAmount?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || "-"}</td>
+    <td>${entry.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
     <td>${formatLeaderboardDate(entry.at)}</td>
   `;
   return row;
@@ -32,7 +33,7 @@ export async function renderLeaderboard(container) {
     const table = document.createElement("table");
     table.className = "leaderboard-table";
     table.innerHTML = `
-      <thead><tr><th>Player</th><th>Amount</th><th>When</th></tr></thead>
+      <thead><tr><th>Player</th><th>Bet</th><th>Win</th><th>When</th></tr></thead>
       <tbody></tbody>
     `;
     for (const entry of data.rows) {

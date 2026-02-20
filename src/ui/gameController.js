@@ -909,7 +909,7 @@ export class GameController {
     return spinResult;
   }
 
-  async _playFreeSpins(betAmount) {
+  async _playFreeSpins(betAmount, totalCost = null) {
     let bonusTotalWin = 0;
     let guard = 0;
 
@@ -988,7 +988,7 @@ export class GameController {
     ) {
       this.backend
         .reportWin({
-          betAmount, // cost per spin, or pass total cost if available
+          betAmount: totalCost ?? betAmount, // Use total cost if provided, fallback to betAmount
           winAmount: bonusTotalWin,
           gameId: this.game.config.id,
           bonusType: this.game.bonusMode ? this.game.bonusMode.name : undefined,
