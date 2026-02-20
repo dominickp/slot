@@ -89,11 +89,11 @@ export const ANIMATION_TIMING = {
       // Reveal duration when reveal count is large.
       revealDurationLargeMs: 220,
       // Reveal stagger when reveal count is small.
-      revealStaggerSmallMs: 24,
+      revealStaggerSmallMs: 200,
       // Reveal stagger when reveal count is medium.
-      revealStaggerMediumMs: 16,
+      revealStaggerMediumMs: 200,
       // Reveal stagger when reveal count is large.
-      revealStaggerLargeMs: 12,
+      revealStaggerLargeMs: 200,
       // Minimum reveal stagger when rainbow wave reveal is active.
       rainbowWaveStaggerMs: 72,
       // Duration scale applied to each reveal during rainbow wave reveal.
