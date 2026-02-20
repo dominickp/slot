@@ -650,15 +650,17 @@ export class GameController {
     // Report spin to backend (accounting) -- only for base game spins, not free spins
     if (
       !isFreeSpin &&
+      !this.debugModeEnabled &&
       this.backend &&
       typeof this.backend.reportWin === "function"
     ) {
       // Fire-and-forget, update balance if response returns remainingCredits
-      this.backend.reportWin({
-        betAmount,
-        winAmount: spinResult.totalWin || 0,
-        gameId: this.game.config.id,
-      })
+      this.backend
+        .reportWin({
+          betAmount,
+          winAmount: spinResult.totalWin || 0,
+          gameId: this.game.config.id,
+        })
         .then((result) => {
           if (result && typeof result.remainingCredits === "number") {
             this.currentBalance = result.remainingCredits;
@@ -666,7 +668,10 @@ export class GameController {
           }
         })
         .catch((err) => {
-          console.error("[GameController] Failed to report win to backend", err);
+          console.error(
+            "[GameController] Failed to report win to backend",
+            err,
+          );
         });
     }
     // Patch: If backend result is minimal, fill in grid/cascades for UI
@@ -916,13 +921,18 @@ export class GameController {
     this._updateLastWinDisplay();
 
     // Report total bonus win to backend after all free spins (fire-and-forget)
-    if (this.backend && typeof this.backend.reportWin === "function") {
-      this.backend.reportWin({
-        betAmount, // cost per spin, or pass total cost if available
-        winAmount: bonusTotalWin,
-        gameId: this.game.config.id,
-        bonusType: this.game.bonusMode ? this.game.bonusMode.name : undefined,
-      })
+    if (
+      !this.debugModeEnabled &&
+      this.backend &&
+      typeof this.backend.reportWin === "function"
+    ) {
+      this.backend
+        .reportWin({
+          betAmount, // cost per spin, or pass total cost if available
+          winAmount: bonusTotalWin,
+          gameId: this.game.config.id,
+          bonusType: this.game.bonusMode ? this.game.bonusMode.name : undefined,
+        })
         .then((result) => {
           if (result && typeof result.remainingCredits === "number") {
             this.currentBalance = result.remainingCredits;
