@@ -37,6 +37,36 @@ const DEFAULT_BONUS_WIN_CELEBRATION = {
 };
 
 export class GameController {
+  // Character image logic
+  _setCharacter(state) {
+    const wrapper = document.getElementById("character-wrapper");
+    if (!wrapper) return;
+    let img = wrapper.querySelector("img");
+    if (!img) {
+      img = document.createElement("img");
+      wrapper.appendChild(img);
+    }
+    let src = "assets/character/idle.gif";
+    if (state === "bonus") {
+      src = "assets/character/rapping.gif";
+    } else if (state === "loss") {
+      // Randomly choose between loss.gif and anger.gif
+      src =
+        Math.random() < 0.5
+          ? "assets/character/loss.gif"
+          : "assets/character/anger.gif";
+    } else if (state === "win") {
+      src = "assets/character/thumbsup.gif";
+    }
+    img.src = src;
+    // Only revert to idle after 2.5s if not in bonus/free spins
+    clearTimeout(this._characterTimeout);
+    if (state !== "idle" && !(this.game && this.game.isInFreeSpins)) {
+      this._characterTimeout = setTimeout(() => {
+        this._setCharacter("idle");
+      }, 2500);
+    }
+  }
   // Fetch player state from backend and update balance
   async _fetchAndSetPlayerState() {
     try {
@@ -457,6 +487,11 @@ export class GameController {
 
     this._hideBonusTotalOverlay();
 
+    // Only set character to idle at start of spin if not in free spins
+    if (!this.game.isInFreeSpins) {
+      this._setCharacter("idle");
+    }
+
     const betAmount = Number.parseFloat(this.ui.betInput.value);
 
     if (!this.game.validateBet(betAmount)) {
@@ -496,6 +531,9 @@ export class GameController {
       if (spinResult.bonusMode) {
         this.soundManager.playBonus();
 
+        // Show rapping character during bonus
+        this._setCharacter("bonus");
+
         const scatterPositions = Array.isArray(spinResult.scatterPositions)
           ? spinResult.scatterPositions
           : [];
@@ -526,6 +564,8 @@ export class GameController {
     } catch (error) {
       console.error("Spin error:", error);
       this._showResult(`Error: ${error.message}`, "loss");
+      // Show loss/anger character on error
+      this._setCharacter("loss");
     } finally {
       this.isSpinning = false;
       this.ui.spinBtn.disabled = false;
@@ -842,8 +882,18 @@ export class GameController {
         collectorSummary ? `${winMessage} • ${collectorSummary}` : winMessage,
         "win",
       );
+
+      // Only show win character if not in free spins
+      if (!this.game.isInFreeSpins) {
+        this._setCharacter("win");
+      }
     } else {
       this._hideResult();
+
+      // Only show loss character if not in free spins
+      if (!this.game.isInFreeSpins) {
+        this._setCharacter("loss");
+      }
     }
 
     if (!this.game.isInFreeSpins) {
@@ -862,6 +912,9 @@ export class GameController {
   async _playFreeSpins(betAmount) {
     let bonusTotalWin = 0;
     let guard = 0;
+
+    // Show rapping character for the entire bonus
+    this._setCharacter("bonus");
     while (this.game.isInFreeSpins && guard < 200) {
       guard += 1;
       const freeSpinIndex = guard;
@@ -919,6 +972,13 @@ export class GameController {
 
     this.lastWin = this._roundCredits(bonusTotalWin);
     this._updateLastWinDisplay();
+
+    // At the end of the bonus, show win/loss character based on total bonus win
+    if (bonusTotalWin > 0) {
+      this._setCharacter("win");
+    } else {
+      this._setCharacter("loss");
+    }
 
     // Report total bonus win to backend after all free spins (fire-and-forget)
     if (

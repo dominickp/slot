@@ -631,7 +631,11 @@ button {
 
 #character-wrapper {
   display: inline-block;
-  top: 475px;
+  top: 587px;
   position: fixed;
-  right: -235px;
+  right: -118px;
+  z-index: 100;
+}
+#character-wrapper img {
+  width: 300px;
 }
