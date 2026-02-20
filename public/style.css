@@ -628,3 +628,10 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+#character-wrapper {
+  display: inline-block;
+  top: 475px;
+  position: fixed;
+  right: -235px;
+}

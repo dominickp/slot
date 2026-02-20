@@ -1,130 +1,191 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Le Dance Gamer</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
     <div id="leaderboard-wrapper">
-        <aside id="leaderboard-panel">
-            <div class="leaderboard-title">Top Wins</div>
-            <div id="leaderboard-root"></div>
-        </aside>
-        <div id="app">
-    <div class="header">
-        <h1>Le Dance Gamer</h1>
-        <p>6x5 Cluster Pays • Super Cascades • Rainbow Bonus Chain</p>
-    </div>
+      <aside id="leaderboard-panel">
+        <div class="leaderboard-title">Top Wins</div>
+        <div id="leaderboard-root"></div>
+      </aside>
+      <div id="app">
+        <div class="header">
+          <h1>Le Dance Gamer</h1>
+          <p>6x5 Cluster Pays • Super Cascades • Rainbow Bonus Chain</p>
+        </div>
 
-    <div class="info">
-        <strong>Scatter symbol:</strong> FS tile. 3/4/5 scatters trigger Luck of the Leprechaun, All That Glitters Is Gold, or Treasure at the End of the Rainbow.
-    </div>
+        <div class="info">
+          <strong>Scatter symbol:</strong> FS tile. 3/4/5 scatters trigger Luck
+          of the Leprechaun, All That Glitters Is Gold, or Treasure at the End
+          of the Rainbow.
+        </div>
 
-    <div class="game-container loading" style="display:none;">
-        <div>🔧 Game loader initializing...</div>
-    </div>
+        <div class="game-container loading" style="display: none">
+          <div>🔧 Game loader initializing...</div>
+        </div>
 
-    <div class="stats primary">
-        <div class="stat">
+        <div class="stats primary">
+          <div class="stat">
             <div class="stat-label">Balance</div>
             <div class="stat-value balance" id="balance">1000</div>
-        </div>
-        <div class="stat">
+          </div>
+          <div class="stat">
             <div class="stat-label">Total Win</div>
             <div class="stat-value balance" id="totalWin">0</div>
-        </div>
-        <div class="stat">
+          </div>
+          <div class="stat">
             <div class="stat-label">Last Win</div>
             <div class="stat-value balance" id="lastWin">0</div>
-        </div>
-        <div class="stat hidden" id="bonusSpinStat">
+          </div>
+          <div class="stat hidden" id="bonusSpinStat">
             <div class="stat-label">Spins</div>
-            <div class="stat-value bonus-spins" id="bonusSpinProgress">0/0 spins</div>
+            <div class="stat-value bonus-spins" id="bonusSpinProgress">
+              0/0 spins
+            </div>
+          </div>
         </div>
-    </div>
 
-    <div class="controls">
-        <div class="control-group">
+        <div class="controls">
+          <div class="control-group">
             <label for="betInput">Bet Amount</label>
-            <input type="number" id="betInput" value="1.0" min="0.1" max="100" step="0.1" />
-        </div>
-        <div class="control-group">
+            <input
+              type="number"
+              id="betInput"
+              value="1.0"
+              min="0.1"
+              max="100"
+              step="0.1"
+            />
+          </div>
+          <div class="control-group">
             <label for="volumeSlider">Volume</label>
             <div class="volume-wrap">
-                <input type="range" id="volumeSlider" min="0" max="100" value="75" />
-                <span id="volumeValue">75%</span>
+              <input
+                type="range"
+                id="volumeSlider"
+                min="0"
+                max="100"
+                value="75"
+              />
+              <span id="volumeValue">75%</span>
             </div>
+          </div>
         </div>
-    </div>
 
-    <button class="btn-primary" id="spinBtn" disabled>SPIN</button>
+        <button class="btn-primary" id="spinBtn" disabled>SPIN</button>
 
-    <div class="controls" style="grid-template-columns: 1fr 1fr 1fr; margin-top: 12px;">
-        <button class="btn-secondary" id="autoplayBtn">AUTOPLAY: OFF</button>
-        <button class="btn-secondary" id="soundBtn">SOUND: ON</button>
-        <button class="btn-secondary" id="bgMusicBtn">BG MUSIC: ON</button>
-    </div>
-
-    <div class="controls" style="grid-template-columns: 1fr; margin-top: 12px;">
-        <button class="btn-secondary" id="buyBonusBtn">BUY BONUS</button>
-    </div>
-
-    <div class="footer">
-        <p>Not real money.</p>
-    </div>
+        <div
+          class="controls"
+          style="grid-template-columns: 1fr 1fr 1fr; margin-top: 12px"
+        >
+          <button class="btn-secondary" id="autoplayBtn">AUTOPLAY: OFF</button>
+          <button class="btn-secondary" id="soundBtn">SOUND: ON</button>
+          <button class="btn-secondary" id="bgMusicBtn">BG MUSIC: ON</button>
         </div>
+
+        <div
+          class="controls"
+          style="grid-template-columns: 1fr; margin-top: 12px"
+        >
+          <button class="btn-secondary" id="buyBonusBtn">BUY BONUS</button>
+        </div>
+
+        <div class="footer">
+          <p>Not real money.</p>
+        </div>
+        <div id="character-wrapper">
+            <img src="assets/character/idle.gif">
+        </div>
+      </div>
     </div>
 
-    <div class="modal" id="buyConfirmModal" role="dialog" aria-modal="true" aria-labelledby="buyConfirmTitle">
-        <div class="modal-card">
-            <div class="modal-title" id="buyConfirmTitle">Confirm Bonus Buy</div>
-            <div class="modal-copy" id="buyConfirmText">Buy this bonus now?</div>
-            <div class="modal-actions">
-                <button class="btn-secondary" id="buyConfirmCancel">Cancel</button>
-                <button class="btn-primary" id="buyConfirmAccept">Confirm Buy</button>
-            </div>
+    <div
+      class="modal"
+      id="buyConfirmModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="buyConfirmTitle"
+    >
+      <div class="modal-card">
+        <div class="modal-title" id="buyConfirmTitle">Confirm Bonus Buy</div>
+        <div class="modal-copy" id="buyConfirmText">Buy this bonus now?</div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="buyConfirmCancel">Cancel</button>
+          <button class="btn-primary" id="buyConfirmAccept">Confirm Buy</button>
         </div>
+      </div>
     </div>
 
-    <div class="modal" id="buyOptionsModal" role="dialog" aria-modal="true" aria-labelledby="buyOptionsTitle">
-        <div class="modal-card">
-            <div class="modal-title" id="buyOptionsTitle">Choose Bonus Buy</div>
-            <div class="modal-copy" id="buyOptionsText">Pick a bonus option. Higher tier has the higher buy cost.</div>
-            <div class="modal-actions" style="grid-template-columns: 1fr;">
-                <button class="btn-secondary" id="buyOptionLeprechaunBtn">BUY 3 SCATTER BONUS</button>
-                <button class="btn-secondary" id="buyOptionGlitterGoldBtn">BUY 4 SCATTER BONUS</button>
-                <button class="btn-primary" id="buyOptionsCancel">CANCEL</button>
-            </div>
+    <div
+      class="modal"
+      id="buyOptionsModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="buyOptionsTitle"
+    >
+      <div class="modal-card">
+        <div class="modal-title" id="buyOptionsTitle">Choose Bonus Buy</div>
+        <div class="modal-copy" id="buyOptionsText">
+          Pick a bonus option. Higher tier has the higher buy cost.
         </div>
+        <div class="modal-actions" style="grid-template-columns: 1fr">
+          <button class="btn-secondary" id="buyOptionLeprechaunBtn">
+            BUY 3 SCATTER BONUS
+          </button>
+          <button class="btn-secondary" id="buyOptionGlitterGoldBtn">
+            BUY 4 SCATTER BONUS
+          </button>
+          <button class="btn-primary" id="buyOptionsCancel">CANCEL</button>
+        </div>
+      </div>
     </div>
 
-    <div class="modal" id="bonusIntroModal" role="dialog" aria-modal="true" aria-labelledby="bonusIntroTitle">
-        <div class="modal-card bonus-intro-card">
-            <div class="bonus-intro-graphic" id="bonusIntroGraphic">Bonus Art Placeholder</div>
-            <div class="bonus-intro-title" id="bonusIntroTitle">BONUS TRIGGERED</div>
-            <div class="bonus-intro-copy" id="bonusIntroCopy">You unlocked free spins.</div>
-            <button class="btn-primary bonus-intro-continue" id="bonusIntroContinue">CONTINUE</button>
+    <div
+      class="modal"
+      id="bonusIntroModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bonusIntroTitle"
+    >
+      <div class="modal-card bonus-intro-card">
+        <div class="bonus-intro-graphic" id="bonusIntroGraphic">
+          Bonus Art Placeholder
         </div>
+        <div class="bonus-intro-title" id="bonusIntroTitle">
+          BONUS TRIGGERED
+        </div>
+        <div class="bonus-intro-copy" id="bonusIntroCopy">
+          You unlocked free spins.
+        </div>
+        <button
+          class="btn-primary bonus-intro-continue"
+          id="bonusIntroContinue"
+        >
+          CONTINUE
+        </button>
+      </div>
     </div>
 
     <script type="module">
-            import GameController from '../src/ui/gameController.js';
-            import { renderLeaderboard } from '../src/ui/leaderboard.js';
+      import GameController from "../src/ui/gameController.js";
+      import { renderLeaderboard } from "../src/ui/leaderboard.js";
 
-            function initAll() {
-                const app = document.getElementById('app');
-                const leaderboardRoot = document.getElementById('leaderboard-root');
-                if (leaderboardRoot) renderLeaderboard(leaderboardRoot);
-                new GameController(app);
-            }
+      function initAll() {
+        const app = document.getElementById("app");
+        const leaderboardRoot = document.getElementById("leaderboard-root");
+        if (leaderboardRoot) renderLeaderboard(leaderboardRoot);
+        new GameController(app);
+      }
 
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initAll);
-            } else {
-                initAll();
-            }
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initAll);
+      } else {
+        initAll();
+      }
     </script>
-</body>
+  </body>
 </html>
