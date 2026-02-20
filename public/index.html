@@ -15,14 +15,11 @@
       <div id="app">
         <div class="header">
           <h1>Le Dance Gamer</h1>
-          <p>6x5 Cluster Pays • Super Cascades • Rainbow Bonus Chain</p>
         </div>
 
-        <div class="info">
-          <strong>Scatter symbol:</strong> FS tile. 3/4/5 scatters trigger Luck
-          of the Leprechaun, All That Glitters Is Gold, or Treasure at the End
-          of the Rainbow.
-        </div>
+        <button class="info-btn" id="symbolInfoBtn" type="button">
+          ℹ️ Info
+        </button>
 
         <div class="game-container loading" style="display: none">
           <div>🔧 Game loader initializing...</div>
@@ -98,7 +95,113 @@
           <p>Not real money.</p>
         </div>
         <div id="character-wrapper">
-            <img src="assets/character/idle.gif">
+          <img src="assets/character/idle.gif" />
+        </div>
+      </div>
+
+      <!-- Symbol Info Modal -->
+      <div
+        class="modal"
+        id="symbolInfoModal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="symbolInfoTitle"
+        style="display: none"
+      >
+        <div class="modal-card">
+          <div class="modal-title symbol-info-title">About</div>
+          <div class="modal-copy">
+            <p>
+              This is a slot machine based off of
+              <a
+                href="https://www.bigwinboard.com/le-bandit-hacksaw-gaming-slot-review/"
+                target="_blank"
+                >Le Bandit</a
+              >. A backend service tracks user wins (based on hashed IP-address,
+              no registration).
+            </p>
+            <br />
+            <p>You can spin the base-game slot, which has a small chance of activating a bonus. But you can also just buy a bonus with the buttons below. If you run out of balance, you can come back
+              tomorrow for 1000 more credits.</p>
+            <br />
+            <p>
+              View the code in the
+              <a href="https://github.com/dominickp/slot" target="_blank"
+                >GitHub project</a
+              >
+            </p>
+          </div>
+          <div class="modal-title symbol-info-title">Special Symbols</div>
+          <div class="modal-copy symbol-info-content">
+            <ul
+              class="symbol-list-labelled"
+              style="padding-left: 0; list-style: none"
+            >
+              <li>
+                <img src="assets/symbols/scatter_fs.png" class="symbol-icon" />
+                Scatter, gives free spins or unlocks bonus.
+              </li>
+              <li>
+                <img src="assets/symbols/rainbow.png" class="symbol-icon" />
+                Causes connected tiles to reveal judgements.
+              </li>
+              <li>
+                <img src="assets/symbols/reveal_pot.png" class="symbol-icon" />
+                Sucks up the value of all revealed judgements.
+              </li>
+              <li>
+                <img
+                  src="assets/symbols/reveal_clover.png"
+                  class="symbol-icon"
+                />
+                Multiplies nearby tiles.
+              </li>
+              <li>
+                <img src="assets/symbols/wild.png" class="symbol-icon" />
+                Acts as a wild for connections.
+              </li>
+            </ul>
+          </div>
+
+          <div class="modal-title symbol-info-title">Regular Symbols</div>
+          <div class="modal-copy symbol-info-content">
+            <ul class="symbol-list" style="padding-left: 0; list-style: none">
+              <li><img src="assets/symbols/10.png" class="symbol-icon" /></li>
+              <li><img src="assets/symbols/J.png" class="symbol-icon" /></li>
+              <li><img src="assets/symbols/Q.png" class="symbol-icon" /></li>
+              <li><img src="assets/symbols/K.png" class="symbol-icon" /></li>
+              <li><img src="assets/symbols/A.png" class="symbol-icon" /></li>
+              <li><img src="assets/symbols/trap.png" class="symbol-icon" /></li>
+              <li>
+                <img src="assets/symbols/cheese.png" class="symbol-icon" />
+              </li>
+              <li><img src="assets/symbols/beer.png" class="symbol-icon" /></li>
+              <li>
+                <img src="assets/symbols/bread.png" class="symbol-icon" />
+              </li>
+              <li>
+                <img src="assets/symbols/top_hat.png" class="symbol-icon" />
+              </li>
+            </ul>
+          </div>
+          <div class="modal-title symbol-info-title">Judgement Symbols</div>
+          <div class="modal-copy symbol-info-content">
+            <ul class="symbol-list" style="padding-left: 0; list-style: none">
+              <li>
+                <img src="assets/symbols/coin_bronze.png" class="symbol-icon" />
+              </li>
+              <li>
+                <img src="assets/symbols/coin_silver.png" class="symbol-icon" />
+              </li>
+              <li>
+                <img src="assets/symbols/coin_gold.png" class="symbol-icon" />
+              </li>
+            </ul>
+          </div>
+
+          <div class="modal-actions">
+            <button class="btn-secondary" id="symbolInfoCloseBtn">Close</button>
+          </div>
         </div>
       </div>
     </div>

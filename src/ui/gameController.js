@@ -411,6 +411,30 @@ export class GameController {
     });
     betInput.addEventListener("input", () => this._updateControlButtons());
 
+    // Symbol Info Modal logic
+    document.addEventListener("DOMContentLoaded", () => {
+      const infoBtn = document.getElementById("symbolInfoBtn");
+      const infoModal = document.getElementById("symbolInfoModal");
+      const infoCloseBtn = document.getElementById("symbolInfoCloseBtn");
+      if (infoBtn && infoModal && infoCloseBtn) {
+        infoBtn.addEventListener("click", () => {
+          infoModal.style.display = "flex";
+          infoModal.classList.add("show");
+        });
+        infoCloseBtn.addEventListener("click", () => {
+          infoModal.style.display = "none";
+          infoModal.classList.remove("show");
+        });
+        // Dismiss modal on outside click
+        infoModal.addEventListener("click", (e) => {
+          if (e.target === infoModal) {
+            infoModal.style.display = "none";
+            infoModal.classList.remove("show");
+          }
+        });
+      }
+    });
+
     // Update initial display
     balanceEl.textContent = this._formatCredits(this.currentBalance);
     if (totalWinEl) {

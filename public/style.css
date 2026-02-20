@@ -1,3 +1,8 @@
+/* Ensure links in the symbol info modal are white */
+#symbolInfoModal a {
+  color: #fff !important;
+  text-decoration: underline;
+}
 /* Main stylesheet for the slot project */
 #leaderboard-wrapper {
   display: grid;
@@ -112,6 +117,7 @@ body {
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(6px);
   padding: 28px;
+  min-width: 890px;
 }
 
 .header {
@@ -485,13 +491,56 @@ button {
 }
 
 .info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.info-btn {
   background: var(--panel-soft);
   border: 1px solid var(--line);
-  padding: 14px;
+  padding: 14px 18px;
   border-radius: 12px;
-  margin-bottom: 20px;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-dim);
+  cursor: pointer;
+  font-weight: 600;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+.info-btn:hover {
+  background: var(--panel);
+  border-color: var(--accent);
+}
+
+.symbol-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.symbol-list li {
+  display: inline-block;
+  margin-bottom: 10px;
+  font-size: 15px;
+  color: var(--text);
+}
+.symbol-icon {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: var(--panel-soft);
+  margin-right: 6px;
+}
+.symbol-list-labelled li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px; /* optional, for spacing between rows */
+}
+#symbolInfoCloseBtn {
+  display: none;
 }
 
 .footer {
@@ -638,4 +687,10 @@ button {
 }
 #character-wrapper img {
   width: 300px;
+}
+#symbolInfoBtn {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  font-size: 12px;
 }
