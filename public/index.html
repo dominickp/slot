@@ -53,9 +53,9 @@
               type="number"
               id="betInput"
               value="1.0"
-              min="0.1"
+              min="0.5"
               max="100"
-              step="0.1"
+              step="0.5"
             />
           </div>
           <div class="control-group">
@@ -73,7 +73,15 @@
           </div>
         </div>
 
-        <button class="btn-primary" id="spinBtn" disabled>SPIN</button>
+        <div
+          class="controls"
+          style="grid-template-columns: 1fr 2fr; margin-top: 12px"
+        >
+          <button class="btn-secondary" id="buyBonusBtn">BUY BONUS</button>
+          <div class="control-group">
+            <button class="btn-primary" id="spinBtn" disabled>SPIN</button>
+          </div>
+        </div>
 
         <div
           class="controls"
@@ -82,13 +90,6 @@
           <button class="btn-secondary" id="autoplayBtn">AUTOPLAY: OFF</button>
           <button class="btn-secondary" id="soundBtn">SOUND: ON</button>
           <button class="btn-secondary" id="bgMusicBtn">BG MUSIC: ON</button>
-        </div>
-
-        <div
-          class="controls"
-          style="grid-template-columns: 1fr; margin-top: 12px"
-        >
-          <button class="btn-secondary" id="buyBonusBtn">BUY BONUS</button>
         </div>
 
         <div class="footer">
@@ -121,8 +122,12 @@
               no registration).
             </p>
             <br />
-            <p>You can spin the base-game slot, which has a small chance of activating a bonus. But you can also just buy a bonus with the buttons below. If you run out of balance, you can come back
-              tomorrow for 1000 more credits.</p>
+            <p>
+              You can spin the base-game slot, which has a small chance of
+              activating a bonus. But you can also just buy a bonus with the
+              buttons below. If you run out of balance, you can come back
+              tomorrow for 1000 more credits.
+            </p>
             <br />
             <p>
               View the code in the

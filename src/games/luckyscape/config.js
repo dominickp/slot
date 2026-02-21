@@ -235,7 +235,7 @@ export const LUCKY_ESCAPE_CONFIG = {
   rtp: 0.9634,
   volatility: "medium",
   maxWin: 10000,
-  minBet: 0.1,
+  minBet: 0.5,
   maxBet: 100.0,
 
   // Balance/tuning knobs used by LuckyScapeSlot runtime logic

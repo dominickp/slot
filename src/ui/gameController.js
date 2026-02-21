@@ -308,11 +308,11 @@ export class GameController {
     const balanceEl = document.getElementById("balance");
     const betInput = document.getElementById("betInput");
     if (betInput) {
-      const minBet = Number(this.game.config?.minBet ?? 0.1);
+      const minBet = Number(this.game.config?.minBet ?? 0.5);
       const maxBet = Number(this.game.config?.maxBet ?? 100);
       betInput.min = String(minBet);
       betInput.max = String(maxBet);
-      betInput.step = "0.1";
+      betInput.step = "0.5";
       if (!betInput.value) {
         betInput.value = String(minBet);
       }
@@ -1234,8 +1234,8 @@ export class GameController {
 
     this.ui.buyBonusBtn.textContent =
       leprechaunOffer && glitterGoldOffer
-        ? `BUY BONUS (${this._formatCredits(leprechaunOffer.cost)} / ${this._formatCredits(glitterGoldOffer.cost)})`
-        : "BUY BONUS";
+        ? `✨ BUY BONUS (${this._formatCredits(leprechaunOffer.cost)} / ${this._formatCredits(glitterGoldOffer.cost)})`
+        : "✨ BUY BONUS";
 
     if (this.ui.buyOptionLeprechaunBtn) {
       this.ui.buyOptionLeprechaunBtn.textContent = leprechaunOffer
