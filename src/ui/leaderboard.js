@@ -3,6 +3,34 @@
 import { BackendService } from "../api/backend.js";
 const backend = new BackendService();
 
+const LEADERBOARD_EMOJIS = [
+  "😀",
+  "😃",
+  "😄",
+  "😁",
+  "😆",
+  "😅",
+  "😂",
+  "😊",
+  "😇",
+  "🙂",
+  "🙃",
+  "😉",
+  "😋",
+  "😎",
+  "🥳",
+];
+
+function assignEmojisToTags(playerTags) {
+  const tagToEmoji = {};
+  let emojiIdx = 0;
+  for (const tag of playerTags) {
+    if (emojiIdx >= LEADERBOARD_EMOJIS.length) break;
+    tagToEmoji[tag] = LEADERBOARD_EMOJIS[emojiIdx++];
+  }
+  return tagToEmoji;
+}
+
 function formatLeaderboardDate(ts) {
   const d = new Date(ts);
   // Format as M/D/YY
@@ -13,10 +41,10 @@ function formatLeaderboardDate(ts) {
   return dateStr;
 }
 
-function createLeaderboardRow(entry) {
+function createLeaderboardRow(entry, tagToEmoji) {
   const row = document.createElement("tr");
   row.innerHTML = `
-    <td>${entry.playerTag}</td>
+    <td>${tagToEmoji[entry.playerTag] || "❓"}</td>
     <td>${entry.betAmount?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || "-"}</td>
     <td>${entry.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
     <td>${formatLeaderboardDate(entry.at)}</td>
@@ -30,6 +58,9 @@ export async function renderLeaderboard(container) {
     const data = await backend.getTopWins(10);
     if (!data.ok || !Array.isArray(data.rows))
       throw new Error("Invalid leaderboard");
+    // Get unique playerTags
+    const uniqueTags = Array.from(new Set(data.rows.map((e) => e.playerTag)));
+    const tagToEmoji = assignEmojisToTags(uniqueTags);
     const table = document.createElement("table");
     table.className = "leaderboard-table";
     table.innerHTML = `
@@ -37,7 +68,9 @@ export async function renderLeaderboard(container) {
       <tbody></tbody>
     `;
     for (const entry of data.rows) {
-      table.querySelector("tbody").appendChild(createLeaderboardRow(entry));
+      table
+        .querySelector("tbody")
+        .appendChild(createLeaderboardRow(entry, tagToEmoji));
     }
     container.innerHTML = "";
     container.appendChild(table);
