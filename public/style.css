@@ -98,6 +98,13 @@
   #character-wrapper img {
     width: 128px;
   }
+  #app {
+    min-width: auto !important;
+  }
+  #app canvas {
+    width: 100% !important;
+    height: auto !important;
+  }
 }
 
 * {
