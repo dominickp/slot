@@ -92,6 +92,7 @@ export const LUCKY_ESCAPE_CONFIG = {
       "collector-pop": withBasePath("assets/audio/collector_pop.ogg"),
       "big-win": withBasePath("assets/audio/big_win.ogg"),
       "bg-music": withBasePath("assets/audio/background_music.ogg"),
+      "coin-reveal": withBasePath("assets/audio/coin_reveal.ogg"),
     },
   },
 

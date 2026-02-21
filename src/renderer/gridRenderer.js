@@ -1606,10 +1606,20 @@ export class GridRenderer {
       tileContainer.addChild(shine);
       this.animationContainer.addChild(tileContainer);
 
+      let halfwayTriggered = false;
+
       const startTime = Date.now();
       const animate = () => {
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
+
+        if (progress >= 0.5 && !halfwayTriggered) {
+          halfwayTriggered = true;
+          if (typeof options.onRevealHalfway === "function") {
+            options.onRevealHalfway();
+          }
+        }
+
         const spinPhase =
           progress < 0.5 ? progress / 0.5 : (progress - 0.5) / 0.5;
         const squash = Math.sin(Math.PI * progress) * 0.08;
@@ -2756,6 +2766,7 @@ export class GridRenderer {
       onCloverMultiply = null,
       onCollectorCollect = null,
       onCollectorTick = null,
+      onCoinReveal = null,
     } = options;
     if (!Array.isArray(eventRounds) || eventRounds.length === 0) {
       return;
@@ -2823,6 +2834,16 @@ export class GridRenderer {
                     reveal.y,
                     revealData,
                     revealDuration,
+                    {
+                      onRevealHalfway: () => {
+                        if (
+                          reveal.type === "coin" &&
+                          typeof onCoinReveal === "function"
+                        ) {
+                          onCoinReveal();
+                        }
+                      },
+                    },
                   ).then(resolve);
                 }, index * revealStagger);
               }),
@@ -3091,7 +3112,17 @@ export class GridRenderer {
                         reveal.y,
                         revealData,
                         revealDuration,
-                        { startFromEmpty: !preserveVisibleTile },
+                        {
+                          startFromEmpty: !preserveVisibleTile,
+                          onRevealHalfway: () => {
+                            if (
+                              reveal.type === "coin" &&
+                              typeof onCoinReveal === "function"
+                            ) {
+                              onCoinReveal();
+                            }
+                          },
+                        },
                       ).then(resolve);
                     }, index * revealStagger);
                   }),

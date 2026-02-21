@@ -866,6 +866,7 @@ export class GameController {
         onCloverMultiply: () => this.soundManager.playCloverMultiply(),
         onCollectorCollect: () => this.soundManager.playCollectorCollect(),
         onCollectorTick: () => this.soundManager.playCollectorPop(),
+        onCoinReveal: () => this.soundManager.playCoinReveal(),
       });
     }
 

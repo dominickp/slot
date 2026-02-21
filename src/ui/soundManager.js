@@ -423,6 +423,22 @@ export class SoundManager {
     });
   }
 
+  playCoinReveal() {
+    this._playHookOrFallback("coin-reveal", () => {
+      if (this._playAsset("coin-reveal")) {
+        return;
+      }
+      // Satisfying little *shimmer* tone fallback
+      this.playTone({
+        frequency: 600,
+        type: "sine",
+        duration: 0.1,
+        volume: 0.1,
+        sweepTo: 800,
+      });
+    });
+  }
+
   playCollectorPop() {
     this._playHookOrFallback("collector-pop", () => {
       if (this._playAsset("collector-pop")) {
