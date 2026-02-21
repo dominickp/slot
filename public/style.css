@@ -92,8 +92,10 @@
     justify-content: center;
   }
   #character-wrapper {
-    right: 30px;
-    top: 600px;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    position: fixed;
   }
   #character-wrapper img {
     width: 128px;
