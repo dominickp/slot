@@ -35,7 +35,7 @@ jobs:
         run: npm run build
         env:
           VITE_BASE_PATH: /
-          VITE_API_BASE_URL: https://ledancer.dominick.cc
+          VITE_API_BASE_URL: https://slot.dominickp.deno.net
           VITE_DEMO_MODE: false
 
       - name: Configure GitHub Pages
