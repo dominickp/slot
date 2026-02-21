@@ -1,6 +1,7 @@
 import {
   LuckyScapeSlot,
   MODE_TO_NAME,
+  MODE_TO_DESCRIPTION,
 } from "../games/luckyscape/luckyScapeSlot.js";
 import { GridRenderer } from "../renderer/gridRenderer.js";
 import { LUCKY_ESCAPE_CONFIG } from "../games/luckyscape/config.js";
@@ -1116,16 +1117,32 @@ export class GameController {
     this.bonusIntroOpen = true;
     this.ui.bonusIntroTitle.textContent = bonusMode?.name || "BONUS TRIGGERED";
 
+    let bonusDescription = MODE_TO_DESCRIPTION?.[bonusMode?.type] || "";
+
     if (isBonusBuy) {
       const costText = this._formatCredits(options?.cost || 0);
       const spinsText = this._formatCount(bonusMode?.initialSpins || 0);
       const landedScatters = this._formatCount(scatterCount || 0);
-      this.ui.bonusIntroCopy.textContent = `Bonus Buy purchased for ${costText}. You landed ${landedScatters} scatters and unlocked ${spinsText} free spins — press continue to start.`;
+      this.ui.bonusIntroCopy.textContent = `${bonusDescription}\n\nBonus Buy purchased for ${costText}. You landed ${landedScatters} scatters and unlocked ${spinsText} free spins — press continue to start.`;
     } else {
-      this.ui.bonusIntroCopy.textContent = `${this._formatCount(scatterCount)} FS landed. ${this._formatCount(bonusMode?.initialSpins || 0)} free spins ready — press continue to start.`;
+      this.ui.bonusIntroCopy.textContent = `${bonusDescription}\n\n${this._formatCount(scatterCount)} FS landed. ${this._formatCount(bonusMode?.initialSpins || 0)} free spins ready — press continue to start.`;
     }
 
-    this.ui.bonusIntroGraphic.textContent = `${bonusMode?.name || "BONUS"} GRAPHIC PLACEHOLDER`;
+    const graphicEl = this.ui.bonusIntroGraphic;
+    const imageSrc = `assets/bonus/${bonusMode.type}.png`;
+
+    if (graphicEl) {
+      graphicEl.innerHTML = "";
+      if (imageSrc) {
+        const img = document.createElement("img");
+        img.src = imageSrc;
+        img.alt = bonusMode?.name || "BONUS";
+        img.className = "bonus-intro-graphic-img";
+        graphicEl.appendChild(img);
+      } else {
+        graphicEl.textContent = `${bonusMode?.name || "BONUS"} GRAPHIC`;
+      }
+    }
     this.ui.bonusIntroModal.classList.add("show");
 
     return new Promise((resolve) => {

@@ -34,6 +34,13 @@ export const MODE_TO_NAME = {
   TREASURE_RAINBOW: "Dom's Supreme Secret Bonus",
 };
 
+export const MODE_TO_DESCRIPTION = {
+  LEPRECHAUN: "Blue squares persist between spins until activated by [17].",
+  GLITTER_GOLD: "Blue squares remain active for the entire bonus.",
+  TREASURE_RAINBOW:
+    "Guaranteed [17] every free spin with persistent blue squares.",
+};
+
 export class LuckyScapeSlot extends BaseSlot {
   constructor(config = LUCKY_ESCAPE_CONFIG) {
     super(config);
@@ -704,7 +711,7 @@ export class LuckyScapeSlot extends BaseSlot {
     const profile = this.isInFreeSpins
       ? {
           ...fallbackFreeSpinsProfile,
-          ...(configuredProfiles.freeSpins || {}),
+          ...(configuredProfiles.bonuses || {}),
         }
       : {
           ...fallbackBaseProfile,

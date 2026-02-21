@@ -185,8 +185,8 @@ export const LUCKY_ESCAPE_CONFIG = {
   cascadesEnabled: true,
   maxCascadesPerSpin: 20,
 
-  // Free spins configuration
-  freeSpins: {
+  // Bonus configuration
+  bonuses: {
     enabled: true,
     scatterRequired: 3,
     modes: [
