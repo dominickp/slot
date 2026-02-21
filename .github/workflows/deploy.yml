@@ -35,7 +35,7 @@ jobs:
         run: npm run build
         env:
           VITE_BASE_PATH: ${{ github.event.repository.name == format('{0}.github.io', github.repository_owner) && '/' || format('/{0}/', github.event.repository.name) }}
-          VITE_API_BASE_URL: https://slot.dominickp.deno.net
+          VITE_API_BASE_URL: https://ledancer.dominick.cc
           VITE_DEMO_MODE: false
 
       - name: Configure GitHub Pages
