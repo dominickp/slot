@@ -94,7 +94,7 @@
   #character-wrapper {
     right: 0;
     bottom: 0;
-    top: auto;
+    top: 100px;
     position: fixed;
   }
   #character-wrapper img {
