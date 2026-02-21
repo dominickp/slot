@@ -205,7 +205,6 @@ body {
   margin-bottom: 16px;
   padding: 16px;
   background: var(--panel-soft);
-  border: 1px solid var(--line);
   border-radius: 14px;
 }
 
@@ -692,5 +691,6 @@ button {
   position: fixed;
   top: 10px;
   right: 10px;
-  font-size: 12px;
+  font-size: 16px;
+  padding: 10px 15px;
 }
