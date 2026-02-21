@@ -117,9 +117,9 @@ export const LUCKY_ESCAPE_CONFIG = {
       tokenText: "#eb6b3c",
     },
     coinTierColors: {
-      bronze: 0x67e07f,
-      silver: 0xd69763,
-      gold: 0x6fb5e8,
+      bronze: "#67e07f",
+      silver: "#d69763",
+      gold: "#ffffff",
     },
     cloverMultiplierColors: {
       primary: 0xff4f63,
