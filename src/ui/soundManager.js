@@ -410,14 +410,14 @@ export class SoundManager {
         frequency: 220,
         type: "sawtooth",
         duration: 0.08,
-        volume: 0.14,
+        volume: 0.2,
         sweepTo: 180,
       });
       this.playTone({
         frequency: 300,
         type: "square",
         duration: 0.09,
-        volume: 0.1,
+        volume: 0.2,
         delay: 0.03,
       });
     });
@@ -432,7 +432,7 @@ export class SoundManager {
         frequency: 420,
         type: "triangle",
         duration: 0.045,
-        volume: 0.09,
+        volume: 0.5,
         sweepTo: 360,
       });
     });

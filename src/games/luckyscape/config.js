@@ -81,11 +81,11 @@ export const LUCKY_ESCAPE_CONFIG = {
     },
     sounds: {
       button: withBasePath("assets/audio/ui_button.ogg"),
-      "spin-start": withBasePath("assets/audio/spin_start.ogg"),
+      "spin-start": withBasePath("assets/audio/free_spin_start.ogg"),
       cascade: withBasePath("assets/audio/cascade.ogg"),
       win: withBasePath("assets/audio/win.ogg"),
       "bonus-start": withBasePath("assets/audio/bonus_start.ogg"),
-      "free-spin-start": withBasePath("assets/audio/spin_start.ogg"),
+      "free-spin-start": withBasePath("assets/audio/free_spin_start.ogg"),
       rainbow: withBasePath("assets/audio/rainbow.ogg"),
       "clover-multiply": withBasePath("assets/audio/clover_multiply.ogg"),
       "collector-collect": withBasePath("assets/audio/collector_collect.ogg"),
