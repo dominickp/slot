@@ -96,6 +96,9 @@
     bottom: 0;
     top: 100px;
     position: fixed;
+    height: auto;
+    width: auto;
+    pointer-events: none;
   }
   #character-wrapper img {
     width: 128px;
