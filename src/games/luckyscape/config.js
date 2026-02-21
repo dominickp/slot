@@ -196,15 +196,14 @@ export const LUCKY_ESCAPE_CONFIG = {
         initialSpins: 8,
         mechanic: "golden-squares-persist-until-rainbow",
         description:
-          "Golden squares persist between spins until activated by Rainbow.",
+          "Blue squares persist between spins until activated by [17].",
       },
       {
         name: "All That Glitters Is Gold",
         triggerScatters: 4,
         initialSpins: 12,
         mechanic: "golden-squares-never-expire",
-        description:
-          "Golden squares remain active for the full free-spin round.",
+        description: "Blue squares remain active for the entire bonus.",
       },
       {
         name: "Treasure at the End of the Rainbow",
@@ -212,7 +211,7 @@ export const LUCKY_ESCAPE_CONFIG = {
         initialSpins: 12,
         mechanic: "golden-squares-never-expire-guaranteed-rainbow",
         description:
-          "Guaranteed Rainbow every free spin with persistent golden squares.",
+          "Guaranteed [17] every free spin with persistent blue squares.",
       },
     ],
     maxRetriggers: 0,

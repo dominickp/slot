@@ -1,4 +1,4 @@
-# Slot Machine - Le Dance Gamer
+# Slot Machine - Le Dancer
 
 A dance-game-themed slot with game mechanics borrowed from "Le Bandit".
 

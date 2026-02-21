@@ -1,4 +1,7 @@
-import { LuckyScapeSlot } from "../games/luckyscape/luckyScapeSlot.js";
+import {
+  LuckyScapeSlot,
+  MODE_TO_NAME,
+} from "../games/luckyscape/luckyScapeSlot.js";
 import { GridRenderer } from "../renderer/gridRenderer.js";
 import { LUCKY_ESCAPE_CONFIG } from "../games/luckyscape/config.js";
 import { ANIMATION_TIMING } from "../config/animationTiming.js";
@@ -1382,15 +1385,7 @@ export class GameController {
   }
 
   _getBonusModeName(modeType) {
-    if (modeType === "LEPRECHAUN") {
-      return "Luck of the Leprechaun";
-    }
-
-    if (modeType === "GLITTER_GOLD") {
-      return "All That Glitters Is Gold";
-    }
-
-    return modeType;
+    return MODE_TO_NAME?.[modeType] || modeType;
   }
 
   async _playBonusBuyTriggerSpin({ modeType, modeName, scatterCount, cost }) {

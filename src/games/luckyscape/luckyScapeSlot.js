@@ -28,10 +28,10 @@ const MODE_TO_SPINS = {
   TREASURE_RAINBOW: 12,
 };
 
-const MODE_TO_NAME = {
-  LEPRECHAUN: "Luck of the Leprechaun",
-  GLITTER_GOLD: "All That Glitters Is Gold",
-  TREASURE_RAINBOW: "Treasure at the End of the Rainbow",
+export const MODE_TO_NAME = {
+  LEPRECHAUN: "Dom's Little Guy Bonus",
+  GLITTER_GOLD: "Dom's Big Boy Bonus",
+  TREASURE_RAINBOW: "Dom's Supreme Secret Bonus",
 };
 
 export class LuckyScapeSlot extends BaseSlot {
