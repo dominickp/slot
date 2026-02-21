@@ -108,8 +108,8 @@ export const LUCKY_ESCAPE_CONFIG = {
       goldInnerGlow: "#1a232a",
     },
     focusPulseColors: {
-      collector: "#cb0b88",
-      rainbow: 0x93d1ff,
+      collector: "#cb380b",
+      rainbow: "#cb0b88",
     },
     collectorColors: {
       valueText: "#f5cdb6",
