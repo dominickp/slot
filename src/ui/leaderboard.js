@@ -48,8 +48,7 @@ function formatLeaderboardDate(ts) {
   // Format as M/D/YY
   const month = d.getMonth() + 1;
   const day = d.getDate();
-  const year = d.getFullYear() % 100; // two digits
-  const dateStr = `${month}/${day}/${year}`;
+  const dateStr = `${month}/${day}`;
   return dateStr;
 }
 
