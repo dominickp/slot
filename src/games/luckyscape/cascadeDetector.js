@@ -346,7 +346,14 @@ export class CascadeDetector {
     // Same symbol always matches
     if (symbol1 === symbol2) return true;
 
-    // Wild substitution disabled for Le Bandit-style feel.
+    // Wild substitution: If the root (symbol1) is a regular symbol, it matches a Wild
+    if (
+      symbol1 !== CascadeDetector.SYMBOL_IDS.WILD &&
+      symbol2 === CascadeDetector.SYMBOL_IDS.WILD
+    ) {
+      return true;
+    }
+
     return false;
   }
 
