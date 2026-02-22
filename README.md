@@ -5,6 +5,20 @@ A dance-game-themed slot with game mechanics borrowed from "Le Bandit".
 ## Note
 This is an **educational/demo project**, not intended for real gambling.
 
+## RTP
+The current RTP is tuned to give the player back a bit more than they spend, on average. Ideally these would be about 96%. 
+There is a test in this repo that runs a few modes 10K times and reports the following:
+
+```
+┌─────────┬────────────────┬───────┬──────────┬───────────┬───────────────┬─────────────────────┬──────────┬────────────┬─────────────────┐
+│ (index) │ Mode           │ Runs  │ Cost/Run │ RTP       │ Hit Rate (>0) │ Profit Rate (>Cost) │ Avg Win  │ Max Win    │ Nat. Bonus Freq │
+├─────────┼────────────────┼───────┼──────────┼───────────┼───────────────┼─────────────────────┼──────────┼────────────┼─────────────────┤
+│ 0       │ 'Base Game'    │ 10000 │ '1.00'   │ '135.44%' │ '21.69%'      │ '8.66%'             │ '1.35'   │ '3260.80'  │ '1 in 141'      │
+│ 1       │ '3-scatter'    │ 10000 │ '100.00' │ '102.23%' │ '86.90%'      │ '23.52%'            │ '102.23' │ '10039.30' │ 'N/A'           │
+│ 2       │ '4-scatter'    │ 10000 │ '250.00' │ '111.09%' │ '95.58%'      │ '25.34%'            │ '277.73' │ '10731.60' │ 'N/A'           │
+└─────────┴────────────────┴───────┴──────────┴───────────┴───────────────┴─────────────────────┴──────────┴────────────┴─────────────────┘
+```
+
 ## Quick Start
 
 ### Prerequisites
