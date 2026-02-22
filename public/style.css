@@ -1,5 +1,6 @@
 /* Ensure links in the symbol info modal are white */
-#symbolInfoModal a {
+#symbolInfoModal a,
+.footer a {
   color: #fff !important;
   text-decoration: underline;
 }
