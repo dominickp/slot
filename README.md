@@ -2,6 +2,8 @@
 
 A dance-game-themed slot with game mechanics borrowed from "Le Bandit".
 
+A backend service running on Deno Deploy tracks user wins (based on hashed IP-address, no registration). All of the game logic is handled in the front end, so recorded wins could be manipulated.
+
 <img src="./public/assets/cover.png" width="600">
 
 ## Note
