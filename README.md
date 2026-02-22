@@ -2,6 +2,9 @@
 
 A dance-game-themed slot with game mechanics borrowed from "Le Bandit".
 
+## Note
+This is an **educational/demo project**, not intended for real gambling.
+
 ## Quick Start
 
 ### Prerequisites
@@ -34,10 +37,7 @@ $env:VITE_BASE_PATH='/slot/'
 npm run build
 ```
 
-## Note
-This is an **educational/demo project**, not intended for real gambling.
-
-## Backend (Deno Deploy) - WIP integration
+## Backend (Deno Deploy)
 
 This repo now includes a backend scaffold in `backend/` for daily credits and leaderboards.
 
