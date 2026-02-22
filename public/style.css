@@ -114,14 +114,15 @@
     display: none;
   }
 }
+#spinBtn {
+  height: 100%;
+}
 
 @media (max-width: 800px) {
   .controls button {
     padding: 6px 12px !important;
   }
-  #spinBtn {
-    height: 100%;
-  }
+
   #playAreaWrapper {
     padding: 5px !important;
   }
@@ -794,7 +795,7 @@ button {
   font-weight: 600;
   color: var(--text);
   padding: 10px 0;
-  width: 60px; /* Force a reasonable width */
+  width: 60px;
   box-shadow: none !important; /* Remove focus glow from input itself */
 }
 

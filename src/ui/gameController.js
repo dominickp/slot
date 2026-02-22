@@ -324,7 +324,7 @@ export class GameController {
     const decBtn = document.getElementById("decBet");
 
     if (betInput && incBtn && decBtn) {
-      const step = parseFloat(betInput.step) || 0.5;
+      const step = parseFloat(betInput.step) || 1;
       const min = parseFloat(betInput.min) || 0.5;
       const max = parseFloat(betInput.max) || 100;
 
@@ -1269,9 +1269,9 @@ export class GameController {
     this.ui.buyBonusBtn.disabled =
       disableBonusBuys || (!leprechaunOffer && !glitterGoldOffer);
 
-    this.ui.buyBonusBtn.textContent =
+    this.ui.buyBonusBtn.innerHTML =
       leprechaunOffer && glitterGoldOffer
-        ? `✨ BUY BONUS (${this._formatCredits(leprechaunOffer.cost)} / ${this._formatCredits(glitterGoldOffer.cost)})`
+        ? `✨ BUY BONUS<br>(${this._formatCredits(leprechaunOffer.cost)} / ${this._formatCredits(glitterGoldOffer.cost)})`
         : "✨ BUY BONUS";
 
     if (this.ui.buyOptionLeprechaunBtn) {
