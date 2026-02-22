@@ -280,9 +280,9 @@ export const LUCKY_ESCAPE_CONFIG = {
     // Golden square reveal outcomes by mode
     goldenSquareOutcomeChances: {
       default: { coin: 0.9, clover: 0.08, pot: 0.02 },
-      LEPRECHAUN: { coin: 0.88, clover: 0.09, pot: 0.03 },
-      GLITTER_GOLD: { coin: 0.86, clover: 0.1, pot: 0.04 },
-      TREASURE_RAINBOW: { coin: 0.83, clover: 0.12, pot: 0.05 },
+      LEPRECHAUN: { coin: 0.88, clover: 0.08, pot: 0.03 },
+      GLITTER_GOLD: { coin: 0.86, clover: 0.08, pot: 0.04 },
+      TREASURE_RAINBOW: { coin: 0.83, clover: 0.08, pot: 0.05 },
     },
 
     // Pot spawn chance shaping: lower global rate + decay per existing collector
