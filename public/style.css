@@ -94,7 +94,7 @@
   #character-wrapper {
     right: 0;
     bottom: 0;
-    top: 100px;
+    top: 75px;
     position: fixed;
     height: auto;
     width: auto;
@@ -109,6 +109,21 @@
   #app canvas {
     width: 100% !important;
     height: auto !important;
+  }
+  #volume-controls {
+    display: none;
+  }
+}
+
+@media (max-width: 800px) {
+  button {
+    padding: 6px 12px !important;
+  }
+  #spinBtn {
+    height: 100%;
+  }
+  #playAreaWrapper {
+    padding: 5px !important;
   }
 }
 
@@ -287,6 +302,7 @@ body {
 
 .stat.hidden {
   visibility: hidden;
+  display: none;
 }
 
 .bonus-total-overlay {
@@ -729,4 +745,65 @@ button {
   .stats {
     grid-template-columns: 1fr;
   }
+}
+
+/* Container for the input and buttons */
+.bet-stepper {
+  display: flex;
+  align-items: center;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* The + and - buttons */
+.btn-step {
+  background: transparent;
+  color: var(--accent);
+  border: none;
+  font-size: 20px;
+  font-weight: bold;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    color 0.2s;
+  flex: 0 0 auto;
+}
+
+.btn-step:hover {
+  background: rgba(110, 168, 255, 0.1);
+}
+
+.btn-step:active {
+  background: var(--accent);
+  color: white;
+}
+
+/* Style the input inside the stepper */
+#betInput {
+  flex: 1;
+  border: none !important; /* Remove individual border */
+  background: transparent !important;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  padding: 10px 0;
+  width: 60px; /* Force a reasonable width */
+  box-shadow: none !important; /* Remove focus glow from input itself */
+}
+
+/* HIDE THE UGLY ARROWS (Spinners) */
+/* Chrome, Safari, Edge, Opera */
+#betInput::-webkit-outer-spin-button,
+#betInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+#betInput[type="number"] {
+  -moz-appearance: textfield;
 }

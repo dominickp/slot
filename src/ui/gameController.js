@@ -140,6 +140,7 @@ export class GameController {
       position: relative;
       overflow: hidden;
     `;
+    rendererContainer.id = "playAreaWrapper";
     this.container.insertBefore(
       rendererContainer,
       this.container.querySelector(".controls"),
@@ -306,16 +307,47 @@ export class GameController {
     const bonusIntroContinue = document.getElementById("bonusIntroContinue");
     const bonusIntroGraphic = document.getElementById("bonusIntroGraphic");
     const balanceEl = document.getElementById("balance");
+    // const betInput = document.getElementById("betInput");
+    // if (betInput) {
+    //   const minBet = Number(this.game.config?.minBet ?? 0.5);
+    //   const maxBet = Number(this.game.config?.maxBet ?? 100);
+    //   betInput.min = String(minBet);
+    //   betInput.max = String(maxBet);
+    //   betInput.step = "0.5";
+    //   if (!betInput.value) {
+    //     betInput.value = String(minBet);
+    //   }
+    // }
+
     const betInput = document.getElementById("betInput");
-    if (betInput) {
-      const minBet = Number(this.game.config?.minBet ?? 0.5);
-      const maxBet = Number(this.game.config?.maxBet ?? 100);
-      betInput.min = String(minBet);
-      betInput.max = String(maxBet);
-      betInput.step = "0.5";
-      if (!betInput.value) {
-        betInput.value = String(minBet);
-      }
+    const incBtn = document.getElementById("incBet");
+    const decBtn = document.getElementById("decBet");
+
+    if (betInput && incBtn && decBtn) {
+      const step = parseFloat(betInput.step) || 0.5;
+      const min = parseFloat(betInput.min) || 0.5;
+      const max = parseFloat(betInput.max) || 100;
+
+      // Helper to update value and notify the GameController
+      const updateBet = (newVal) => {
+        betInput.value = newVal.toFixed(1);
+        // This line is the "magic" that fixes the bonus buttons
+        betInput.dispatchEvent(new Event("input", { bubbles: true }));
+      };
+
+      incBtn.addEventListener("click", () => {
+        let val = parseFloat(betInput.value);
+        if (val + step <= max) {
+          updateBet(val + step);
+        }
+      });
+
+      decBtn.addEventListener("click", () => {
+        let val = parseFloat(betInput.value);
+        if (val - step >= min) {
+          updateBet(val - step);
+        }
+      });
     }
     const resultEl = document.getElementById("result");
     const resultText = document.getElementById("resultText");

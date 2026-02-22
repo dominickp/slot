@@ -2,10 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.25">
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, minimum-scale=0.25"
+    />
     <title>Le Dancer</title>
     <link rel="stylesheet" href="style.css" />
-    <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
   </head>
   <body>
     <div id="leaderboard-wrapper">
@@ -50,16 +53,35 @@
         <div class="controls">
           <div class="control-group">
             <label for="betInput">Bet Amount</label>
-            <input
-              type="number"
-              id="betInput"
-              value="1.0"
-              min="0.5"
-              max="100"
-              step="0.5"
-            />
+            <div class="bet-stepper">
+              <button
+                type="button"
+                class="btn-step"
+                id="decBet"
+                aria-label="Decrease bet"
+              >
+                −
+              </button>
+              <input
+                type="number"
+                id="betInput"
+                value="1.0"
+                min="0.5"
+                max="100"
+                step="0.5"
+                readonly
+              />
+              <button
+                type="button"
+                class="btn-step"
+                id="incBet"
+                aria-label="Increase bet"
+              >
+                +
+              </button>
+            </div>
           </div>
-          <div class="control-group">
+          <div class="control-group" id="volume-controls">
             <label for="volumeSlider">Volume</label>
             <div class="volume-wrap">
               <input
@@ -111,7 +133,21 @@
         style="display: none"
       >
         <div class="modal-card">
-          <button id="closeX" style="position:absolute; top:15px; right:15px; background:none; border:none; color:white; font-size:20px; cursor:pointer;">✕</button>
+          <button
+            id="closeX"
+            style="
+              position: absolute;
+              top: 15px;
+              right: 15px;
+              background: none;
+              border: none;
+              color: white;
+              font-size: 20px;
+              cursor: pointer;
+            "
+          >
+            ✕
+          </button>
           <div class="modal-title symbol-info-title">About</div>
           <div class="modal-copy">
             <p>
