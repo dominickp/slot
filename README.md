@@ -2,6 +2,8 @@
 
 A dance-game-themed slot with game mechanics borrowed from "Le Bandit".
 
+<img src="./public/assets/cover.png" width="600">
+
 ## Note
 This is an **educational/demo project**, not intended for real gambling.
 
