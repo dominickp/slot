@@ -35,10 +35,12 @@ export const MODE_TO_NAME = {
 };
 
 export const MODE_TO_DESCRIPTION = {
-  LEPRECHAUN: "Blue squares persist between spins until activated by [17].",
-  GLITTER_GOLD: "Blue squares remain active for the entire bonus.",
+  LEPRECHAUN:
+    "In this bonus, blue squares persist between spins until activated by [17] at which point they are reset.",
+  GLITTER_GOLD:
+    "In this bonus, blue squares build and stay active for the entire bonus and do not reset when activated by a [17].",
   TREASURE_RAINBOW:
-    "Guaranteed [17] every free spin with persistent blue squares.",
+    "This is a secret bonus. Guaranteed [17] every free spin with persistent blue squares.",
 };
 
 export class LuckyScapeSlot extends BaseSlot {
