@@ -1133,7 +1133,7 @@ export class GridRenderer {
         const focusTile = this._createCellSizedSprite(symbolId, 0);
         focusTile.width = width;
         focusTile.height = height;
-        focusTile.pivot.set(width / 2, height / 2);
+        focusTile.pivot.set(50, 50);
         focusTile.position.set(0, 0);
         overlay.addChild(focusTile);
       }
@@ -1307,8 +1307,9 @@ export class GridRenderer {
       const tile = this._createCellSizedSprite(symbolId, 0);
       tile.width = width;
       tile.height = height;
-      tile.pivot.set(width / 2, height / 2);
+      tile.pivot.set(50, 50);
       tile.position.set(0, 0);
+      tile.pivot.set;
       overlay.addChild(tile);
 
       const glow = new PIXI.Graphics();
@@ -1570,13 +1571,13 @@ export class GridRenderer {
       front.position.set(0, 0);
       front.width = width;
       front.height = height;
-      front.pivot.set(width / 2, height / 2);
+      front.pivot.set(50, 50);
 
       const back = this._createCellSizedSprite(revealSymbolId, 0);
       back.position.set(0, 0);
       back.width = width;
       back.height = height;
-      back.pivot.set(width / 2, height / 2);
+      back.pivot.set(50, 50);
       back.visible = false;
       back.scale.x = 0.05;
 
@@ -1765,9 +1766,7 @@ export class GridRenderer {
         const color =
           existingSource.accentColor ?? this.collectorColors.tokenText;
 
-        if (sourceKey !== collectorKey && isRainbowCell) {
-          this.revealedSymbolMap.delete(sourceKey);
-        } else if (sourceKey !== collectorKey && existingSource) {
+        if (sourceKey !== collectorKey && existingSource) {
           this.revealedSymbolMap.set(sourceKey, {
             ...existingSource,
             label: "",
@@ -3012,11 +3011,6 @@ export class GridRenderer {
           for (const source of clearedSources) {
             const sourceKey = `${source.x}_${source.y}`;
             if (sourceKey === `${step.x}_${step.y}`) {
-              continue;
-            }
-
-            if (this._isRainbowCell(source.x, source.y)) {
-              this.revealedSymbolMap.delete(sourceKey);
               continue;
             }
 
