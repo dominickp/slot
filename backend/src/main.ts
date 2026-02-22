@@ -1,3 +1,5 @@
+import { getIpHash, getClientIp } from "./utils.ts";
+
 const DAILY_BUDGET = Number(Deno.env.get("DAILY_BUDGET") || 1000);
 const MAX_LEADERBOARD_LIMIT = 50;
 const DEFAULT_LEADERBOARD_LIMIT = 20;
@@ -78,23 +80,23 @@ function getOrigin(request: Request): string | undefined {
   return request.headers.get("origin") || undefined;
 }
 
-function getClientIp(request: Request): string {
-  const headersToCheck = ["cf-connecting-ip", "x-forwarded-for", "x-real-ip"];
+// function getClientIp(request: Request): string {
+//   const headersToCheck = ["cf-connecting-ip", "x-forwarded-for", "x-real-ip"];
 
-  for (const headerName of headersToCheck) {
-    const raw = request.headers.get(headerName);
-    if (!raw) {
-      continue;
-    }
+//   for (const headerName of headersToCheck) {
+//     const raw = request.headers.get(headerName);
+//     if (!raw) {
+//       continue;
+//     }
 
-    const first = raw.split(",")[0]?.trim();
-    if (first) {
-      return first;
-    }
-  }
+//     const first = raw.split(",")[0]?.trim();
+//     if (first) {
+//       return first;
+//     }
+//   }
 
-  return "unknown";
-}
+//   return "unknown";
+// }
 
 function getDayKey(date: Date = new Date()): string {
   return date.toISOString().slice(0, 10);
@@ -105,19 +107,7 @@ function createEventId(): string {
 }
 
 function createPlayerTag(ipHash: string): string {
-  return `P-${ipHash.slice(0, 4).toUpperCase()}`;
-}
-
-async function sha256Hex(input: string): Promise<string> {
-  const bytes = new TextEncoder().encode(input);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function getIpHash(ip: string): Promise<string> {
-  return sha256Hex(`${ip}:${APP_SECRET}`);
+  return `P-${ipHash.slice(0, 16).toUpperCase()}`;
 }
 
 function creditsKey(ipHash: string): Deno.KvKey {
@@ -143,6 +133,7 @@ async function getOrInitCredits(
         updatedAt: Date.now(),
         lastResetDay: dayKey,
       };
+      console.log("setting record", key, record);
       await kv.set(key, record);
     }
     return record;
@@ -154,6 +145,7 @@ async function getOrInitCredits(
     lastResetDay: dayKey,
   };
 
+  console.log("setting initial record", key, initialRecord);
   await kv.set(key, initialRecord);
   return initialRecord;
 }
@@ -212,6 +204,7 @@ async function recordWinEvent(win: WinEvent): Promise<void> {
   const recentKey: Deno.KvKey = ["wins", "recent", win.at, eventId];
   const topKey: Deno.KvKey = ["wins", "top", -win.amount, win.at, eventId];
 
+  console.log("recording win", win, recentKey, topKey);
   await kv.set(recentKey, win);
   await kv.set(topKey, win);
   await trimRecentEvents();
@@ -265,9 +258,13 @@ async function updateCreditsWithRetry(
   return { ok: false, reason: "INSUFFICIENT_CREDITS" };
 }
 
-async function handlePlayerState(request: Request): Promise<Response> {
+async function handlePlayerState(
+  request: Request,
+  info?: Deno.ServeHandlerInfo,
+): Promise<Response> {
   const origin = getOrigin(request);
-  const ipHash = await getIpHash(getClientIp(request));
+  const ipHash = await getIpHash(getClientIp(request, info), APP_SECRET);
+  const playerTag = createPlayerTag(ipHash);
   const dayKey = getDayKey();
   const credits = await getOrInitCredits(dayKey, ipHash);
 
@@ -278,6 +275,8 @@ async function handlePlayerState(request: Request): Promise<Response> {
       dailyBudget: DAILY_BUDGET,
       resetAt: `${dayKey}T23:59:59.999Z`,
       serverTime: Date.now(),
+      ipHash: ipHash,
+      playerTag: playerTag,
     },
     200,
     origin,
@@ -292,8 +291,10 @@ type ReportWinPayload = {
   [key: string]: unknown;
 };
 
-async function handleReportWin(request: Request): Promise<Response> {
-  await new Promise((r) => setTimeout(r, 2000)); // TEMP DELAY
+async function handleReportWin(
+  request: Request,
+  info?: Deno.ServeHandlerInfo,
+): Promise<Response> {
   const origin = getOrigin(request);
   let payload: ReportWinPayload;
   try {
@@ -326,7 +327,7 @@ async function handleReportWin(request: Request): Promise<Response> {
     );
   }
 
-  const ipHash = await getIpHash(getClientIp(request));
+  const ipHash = await getIpHash(getClientIp(request, info), APP_SECRET);
   const playerTag = createPlayerTag(ipHash);
   const dayKey = getDayKey();
 
@@ -370,7 +371,10 @@ async function handleReportWin(request: Request): Promise<Response> {
   );
 }
 
-async function handleLeaderboardRecent(request: Request): Promise<Response> {
+async function handleLeaderboardRecent(
+  request: Request,
+  info?: Deno.ServeHandlerInfo,
+): Promise<Response> {
   const origin = getOrigin(request);
   const url = new URL(request.url);
   const limit = parseLimit(url);
@@ -388,7 +392,10 @@ async function handleLeaderboardRecent(request: Request): Promise<Response> {
   return jsonResponse({ ok: true, rows }, 200, origin);
 }
 
-async function handleLeaderboardTop(request: Request): Promise<Response> {
+async function handleLeaderboardTop(
+  request: Request,
+  info?: Deno.ServeHandlerInfo,
+): Promise<Response> {
   const origin = getOrigin(request);
   const url = new URL(request.url);
   const limit = parseLimit(url);
@@ -406,7 +413,7 @@ async function handleLeaderboardTop(request: Request): Promise<Response> {
   return jsonResponse({ ok: true, rows }, 200, origin);
 }
 
-Deno.serve((request) => {
+Deno.serve((request, info) => {
   const url = new URL(request.url);
 
   if (request.method === "OPTIONS") {
@@ -425,19 +432,19 @@ Deno.serve((request) => {
   }
 
   if (url.pathname === "/api/player/state" && request.method === "GET") {
-    return handlePlayerState(request);
+    return handlePlayerState(request, info);
   }
 
   if (url.pathname === "/api/report-win" && request.method === "POST") {
-    return handleReportWin(request);
+    return handleReportWin(request, info);
   }
 
   if (url.pathname === "/api/leaderboard/recent" && request.method === "GET") {
-    return handleLeaderboardRecent(request);
+    return handleLeaderboardRecent(request, info);
   }
 
   if (url.pathname === "/api/leaderboard/top" && request.method === "GET") {
-    return handleLeaderboardTop(request);
+    return handleLeaderboardTop(request, info);
   }
 
   // Add /status endpoint

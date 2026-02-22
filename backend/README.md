@@ -26,6 +26,13 @@ deno task --config backend/deno.json dev
 
 The service should be running at http://localhost:8000
 
+
+## Run tests
+
+```bash
+deno test src/main_test.ts
+```
+
 ### Use hosted KV from local machine (via Deno tunnel)
 
 To run local code against your hosted Deno Deploy KV, use managed mode + tunnel:

@@ -19,6 +19,18 @@ const LEADERBOARD_EMOJIS = [
   "😋",
   "😎",
   "🥳",
+  "🤑",
+  "🤩",
+  "😏",
+  "😬",
+  "🤠",
+  "😺",
+  "🦄",
+  "😡",
+  "😈",
+  "🤢",
+  "🐭",
+  "😳",
 ];
 
 function assignEmojisToTags(playerTags) {
@@ -55,7 +67,7 @@ function createLeaderboardRow(entry, tagToEmoji) {
 export async function renderLeaderboard(container) {
   container.innerHTML = `<div class="leaderboard-loading">Loading...</div>`;
   try {
-    const data = await backend.getTopWins(10);
+    const data = await backend.getTopWins(15);
     if (!data.ok || !Array.isArray(data.rows))
       throw new Error("Invalid leaderboard");
     // Get unique playerTags
