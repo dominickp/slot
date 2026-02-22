@@ -1451,7 +1451,8 @@ export class GridRenderer {
     if (reveal.type === "clover") {
       return {
         symbolId,
-        label: `x${this._formatBonusValue(reveal.value)}`,
+        // Hide the multiplier initially for a surprise reveal
+        label: "",
         accentColor: this.cloverMultiplierColors.primary,
       };
     }
@@ -2867,6 +2868,19 @@ export class GridRenderer {
             ANIMATION_TIMING.renderer.bonusSequence.cloverPreMultiplyMs,
           );
 
+          // Reveal multiplier
+          const cloverKey = `${cloverHit.x}_${cloverHit.y}`;
+          const existingClover = this.revealedSymbolMap.get(cloverKey);
+          if (existingClover) {
+            this.revealedSymbolMap.set(cloverKey, {
+              ...existingClover,
+              label: `x${this._formatBonusValue(cloverHit.multiplier)}`,
+            });
+            this.render(this.lastRenderedGrid, new Set(), {
+              showBonusOverlays: true,
+            });
+          }
+
           if (typeof onCloverMultiply === "function") {
             onCloverMultiply(cloverHit);
           }
@@ -3144,6 +3158,19 @@ export class GridRenderer {
             await this._wait(
               ANIMATION_TIMING.renderer.bonusSequence.cloverPreMultiplyMs,
             );
+
+            // Reveal multiplier
+            const cloverKey = `${cloverHit.x}_${cloverHit.y}`;
+            const existingClover = this.revealedSymbolMap.get(cloverKey);
+            if (existingClover) {
+              this.revealedSymbolMap.set(cloverKey, {
+                ...existingClover,
+                label: `x${this._formatBonusValue(cloverHit.multiplier)}`,
+              });
+              this.render(this.lastRenderedGrid, new Set(), {
+                showBonusOverlays: true,
+              });
+            }
 
             if (typeof onCloverMultiply === "function") {
               onCloverMultiply(cloverHit);
