@@ -80,24 +80,6 @@ function getOrigin(request: Request): string | undefined {
   return request.headers.get("origin") || undefined;
 }
 
-// function getClientIp(request: Request): string {
-//   const headersToCheck = ["cf-connecting-ip", "x-forwarded-for", "x-real-ip"];
-
-//   for (const headerName of headersToCheck) {
-//     const raw = request.headers.get(headerName);
-//     if (!raw) {
-//       continue;
-//     }
-
-//     const first = raw.split(",")[0]?.trim();
-//     if (first) {
-//       return first;
-//     }
-//   }
-
-//   return "unknown";
-// }
-
 function getDayKey(date: Date = new Date()): string {
   return date.toISOString().slice(0, 10);
 }
@@ -256,6 +238,35 @@ async function updateCreditsWithRetry(
   }
 
   return { ok: false, reason: "INSUFFICIENT_CREDITS" };
+}
+
+async function handleWipeDatabase(request: Request): Promise<Response> {
+  const origin = getOrigin(request);
+  const url = new URL(request.url);
+
+  // Simple Authorization Check
+  // Use the existing APP_SECRET as a "password" via query param
+  const secret = url.searchParams.get("secret");
+  if (secret !== APP_SECRET) {
+    return jsonResponse({ ok: false, error: "Unauthorized" }, 401, origin);
+  }
+
+  let count = 0;
+  // Iterate through every single key in the KV store
+  for await (const entry of kv.list({ prefix: [] })) {
+    await kv.delete(entry.key);
+    count++;
+  }
+
+  return jsonResponse(
+    {
+      ok: true,
+      message: `Database wiped successfully. Purged ${count} records.`,
+      serverTime: Date.now(),
+    },
+    200,
+    origin,
+  );
 }
 
 async function handlePlayerState(
@@ -450,6 +461,10 @@ Deno.serve((request, info) => {
   // Add /status endpoint
   if (url.pathname === "/api/status") {
     return handleStatus(request);
+  }
+
+  if (url.pathname === "/api/admin/wipe" && request.method === "POST") {
+    return handleWipeDatabase(request);
   }
 
   return jsonResponse(
