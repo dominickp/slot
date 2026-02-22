@@ -436,6 +436,11 @@ export class GameController {
             infoModal.classList.remove("show");
           }
         });
+        const closeX = document.getElementById("closeX");
+        closeX.addEventListener("click", () => {
+          infoModal.style.display = "none";
+          infoModal.classList.remove("show");
+        });
       }
     });
 

@@ -563,13 +563,21 @@ button {
   font-size: 15px;
   color: var(--text);
 }
+.symbol-info-content .symbol-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  gap: 10px;
+  padding: 0;
+  list-style: none;
+}
 .symbol-icon {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-  border-radius: 6px;
-  background: var(--panel-soft);
-  margin-right: 6px;
+  width: 100%; /* Scale to grid */
+  max-width: 54px;
+  height: auto;
+  aspect-ratio: 1/1;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 5px;
+  border-radius: 8px;
 }
 .symbol-list-labelled li {
   display: flex;
@@ -591,12 +599,16 @@ button {
 .modal {
   position: fixed;
   inset: 0;
-  display: none;
-  align-items: start;
+  display: none; /* Controlled by JS */
+  align-items: flex-start; /* Changed from 'start' for better flex alignment */
   justify-content: center;
-  background: rgba(2, 8, 20, 0.65);
-  z-index: 40;
-  padding: 16px;
+  background: rgba(2, 8, 20, 0.85); /* Slightly darker for focus */
+  z-index: 2000; /* Ensure it's above everything */
+  padding: 20px 10px;
+
+  /* Enable scrolling for long content */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal.show {
@@ -605,12 +617,15 @@ button {
 
 .modal-card {
   width: 100%;
-  max-width: 420px;
+  max-width: 480px; /* Slightly wider for better readability */
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-  padding: 18px;
+  border-radius: 18px;
+  padding: 24px;
+  margin-top: 20px; /* Space from top of screen */
+  margin-bottom: 20px; /* Space from bottom after scrolling */
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  position: relative;
 }
 
 .modal-title {
