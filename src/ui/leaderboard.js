@@ -56,7 +56,7 @@ function formatLeaderboardDate(ts) {
 function createLeaderboardRow(entry, tagToEmoji) {
   const row = document.createElement("tr");
   row.innerHTML = `
-    <td>${tagToEmoji[entry.playerTag] || "❓"}</td>
+    <td class="l-emoji">${tagToEmoji[entry.playerTag] || "❓"}</td>
     <td>${entry.betAmount?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || "-"}</td>
     <td>${entry.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
     <td>${formatLeaderboardDate(entry.at)}</td>

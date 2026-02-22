@@ -63,6 +63,11 @@
   font-size: 14px;
   padding: 10px 0;
 }
+.l-emoji {
+  font-size: 20px;
+  text-align: center !important;
+  padding: 0 !important;
+}
 
 #character-wrapper {
   display: inline-block;
