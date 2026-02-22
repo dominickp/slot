@@ -116,7 +116,7 @@
 }
 
 @media (max-width: 800px) {
-  button {
+  .controls button {
     padding: 6px 12px !important;
   }
   #spinBtn {
