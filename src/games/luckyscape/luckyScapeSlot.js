@@ -1278,12 +1278,11 @@ export class LuckyScapeSlot extends BaseSlot {
 
     const modeId = this.bonusMode?.id;
     const configuredTables = this.config?.balance?.coinValueWeights || {};
-    const table =
-      configuredTables[modeId] ||
-      configuredTables.default ||
-      (modeId === "TREASURE_RAINBOW"
-        ? fallbackTreasureTable
-        : fallbackDefaultTable);
+
+    const weights = this.config?.balance?.coinValueWeights || {};
+
+    // Look for a table matching the specific mode name, then fall back to default
+    const table = weights[modeId] || weights.default;
 
     const total = table.reduce((sum, entry) => sum + entry.weight, 0);
     let roll = this.rng.nextInt(0, total - 1);

@@ -258,7 +258,7 @@ export const LUCKY_ESCAPE_CONFIG = {
         topHat: 4,
         wild: 3,
         scatter: 2,
-        rainbow: 2,
+        rainbow: 0.7,
       },
       freeSpins: {
         ten: 36,
@@ -280,8 +280,8 @@ export const LUCKY_ESCAPE_CONFIG = {
     // Golden square reveal outcomes by mode
     goldenSquareOutcomeChances: {
       default: { coin: 0.9, clover: 0.08, pot: 0.02 },
-      LEPRECHAUN: { coin: 0.88, clover: 0.08, pot: 0.03 },
-      GLITTER_GOLD: { coin: 0.86, clover: 0.08, pot: 0.04 },
+      LEPRECHAUN: { coin: 0.9, clover: 0.08, pot: 0.04 },
+      GLITTER_GOLD: { coin: 0.9, clover: 0.08, pot: 0.04 },
       TREASURE_RAINBOW: { coin: 0.83, clover: 0.08, pot: 0.05 },
     },
 
@@ -294,21 +294,29 @@ export const LUCKY_ESCAPE_CONFIG = {
     // Coin value weighted tables
     coinValueWeights: {
       default: [
-        { value: 0.2, weight: 18 },
-        { value: 0.5, weight: 16 },
-        { value: 1, weight: 14 },
-        { value: 2, weight: 12 },
-        { value: 3, weight: 10 },
-        { value: 4, weight: 9 },
-        { value: 5, weight: 7 },
-        { value: 10, weight: 5 },
-        { value: 15, weight: 4 },
-        { value: 20, weight: 3 },
-        { value: 25, weight: 2 },
-        { value: 50, weight: 2 },
+        { value: 0.2, weight: 100 }, // Make the "dud" coins common
+        { value: 0.5, weight: 50 },
+        { value: 1, weight: 25 },
+        { value: 2, weight: 10 },
+        { value: 3, weight: 5 },
+        { value: 7, weight: 2 },
+        { value: 50, weight: 0.1 }, // Extremely rare "Jackpot" coins
+      ],
+      LEPRECHAUN: [
+        // Use these for the 100x bonus
+        { value: 1, weight: 50 },
+        { value: 3, weight: 30 },
+        { value: 8, weight: 15 },
+        { value: 15, weight: 5 },
         { value: 100, weight: 1 },
-        { value: 250, weight: 1 },
-        { value: 500, weight: 1 },
+      ],
+      GLITTER_GOLD: [
+        // Even better for the 250x bonus
+        { value: 2, weight: 50 },
+        { value: 5, weight: 30 },
+        { value: 10, weight: 15 },
+        { value: 20, weight: 5 },
+        { value: 150, weight: 0.5 },
       ],
       TREASURE_RAINBOW: [
         { value: 5, weight: 14 },
@@ -325,11 +333,10 @@ export const LUCKY_ESCAPE_CONFIG = {
 
     // Clover multiplier weighted table
     cloverMultiplierWeights: [
-      { multiplier: 2, weight: 40 },
-      { multiplier: 3, weight: 28 },
-      { multiplier: 4, weight: 16 },
-      { multiplier: 5, weight: 10 },
-      { multiplier: 10, weight: 6 },
+      { multiplier: 2, weight: 80 }, // Mostly 2x
+      { multiplier: 3, weight: 15 },
+      { multiplier: 5, weight: 4 },
+      { multiplier: 10, weight: 1 }, // 10x is a rare event
     ],
   },
 

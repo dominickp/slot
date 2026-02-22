@@ -37,6 +37,13 @@ $env:VITE_BASE_PATH='/slot/'
 npm run build
 ```
 
+### Tests
+
+```
+npm run test
+npm test -- src/games/luckyscape/rtpBenchmark.test.js
+```
+
 ## Backend (Deno Deploy)
 
 This repo now includes a backend scaffold in `backend/` for daily credits and leaderboards.

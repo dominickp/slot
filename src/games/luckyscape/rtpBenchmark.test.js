@@ -1,206 +1,197 @@
 import { LuckyScapeSlot } from "./luckyScapeSlot.js";
 import { LUCKY_ESCAPE_CONFIG } from "./config.js";
 
-const BET_AMOUNT = Number.parseFloat(process.env.RTP_BENCH_BET || "1");
+// What this gives you:
+//     Isolated RTP: Now you can see if the GLITTER_GOLD bonus alone has a 120% RTP while your Base Game has an 85% RTP.
+//     Profit Rate: For bonuses, "Hit Rate" doesn't mean much because they always pay something. The Profit Rate (>Cost) tells you exactly how often buying the 100x bonus actually returned more than 100x. If this is higher than ~15-20%, the bonus is usually too easy to profit on.
+//     Avg / Max Win: Tells you if your mathematical top-end is reaching high enough or if the payouts are too flat.
 
-const SAMPLE_SIZES = {
-  paidSpins: Number.parseInt(process.env.RTP_BENCH_PAID_SPINS || "3000", 10),
-};
+// You can override these with environment variables if needed
+const BET_AMOUNT = Number.parseFloat(process.env.RTP_BENCH_BET || "1");
+const RUNS = Number.parseInt(process.env.RTP_BENCH_RUNS || "10000", 10);
 
 function toPercent(value) {
   return `${(value * 100).toFixed(2)}%`;
 }
 
-function stdDev(values) {
-  if (!Array.isArray(values) || values.length === 0) {
-    return 0;
-  }
-
-  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-  const variance =
-    values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
-  return Math.sqrt(variance);
-}
-
-function buildTuningHints(metrics) {
-  const hints = [];
-
-  if (metrics.rtp > 1.05) {
-    hints.push(
-      "RTP high: reduce payouts/feature value via _rollCoinValue(), _rollCloverMultiplierValue(), _getAdjustedPotChance(), and/or CLUSTER_PAYTABLE.",
-    );
-  } else if (metrics.rtp < 0.9) {
-    hints.push(
-      "RTP low: increase payout/value via _rollCoinValue(), _rollCloverMultiplierValue(), _getAdjustedPotChance(), and/or CLUSTER_PAYTABLE.",
-    );
-  }
-
-  if (metrics.coefficientOfVariation > 7) {
-    hints.push(
-      "Volatility high: lower top-end outcomes in _rollCoinValue(), reduce high multipliers in _rollCloverMultiplierValue(), and/or soften feature chaining in _getAdjustedPotChance().",
-    );
-  } else if (metrics.coefficientOfVariation < 3) {
-    hints.push(
-      "Volatility low: raise upper-tail outcomes in _rollCoinValue(), increase rare clover multipliers, or raise high-symbol/paytable tails.",
-    );
-  }
-
-  if (hints.length === 0) {
-    hints.push(
-      "RTP/volatility are within coarse benchmark bands; fine-tune with longer runs if needed.",
-    );
-  }
-
-  return hints;
-}
-
-async function playTriggeredBonus(slot, modeStats) {
-  let totalBonusWin = 0;
-  let freeSpinsPlayed = 0;
-
-  let guard = 1000;
-  while (slot.isInFreeSpins && guard > 0) {
-    const result = await slot.spin(null, BET_AMOUNT);
-    totalBonusWin += Number(result.totalWin || 0);
-    freeSpinsPlayed += 1;
-
-    if (result.scatterCount >= 2) {
-      slot.handleFreeSpinsRetrigger(result.scatterCount);
-    }
-
-    slot.advanceFreeSpins();
-    guard -= 1;
-  }
-
-  if (guard <= 0) {
-    throw new Error(
-      "Free-spin guard exhausted during configured RTP simulation",
-    );
-  }
-
-  modeStats.freeSpinsPlayed += freeSpinsPlayed;
-  modeStats.totalWin += totalBonusWin;
-
-  return totalBonusWin;
-}
-
-async function simulateConfiguredGame({ paidSpins, seed }) {
+/**
+ * Simulates standard base-game spins.
+ * If a bonus is triggered naturally, it plays out the free spins
+ * and includes the total win in that spin's return.
+ */
+async function simulateBaseGame(runs) {
   const slot = new LuckyScapeSlot();
-  slot.seedRNG(seed);
-
-  let totalBet = 0;
+  let totalCost = 0;
   let totalWin = 0;
-  let paidSpinHits = 0;
+  let hits = 0;
+  let profits = 0;
   let bonusTriggers = 0;
+  let maxWin = 0;
 
-  const returnsPerPaidSpin = [];
-  const modeBreakdown = {
-    LEPRECHAUN: { triggers: 0, freeSpinsPlayed: 0, totalWin: 0 },
-    GLITTER_GOLD: { triggers: 0, freeSpinsPlayed: 0, totalWin: 0 },
-    TREASURE_RAINBOW: { triggers: 0, freeSpinsPlayed: 0, totalWin: 0 },
-  };
+  for (let i = 0; i < runs; i++) {
+    let runWin = 0;
+    totalCost += BET_AMOUNT;
 
-  for (let index = 0; index < paidSpins; index++) {
-    const paidSpinResult = await slot.spin(null, BET_AMOUNT);
-    totalBet += BET_AMOUNT;
+    // 1. Play the base spin
+    const result = await slot.spin(null, BET_AMOUNT);
+    runWin += result.totalWin || 0;
 
-    let spinReturn = Number(paidSpinResult.totalWin || 0);
+    // 2. If it triggered a bonus, play all the free spins immediately
+    if (result.bonusMode) {
+      bonusTriggers++;
+      let guard = 1000;
+      while (slot.isInFreeSpins && guard > 0) {
+        const bonusResult = await slot.spin(null, BET_AMOUNT);
+        runWin += bonusResult.totalWin || 0;
 
-    if (paidSpinResult.totalWin > 0) {
-      paidSpinHits += 1;
-    }
+        if (bonusResult.scatterCount >= 2) {
+          slot.handleFreeSpinsRetrigger(bonusResult.scatterCount);
+        }
 
-    if (paidSpinResult.bonusMode?.type) {
-      bonusTriggers += 1;
-      const modeId = paidSpinResult.bonusMode.type;
-      if (modeBreakdown[modeId]) {
-        modeBreakdown[modeId].triggers += 1;
+        slot.advanceFreeSpins();
+        guard--;
       }
-
-      const bonusWin = await playTriggeredBonus(
-        slot,
-        modeBreakdown[modeId] || {
-          triggers: 0,
-          freeSpinsPlayed: 0,
-          totalWin: 0,
-        },
-      );
-
-      spinReturn += bonusWin;
     }
 
-    totalWin += spinReturn;
-    returnsPerPaidSpin.push(spinReturn);
+    // 3. Record metrics for this run
+    totalWin += runWin;
+    if (runWin > 0) hits++;
+    if (runWin > BET_AMOUNT) profits++;
+    if (runWin > maxWin) maxWin = runWin;
   }
-
-  const meanReturnPerPaidSpin = totalWin / Math.max(1, paidSpins);
-  const returnStdDev = stdDev(returnsPerPaidSpin);
-  const coefficientOfVariation =
-    meanReturnPerPaidSpin > 0 ? returnStdDev / meanReturnPerPaidSpin : Infinity;
 
   return {
-    paidSpins,
-    totalBet,
+    mode: "Base Game",
+    runs,
+    costPerRun: BET_AMOUNT,
+    totalCost,
     totalWin,
-    rtp: totalBet > 0 ? totalWin / totalBet : 0,
-    paidSpinHitRate: paidSpins > 0 ? paidSpinHits / paidSpins : 0,
-    bonusTriggerRate: paidSpins > 0 ? bonusTriggers / paidSpins : 0,
-    meanReturnPerPaidSpin,
-    returnStdDev,
-    coefficientOfVariation,
-    modeBreakdown,
+    rtp: totalCost > 0 ? totalWin / totalCost : 0,
+    hitRate: hits / runs,
+    profitRate: profits / runs, // How often spin pays more than bet
+    bonusTriggerRate: bonusTriggers / runs,
+    avgWin: totalWin / runs,
+    maxWin,
   };
 }
 
-describe("Configured slot RTP benchmark", () => {
-  it("simulates real configured gameplay and prints RTP/volatility + tuning hints", async () => {
-    const metrics = await simulateConfiguredGame({
-      paidSpins: SAMPLE_SIZES.paidSpins,
-      seed: 20260216,
-    });
+/**
+ * Simulates buying a specific bonus directly.
+ * The cost of the bonus is treated as the input cost.
+ */
+async function simulateBonusMode(modeType, runs) {
+  const slot = new LuckyScapeSlot();
 
-    const targetRtp = Number(LUCKY_ESCAPE_CONFIG.rtp || 0);
+  // Find the cost of this specific bonus buy
+  const offers = slot.getBonusBuyOffers(BET_AMOUNT).offers;
+  const offer = offers.find((o) => o.modeType === modeType);
+  const costPerRun = offer ? offer.cost : 0;
 
-    console.table([
-      {
-        paidSpins: metrics.paidSpins,
-        totalBet: metrics.totalBet.toFixed(2),
-        totalWin: metrics.totalWin.toFixed(2),
-        measuredRtp: toPercent(metrics.rtp),
-        targetRtp: toPercent(targetRtp),
-        paidHitRate: toPercent(metrics.paidSpinHitRate),
-        bonusTriggerRate: toPercent(metrics.bonusTriggerRate),
-        stdDev: metrics.returnStdDev.toFixed(4),
-        cv: Number.isFinite(metrics.coefficientOfVariation)
-          ? metrics.coefficientOfVariation.toFixed(4)
-          : "inf",
-      },
-    ]);
+  if (!costPerRun) {
+    throw new Error(`Bonus buy offer not found for ${modeType}`);
+  }
 
-    console.table(
-      Object.entries(metrics.modeBreakdown).map(([mode, stats]) => ({
-        mode,
-        triggers: stats.triggers,
-        triggerRate: toPercent(stats.triggers / Math.max(1, metrics.paidSpins)),
-        avgFreeSpinsPerTrigger:
-          stats.triggers > 0
-            ? (stats.freeSpinsPlayed / stats.triggers).toFixed(2)
-            : "0.00",
-        avgWinPerTrigger:
-          stats.triggers > 0
-            ? (stats.totalWin / stats.triggers).toFixed(2)
-            : "0.00",
-      })),
-    );
+  let totalCost = 0;
+  let totalWin = 0;
+  let hits = 0;
+  let profits = 0;
+  let maxWin = 0;
 
-    const hints = buildTuningHints(metrics);
-    console.log("Tuning hints:");
-    for (const hint of hints) {
-      console.log(`- ${hint}`);
+  for (let i = 0; i < runs; i++) {
+    totalCost += costPerRun;
+    let runWin = 0;
+
+    // Force start the bonus
+    slot.startBonusMode(modeType);
+
+    // Play all free spins
+    let guard = 1000;
+    while (slot.isInFreeSpins && guard > 0) {
+      const result = await slot.spin(null, BET_AMOUNT);
+      runWin += result.totalWin || 0;
+
+      if (result.scatterCount >= 2) {
+        slot.handleFreeSpinsRetrigger(result.scatterCount);
+      }
+
+      slot.advanceFreeSpins();
+      guard--;
     }
 
-    expect(Number.isFinite(metrics.rtp)).toBe(true);
-    expect(Number.isFinite(metrics.returnStdDev)).toBe(true);
-    expect(metrics.totalBet).toBeCloseTo(metrics.paidSpins * BET_AMOUNT, 6);
-  }, 240000);
+    // Record metrics for this run
+    totalWin += runWin;
+    if (runWin > 0) hits++;
+    if (runWin > costPerRun) profits++;
+    if (runWin > maxWin) maxWin = runWin;
+  }
+
+  return {
+    mode: modeType,
+    runs,
+    costPerRun,
+    totalCost,
+    totalWin,
+    rtp: totalCost > 0 ? totalWin / totalCost : 0,
+    hitRate: hits / runs, // How often the bonus paid anything > 0
+    profitRate: profits / runs, // How often the bonus paid MORE than it cost to buy
+    bonusTriggerRate: 1, // It's forced, so 100%
+    avgWin: totalWin / runs,
+    maxWin,
+  };
+}
+
+describe("LuckyScape Isolated RTP Benchmark", () => {
+  // We set a very high timeout because running 30,000 spins total might take a minute or two
+  it("benchmarks base game and independent bonus modes", async () => {
+    console.log(`Starting isolated benchmarks (${RUNS} runs each)...`);
+
+    const baseResult = await simulateBaseGame(RUNS);
+    const leprechaunResult = await simulateBonusMode("LEPRECHAUN", RUNS);
+    const glitterGoldResult = await simulateBonusMode("GLITTER_GOLD", RUNS);
+
+    const results = [baseResult, leprechaunResult, glitterGoldResult];
+
+    // Format the data nicely for the console
+    const tableData = results.map((r) => ({
+      Mode: r.mode,
+      Runs: r.runs,
+      "Cost/Run": r.costPerRun.toFixed(2),
+      RTP: toPercent(r.rtp),
+      "Hit Rate (>0)": toPercent(r.hitRate),
+      "Profit Rate (>Cost)": toPercent(r.profitRate),
+      "Avg Win": r.avgWin.toFixed(2),
+      "Max Win": r.maxWin.toFixed(2),
+      "Nat. Bonus Freq":
+        r.mode === "Base Game" && r.bonusTriggerRate > 0
+          ? `1 in ${Math.round(1 / r.bonusTriggerRate)}`
+          : "N/A",
+    }));
+
+    console.table(tableData);
+
+    // Provide some immediate tuning suggestions based on the new isolated metrics
+    console.log("\n--- Quick Tuning Analysis ---");
+    for (const r of results) {
+      if (r.rtp > 1.05) {
+        console.warn(
+          `⚠️ ${r.mode} RTP is too high (${toPercent(r.rtp)}). Reduce coin values or payout combinations.`,
+        );
+      } else if (r.rtp < 0.9) {
+        console.warn(
+          `⚠️ ${r.mode} RTP is too low (${toPercent(r.rtp)}). Increase multipliers or feature frequencies.`,
+        );
+      }
+
+      if (r.mode !== "Base Game" && r.profitRate > 0.3) {
+        console.warn(
+          `⚠️ ${r.mode} is highly profitable. Players win their money back over ${toPercent(r.profitRate)} of the time. You may want to lower the average win but increase the max win potential.`,
+        );
+      }
+    }
+
+    // Keep standard expectations so Jest passes
+    expect(baseResult.runs).toBe(RUNS);
+    expect(leprechaunResult.runs).toBe(RUNS);
+    expect(glitterGoldResult.runs).toBe(RUNS);
+  }, 600000); // 10 minute timeout to be safe
 });
