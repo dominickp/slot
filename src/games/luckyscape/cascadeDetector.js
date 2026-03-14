@@ -577,5 +577,3 @@ export class CascadeDetector {
     console.log("---");
   }
 }
-
-export default CascadeDetector;

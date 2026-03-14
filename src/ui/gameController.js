@@ -1031,7 +1031,7 @@ export class GameController {
     if (spinResult && spinResult.reelStops && !spinResult.grid) {
       // Generate a grid for the UI to display based on reelStops (fallback)
       // This is a placeholder: you may want to map reelStops to a grid more accurately
-      const grid = Array.from({ length: 5 }, (_, row) =>
+      const grid = Array.from({ length: 5 }, () =>
         Array.from({ length: 3 }, (_, col) => spinResult.reelStops[col] || 0),
       );
       spinResult.grid = grid;
@@ -1245,7 +1245,7 @@ export class GameController {
     return spinResult;
   }
 
-  async _playFreeSpins(betAmount, totalCost = null) {
+  async _playFreeSpins(betAmount, _totalCost = null) {
     // 1. Request the lock if it isn't already active (e.g., if Autoplay is off)
     let lockAcquiredHere = false;
     if (this.wakeLockSentinel === null) {
@@ -1742,7 +1742,12 @@ export class GameController {
     return modes?.[modeType] || null;
   }
 
-  async _playBonusBuyTriggerSpin({ modeType, modeName, scatterCount, cost }) {
+  async _playBonusBuyTriggerSpin({
+    modeType: _modeType,
+    modeName,
+    scatterCount,
+    cost,
+  }) {
     const previousGrid = this.game.currentGrid.map((row) => [...row]);
     const triggerGrid = this._buildBonusBuyTriggerGrid(scatterCount);
     const scatterPositions = [];

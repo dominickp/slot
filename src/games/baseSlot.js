@@ -64,7 +64,7 @@ export class BaseSlot {
    * Handle spin request
    * Abstract - must be overridden
    */
-  async spin(backend) {
+  async spin(_backend) {
     throw new Error("spin() must be implemented by subclass");
   }
 
@@ -80,7 +80,7 @@ export class BaseSlot {
    * Get bonus features (free spins, etc.)
    * Override for games with bonus mechanics
    */
-  getBonus(reelPositions) {
+  getBonus(_reelPositions) {
     return null;
   }
 
@@ -125,5 +125,3 @@ export class BaseSlot {
     return this.config.paytable || {};
   }
 }
-
-export default BaseSlot;

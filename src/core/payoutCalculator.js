@@ -62,7 +62,7 @@ export class PayoutCalculator {
    */
   _checkPayline(reelPositions, payline, betPerLine) {
     // Get symbols on this payline
-    const symbols = payline.map((reelIndex, lineIndex) => {
+    const symbols = payline.map((reelIndex) => {
       return this._getSymbolAtPosition(reelIndex, reelPositions[reelIndex]);
     });
 

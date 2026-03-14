@@ -1654,5 +1654,3 @@ export class LuckyScapeSlot extends BaseSlot {
     return mode?.id || null;
   }
 }
-
-export default LuckyScapeSlot;

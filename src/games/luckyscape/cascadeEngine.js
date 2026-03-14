@@ -194,5 +194,3 @@ export class CascadeEngine {
     this.detector.printGrid(grid);
   }
 }
-
-export default CascadeEngine;

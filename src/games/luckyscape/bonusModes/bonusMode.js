@@ -34,7 +34,7 @@ export class BonusMode {
    * @param {Object} winResult - Result from detectWins()
    * @returns {number} Multiplier to apply to cascade win
    */
-  onCascade(cascadeIndex, grid, winResult) {
+  onCascade(_cascadeIndex, _grid, _winResult) {
     // Base implementation: no multiplier
     return 1.0;
   }
@@ -48,7 +48,7 @@ export class BonusMode {
    * @param {number} newScatterCount - Number of scatters found
    * @returns {number} Additional spins to award
    */
-  onRetrigger(newScatterCount) {
+  onRetrigger(_newScatterCount) {
     // Base implementation: no additional spins
     return 0;
   }
@@ -101,5 +101,3 @@ export class BonusMode {
     return this.remaining <= 0;
   }
 }
-
-export default BonusMode;

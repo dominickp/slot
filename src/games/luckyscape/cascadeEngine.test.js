@@ -393,10 +393,6 @@ describe("CascadeEngine", () => {
       engine.applyGravity(grid);
 
       // Each column should have symbols stack at bottom
-      const symbols0 = [RED, WILD];
-      const symbols2 = [GREEN, RED];
-      const symbols4 = [PURPLE, GREEN];
-
       expect(grid[3][0]).toBe(RED);
       expect(grid[4][0]).toBe(WILD);
       expect(grid[3][2]).toBe(GREEN);

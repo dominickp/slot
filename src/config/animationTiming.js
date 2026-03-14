@@ -178,5 +178,3 @@ export function getRevealPacing(revealCount) {
     staggerMs: pacing.revealStaggerSmallMs,
   };
 }
-
-export default ANIMATION_TIMING;

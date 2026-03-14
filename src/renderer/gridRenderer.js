@@ -747,7 +747,7 @@ export class GridRenderer {
     return null;
   }
 
-  _drawCellBonusOverlay(cellContainer, x, y) {
+  _drawCellBonusOverlay(_cellContainer, _x, _y) {
     if (!this.bonusVisuals?.modeName) {
       return;
     }
@@ -797,7 +797,7 @@ export class GridRenderer {
     cellContainer.addChildAt(background, 0);
   }
 
-  _renderBonusLabel(show = true) {
+  _renderBonusLabel(_show = true) {
     if (this.bonusLabel && this.app?.stage) {
       this.app.stage.removeChild(this.bonusLabel);
       this.bonusLabel.destroy();
@@ -1758,7 +1758,6 @@ export class GridRenderer {
       (source) => {
         const sourceKey = `${source.x}_${source.y}`;
         const existingSource = this.revealedSymbolMap.get(sourceKey) || {};
-        const isRainbowCell = this._isRainbowCell(source.x, source.y);
         const text =
           existingSource.label ||
           source.label ||
@@ -2013,8 +2012,6 @@ export class GridRenderer {
 
       const width = symbolNode.width || this.cellSize - 10;
       const height = symbolNode.height || this.cellSize - 10;
-      const centerX = symbolNode.x + width / 2;
-      const centerY = symbolNode.y + height / 2;
 
       activeSymbols.push({
         x: position.x,
@@ -2797,7 +2794,6 @@ export class GridRenderer {
     await this.ready;
 
     const {
-      betAmount = 1,
       onCloverMultiply = null,
       onCollectorCollect = null,
       onCollectorTick = null,
@@ -3397,5 +3393,3 @@ export class GridRenderer {
     this.app.destroy(true, true);
   }
 }
-
-export default GridRenderer;
