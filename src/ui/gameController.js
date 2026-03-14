@@ -1,8 +1,4 @@
-import {
-  LuckyScapeSlot,
-  MODE_TO_NAME,
-  MODE_TO_DESCRIPTION,
-} from "../games/luckyscape/luckyScapeSlot.js";
+import { LuckyScapeSlot } from "../games/luckyscape/luckyScapeSlot.js";
 import { GridRenderer } from "../renderer/gridRenderer.js";
 import { LUCKY_ESCAPE_CONFIG } from "../games/luckyscape/config.js";
 import { ANIMATION_TIMING } from "../config/animationTiming.js";
@@ -91,6 +87,33 @@ export class GameController {
       );
     }
   }
+
+  async _requestWakeLock() {
+    if ("wakeLock" in navigator) {
+      try {
+        this.wakeLockSentinel = await navigator.wakeLock.request("screen");
+        console.log("[Wake Lock] Screen active");
+
+        this.wakeLockSentinel.addEventListener("release", () => {
+          console.log("[Wake Lock] Screen lock released");
+        });
+      } catch (err) {
+        console.error(`[Wake Lock] Error: ${err.name}, ${err.message}`);
+      }
+    }
+  }
+
+  async _releaseWakeLock() {
+    if (this.wakeLockSentinel !== null) {
+      try {
+        await this.wakeLockSentinel.release();
+        this.wakeLockSentinel = null;
+      } catch (err) {
+        console.error(`[Wake Lock] Release error: ${err.name}, ${err.message}`);
+      }
+    }
+  }
+
   constructor(containerElement) {
     this.container = containerElement;
 
@@ -202,6 +225,7 @@ export class GameController {
     this.lastWin = 0;
     this.autoPlayEnabled = false;
     this.autoPlayTimer = null;
+    this.wakeLockSentinel = null;
     this.isConfirmOpen = false;
     this.isBuyOptionsOpen = false;
     this.confirmResolver = null;
@@ -486,6 +510,17 @@ export class GameController {
     }
     volumeSlider.value = String(Math.round(this.soundManager.volume * 100));
     volumeValue.textContent = `${Math.round(this.soundManager.volume * 100)}%`;
+
+    // Re-acquire the wake lock if the user switches tabs and comes back
+    document.addEventListener("visibilitychange", async () => {
+      if (
+        this.wakeLockSentinel !== null &&
+        document.visibilityState === "visible" &&
+        this.autoPlayEnabled
+      ) {
+        await this._requestWakeLock();
+      }
+    });
 
     // Store references
     this.ui = {
@@ -976,6 +1011,13 @@ export class GameController {
   }
 
   async _playFreeSpins(betAmount, totalCost = null) {
+    // 1. Request the lock if it isn't already active (e.g., if Autoplay is off)
+    let lockAcquiredHere = false;
+    if (this.wakeLockSentinel === null) {
+      await this._requestWakeLock();
+      lockAcquiredHere = true;
+    }
+
     let bonusTotalWin = 0;
     let guard = 0;
 
@@ -1072,6 +1114,12 @@ export class GameController {
           );
         });
     }
+
+    // 2. Release the lock ONLY if we were the ones who turned it on for the free spins
+    if (lockAcquiredHere) {
+      await this._releaseWakeLock();
+    }
+
     return bonusTotalWin;
   }
 
@@ -1155,7 +1203,10 @@ export class GameController {
     this.bonusIntroOpen = true;
     this.ui.bonusIntroTitle.textContent = bonusMode?.name || "BONUS TRIGGERED";
 
-    let bonusDescription = MODE_TO_DESCRIPTION?.[bonusMode?.type] || "";
+    const bonusDescription =
+      bonusMode?.description ||
+      this._getBonusModeConfig(bonusMode?.type)?.description ||
+      "";
 
     if (isBonusBuy) {
       const costText = this._formatCredits(options?.cost || 0);
@@ -1210,8 +1261,10 @@ export class GameController {
 
     if (!this.autoPlayEnabled) {
       this._clearAutoplay();
+      this._releaseWakeLock(); // Release the lock when autoplay stops
       this._showResult("Autoplay stopped", "info");
     } else {
+      this._requestWakeLock(); // Request the lock when autoplay starts
       this._showResult("Autoplay started", "info");
       if (!this.isSpinning && !this.game.isInFreeSpins) {
         this._scheduleAutoplay(120);
@@ -1428,19 +1481,18 @@ export class GameController {
   }
 
   _getScatterCountForBonusMode(modeType) {
-    if (modeType === "LEPRECHAUN") {
-      return 3;
-    }
-
-    if (modeType === "GLITTER_GOLD") {
-      return 4;
-    }
-
-    return null;
+    return (
+      Number(this._getBonusModeConfig(modeType)?.triggerScatters || 0) || null
+    );
   }
 
   _getBonusModeName(modeType) {
-    return MODE_TO_NAME?.[modeType] || modeType;
+    return this._getBonusModeConfig(modeType)?.name || modeType;
+  }
+
+  _getBonusModeConfig(modeType) {
+    const modes = this.game?.config?.bonuses?.modes || {};
+    return modes?.[modeType] || null;
   }
 
   async _playBonusBuyTriggerSpin({ modeType, modeName, scatterCount, cost }) {

@@ -12,36 +12,7 @@ import { BaseSlot } from "../../core/baseSlot.js";
 import { CascadeDetector } from "./cascadeDetector.js";
 import { CascadeEngine } from "./cascadeEngine.js";
 import { LUCKY_ESCAPE_CONFIG } from "./config.js";
-import { LockAndLoad } from "./bonusModes/lockAndLoad.js";
-import { GoldenRush } from "./bonusModes/goldenRush.js";
-import { CascadeMaster } from "./bonusModes/cascadeMaster.js";
-
-const MODE_TO_CLASS = {
-  LEPRECHAUN: LockAndLoad,
-  GLITTER_GOLD: GoldenRush,
-  TREASURE_RAINBOW: CascadeMaster,
-};
-
-const MODE_TO_SPINS = {
-  LEPRECHAUN: 8,
-  GLITTER_GOLD: 12,
-  TREASURE_RAINBOW: 12,
-};
-
-export const MODE_TO_NAME = {
-  LEPRECHAUN: "Dom's Little Guy Bonus",
-  GLITTER_GOLD: "Dom's Big Boy Bonus",
-  TREASURE_RAINBOW: "Dom's Supreme Secret Bonus",
-};
-
-export const MODE_TO_DESCRIPTION = {
-  LEPRECHAUN:
-    "In this bonus, blue squares persist between spins until activated by [17] at which point they are reset.",
-  GLITTER_GOLD:
-    "In this bonus, blue squares build and stay active for the entire bonus and do not reset when activated by a [17].",
-  TREASURE_RAINBOW:
-    "This is a secret bonus. Guaranteed [17] every free spin with persistent blue squares.",
-};
+import { BonusMode } from "./bonusModes/bonusMode.js";
 
 export class LuckyScapeSlot extends BaseSlot {
   constructor(config = LUCKY_ESCAPE_CONFIG) {
@@ -177,12 +148,8 @@ export class LuckyScapeSlot extends BaseSlot {
     if (!this.isInFreeSpins) {
       const nextMode = this._getModeFromScatterCount(scatterResult.count);
       if (nextMode) {
-        this._initializeBonusMode(nextMode, MODE_TO_SPINS[nextMode]);
-        bonusMode = {
-          type: nextMode,
-          name: MODE_TO_NAME[nextMode],
-          initialSpins: MODE_TO_SPINS[nextMode],
-        };
+        bonusMode = this._createBonusMeta(nextMode);
+        this._initializeBonusMode(nextMode, bonusMode.initialSpins);
       }
     }
 
@@ -218,6 +185,27 @@ export class LuckyScapeSlot extends BaseSlot {
     return this.detector.findWins(grid);
   }
 
+  _getBonusModeConfig(modeType) {
+    const modes = this.config?.bonuses?.modes || {};
+    const modeConfig = modes[modeType];
+    return modeConfig && typeof modeConfig === "object" ? modeConfig : null;
+  }
+
+  _createBonusMeta(modeType) {
+    const modeConfig = this._getBonusModeConfig(modeType);
+    if (!modeConfig) {
+      return null;
+    }
+
+    return {
+      type: modeType,
+      name: modeConfig.name,
+      description: modeConfig.description,
+      initialSpins: Number(modeConfig.initialSpins || 0),
+      triggerScatters: Number(modeConfig.triggerScatters || 0),
+    };
+  }
+
   getBonus(finalGrid) {
     const scatterResult = this.detector.findScatters(finalGrid);
     const modeType = this._getModeFromScatterCount(scatterResult.count);
@@ -226,23 +214,32 @@ export class LuckyScapeSlot extends BaseSlot {
       return null;
     }
 
-    const initialSpins = MODE_TO_SPINS[modeType];
+    const bonusMeta = this._createBonusMeta(modeType);
+    const initialSpins = bonusMeta?.initialSpins || 0;
     this._initializeBonusMode(modeType, initialSpins);
 
     return {
-      type: modeType,
+      ...bonusMeta,
       spins: initialSpins,
       scatterCount: scatterResult.count,
     };
   }
 
   _initializeBonusMode(modeType, initialSpins) {
-    const ModeClass = MODE_TO_CLASS[modeType];
-    if (!ModeClass) {
+    const modeConfig = this._getBonusModeConfig(modeType);
+    if (!modeConfig) {
       throw new Error(`Unknown bonus mode: ${modeType}`);
     }
 
-    this.bonusMode = new ModeClass(initialSpins);
+    this.bonusMode = new BonusMode(initialSpins, {
+      id: modeType,
+      name: modeConfig.name,
+      description: modeConfig.description,
+      tier: modeConfig.tier,
+      persistGoldenSquaresAfterActivation:
+        modeConfig.persistGoldenSquaresAfterActivation,
+      guaranteedRainbowEverySpin: modeConfig.guaranteedRainbowEverySpin,
+    });
     this.isInFreeSpins = true;
     this.freeSpinsRemaining = initialSpins;
     this.goldenSquares = new Set();
@@ -256,32 +253,39 @@ export class LuckyScapeSlot extends BaseSlot {
       throw new Error("Cannot start bonus buy during free spins");
     }
 
-    const initialSpins = MODE_TO_SPINS[modeType];
-    if (!initialSpins) {
+    const bonusMeta = this._createBonusMeta(modeType);
+    if (!bonusMeta?.initialSpins) {
       throw new Error(`Unknown bonus mode: ${modeType}`);
     }
 
+    const initialSpins = bonusMeta.initialSpins;
     this._initializeBonusMode(modeType, initialSpins);
 
     return {
-      type: modeType,
-      name: MODE_TO_NAME[modeType],
+      ...bonusMeta,
       initialSpins,
     };
   }
 
   getBonusBuyOffers(betAmount) {
-    const multipliers = this.config?.bonusBuy?.multipliers || {};
-    const offers = Object.entries(multipliers).map(
-      ([modeType, multiplier]) => ({
-        modeType,
-        multiplier: Number(multiplier),
-        cost:
-          Math.round(
-            (Number(betAmount) * Number(multiplier) + Number.EPSILON) * 100,
-          ) / 100,
-      }),
-    );
+    const offers = Object.values(this.config?.bonuses?.modes || {})
+      .filter((mode) => Number(mode?.bonusBuyMultiplier) > 0)
+      .sort(
+        (left, right) =>
+          Number(left.triggerScatters || 0) -
+          Number(right.triggerScatters || 0),
+      )
+      .map((mode) => {
+        const multiplier = Number(mode.bonusBuyMultiplier);
+        return {
+          modeType: mode.id,
+          multiplier,
+          cost:
+            Math.round(
+              (Number(betAmount) * multiplier + Number.EPSILON) * 100,
+            ) / 100,
+        };
+      });
 
     return {
       enabled: Boolean(this.config?.bonusBuy?.enabled),
@@ -322,9 +326,7 @@ export class LuckyScapeSlot extends BaseSlot {
 
   _upgradeBonusMode(modeType, additionalSpins) {
     const spins = this.freeSpinsRemaining + additionalSpins;
-    const ModeClass = MODE_TO_CLASS[modeType];
-    this.bonusMode = new ModeClass(spins);
-    this.freeSpinsRemaining = spins;
+    this._initializeBonusMode(modeType, spins);
   }
 
   advanceFreeSpins() {
@@ -412,16 +414,25 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   getPaytable() {
+    const scatterTriggers = Object.fromEntries(
+      Object.values(this.config?.bonuses?.modes || {})
+        .sort(
+          (left, right) =>
+            Number(left.triggerScatters || 0) -
+            Number(right.triggerScatters || 0),
+        )
+        .map((mode) => [
+          mode.triggerScatters,
+          `${mode.name} (${mode.initialSpins} free spins)`,
+        ]),
+    );
+
     return {
       symbols: this.config.symbols,
       basePayouts: CascadeDetector.BASE_PAYOUTS,
       clusterPaytable: CascadeDetector.CLUSTER_PAYTABLE,
       clusterMultipliers: CascadeDetector.CLUSTER_MULTIPLIERS,
-      scatterTriggers: {
-        3: "Luck of the Leprechaun (8 free spins)",
-        4: "All That Glitters Is Gold (12 free spins)",
-        5: "Treasure at the End of the Rainbow (12 free spins)",
-      },
+      scatterTriggers,
       maxWin: this.config.maxWin,
       rtp: this.config.rtp,
     };
@@ -1247,38 +1258,7 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   _rollCoinValue() {
-    const fallbackDefaultTable = [
-      { value: 0.2, weight: 18 },
-      { value: 0.5, weight: 16 },
-      { value: 1, weight: 14 },
-      { value: 2, weight: 12 },
-      { value: 3, weight: 10 },
-      { value: 4, weight: 9 },
-      { value: 5, weight: 7 },
-      { value: 10, weight: 5 },
-      { value: 15, weight: 4 },
-      { value: 20, weight: 3 },
-      { value: 25, weight: 2 },
-      { value: 50, weight: 2 },
-      { value: 100, weight: 1 },
-      { value: 250, weight: 1 },
-      { value: 500, weight: 1 },
-    ];
-    const fallbackTreasureTable = [
-      { value: 5, weight: 14 },
-      { value: 10, weight: 12 },
-      { value: 15, weight: 10 },
-      { value: 20, weight: 8 },
-      { value: 25, weight: 4 },
-      { value: 50, weight: 3 },
-      { value: 100, weight: 2 },
-      { value: 250, weight: 1 },
-      { value: 500, weight: 1 },
-    ];
-
     const modeId = this.bonusMode?.id;
-    const configuredTables = this.config?.balance?.coinValueWeights || {};
-
     const weights = this.config?.balance?.coinValueWeights || {};
 
     // Look for a table matching the specific mode name, then fall back to default
@@ -1334,19 +1314,16 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   _getModeFromScatterCount(scatterCount) {
-    if (scatterCount >= 5) {
-      return "TREASURE_RAINBOW";
-    }
+    const modes = Object.values(this.config?.bonuses?.modes || {}).sort(
+      (left, right) =>
+        Number(right.triggerScatters || 0) - Number(left.triggerScatters || 0),
+    );
 
-    if (scatterCount === 4) {
-      return "GLITTER_GOLD";
-    }
+    const mode = modes.find(
+      (entry) => scatterCount >= Number(entry.triggerScatters || 0),
+    );
 
-    if (scatterCount === 3) {
-      return "LEPRECHAUN";
-    }
-
-    return null;
+    return mode?.id || null;
   }
 }
 

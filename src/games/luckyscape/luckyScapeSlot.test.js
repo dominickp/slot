@@ -274,3 +274,41 @@ describe("LuckyScapeSlot debug spin guarantees", () => {
     ).toBe(true);
   });
 });
+
+describe("LuckyScapeSlot bonus spin metadata", () => {
+  it("uses configured initial spins when starting the Leprechaun bonus", () => {
+    const slot = new LuckyScapeSlot();
+
+    const bonus = slot.startBonusMode("LEPRECHAUN");
+
+    expect(bonus.initialSpins).toBe(12);
+    expect(slot.freeSpinsRemaining).toBe(12);
+  });
+
+  it("derives paytable scatter trigger copy from the bonus config", () => {
+    const slot = new LuckyScapeSlot();
+
+    const paytable = slot.getPaytable();
+
+    expect(paytable.scatterTriggers[3]).toBe(
+      "Dom's Little Guy Bonus (12 free spins)",
+    );
+    expect(paytable.scatterTriggers[4]).toBe(
+      "Dom's Big Boy Bonus (12 free spins)",
+    );
+    expect(paytable.scatterTriggers[5]).toBe(
+      "Dom's Supreme Secret Bonus (12 free spins)",
+    );
+  });
+
+  it("derives bonus buy offers from the bonus config", () => {
+    const slot = new LuckyScapeSlot();
+
+    const offers = slot.getBonusBuyOffers(2).offers;
+
+    expect(offers).toEqual([
+      { modeType: "LEPRECHAUN", multiplier: 100, cost: 200 },
+      { modeType: "GLITTER_GOLD", multiplier: 250, cost: 500 },
+    ]);
+  });
+});

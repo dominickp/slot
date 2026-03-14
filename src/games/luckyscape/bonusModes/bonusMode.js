@@ -15,6 +15,8 @@ export class BonusMode {
     this.totalWon = 0;
     this.id = options.id || "BONUS";
     this.name = options.name || "Bonus";
+    this.description = options.description || "";
+    this.tier = Number(options.tier || 0);
     this.persistGoldenSquaresAfterActivation = Boolean(
       options.persistGoldenSquaresAfterActivation,
     );
@@ -81,6 +83,8 @@ export class BonusMode {
     return {
       id: this.id,
       name: this.name,
+      description: this.description,
+      tier: this.tier,
       remaining: this.remaining,
       spinsCompleted: this.spinsCompleted,
       totalWon: this.totalWon,

@@ -15,6 +15,51 @@ const withBasePath = (assetPath) => {
   return `${normalizedBase}${normalizedAsset}`;
 };
 
+const BONUS_MODE_CONFIGS = {
+  LEPRECHAUN: {
+    id: "LEPRECHAUN",
+    name: "Dom's Little Guy Bonus",
+    triggerScatters: 3,
+    initialSpins: 9,
+    mechanic: "golden-squares-persist-until-rainbow",
+    description:
+      "In this bonus, blue squares persist between spins until activated by [17] at which point they are reset.",
+    persistGoldenSquaresAfterActivation: false,
+    guaranteedRainbowEverySpin: false,
+    tier: 1,
+    bonusBuyMultiplier: 100,
+  },
+  GLITTER_GOLD: {
+    id: "GLITTER_GOLD",
+    name: "Dom's Big Boy Bonus",
+    triggerScatters: 4,
+    initialSpins: 12,
+    mechanic: "golden-squares-never-expire",
+    description:
+      "In this bonus, blue squares build and stay active for the entire bonus and do not reset when activated by a [17].",
+    persistGoldenSquaresAfterActivation: true,
+    guaranteedRainbowEverySpin: false,
+    tier: 2,
+    bonusBuyMultiplier: 250,
+  },
+  TREASURE_RAINBOW: {
+    id: "TREASURE_RAINBOW",
+    name: "Dom's Supreme Secret Bonus",
+    triggerScatters: 5,
+    initialSpins: 12,
+    mechanic: "golden-squares-never-expire-guaranteed-rainbow",
+    description:
+      "This is a secret bonus. Guaranteed [17] every free spin with persistent blue squares.",
+    persistGoldenSquaresAfterActivation: true,
+    guaranteedRainbowEverySpin: true,
+    tier: 3,
+  },
+};
+
+const BONUS_MODE_LIST = Object.values(BONUS_MODE_CONFIGS).sort(
+  (left, right) => left.triggerScatters - right.triggerScatters,
+);
+
 export const LUCKY_ESCAPE_CONFIG = {
   id: "le-bandit-placeholder",
   name: "Le Bandit (Placeholder)",
@@ -177,63 +222,24 @@ export const LUCKY_ESCAPE_CONFIG = {
     },
   },
 
-  // Win mechanics
-  winMechanic: "cluster_pays",
-  minClusterSize: 5,
   clusterMultipliers: CascadeDetector.CLUSTER_MULTIPLIERS,
 
   // Cascades
-  cascadesEnabled: true,
   maxCascadesPerSpin: 20,
 
   // Bonus configuration
   bonuses: {
     enabled: true,
-    scatterRequired: 3,
-    modes: [
-      {
-        name: "Luck of the Leprechaun",
-        triggerScatters: 3,
-        initialSpins: 8,
-        mechanic: "golden-squares-persist-until-rainbow",
-        description:
-          "Blue squares persist between spins until activated by [17].",
-      },
-      {
-        name: "All That Glitters Is Gold",
-        triggerScatters: 4,
-        initialSpins: 12,
-        mechanic: "golden-squares-never-expire",
-        description: "Blue squares remain active for the entire bonus.",
-      },
-      {
-        name: "Treasure at the End of the Rainbow",
-        triggerScatters: 5,
-        initialSpins: 12,
-        mechanic: "golden-squares-never-expire-guaranteed-rainbow",
-        description:
-          "Guaranteed [17] every free spin with persistent blue squares.",
-      },
-    ],
-    maxRetriggers: 0,
-    retriggersAdd: {
-      "Luck of the Leprechaun": 0,
-      "All That Glitters Is Gold": 0,
-      "Treasure at the End of the Rainbow": 0,
-    },
+    scatterRequired: BONUS_MODE_LIST[0]?.triggerScatters || 3,
+    modes: BONUS_MODE_CONFIGS,
   },
 
   bonusBuy: {
     enabled: true,
-    multipliers: {
-      LEPRECHAUN: 100,
-      GLITTER_GOLD: 250,
-    },
   },
 
-  // RTP and volatility
+  // RTP and limits
   rtp: 0.9634,
-  volatility: "medium",
   maxWin: 10000,
   minBet: 0.5,
   maxBet: 100.0,
@@ -338,24 +344,6 @@ export const LUCKY_ESCAPE_CONFIG = {
       { multiplier: 5, weight: 4 },
       { multiplier: 10, weight: 1 }, // 10x is a rare event
     ],
-  },
-
-  // Animation timing (in milliseconds)
-  timing: {
-    spinDuration: 1200,
-    cascadeRemoval: 360,
-    symbolFall: 420,
-    symbolAppear: 200,
-    cascadeDelay: 120,
-    winDisplay: 1800,
-  },
-
-  // Features
-  features: {
-    autoplay: true,
-    turbo: true,
-    soundEnabled: true,
-    particleEffects: true,
   },
 
   audio: {
