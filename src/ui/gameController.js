@@ -1177,7 +1177,15 @@ export class GameController {
       await this.renderer.animateScatterTrigger(spinResult.scatterPositions, {
         duration:
           ANIMATION_TIMING.controller.triggerEffects.teaseScatterPulseMs,
-        intensity: 0.26,
+        intensity: 0.82,
+        cycles: 3.15,
+        liftAmplitude: 5,
+        focusOverlay: {
+          accentColor: 0xffd56f,
+          maxScale: 1.24,
+          growMs: 110,
+          shrinkMs: 240,
+        },
       });
     }
 
