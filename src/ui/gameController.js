@@ -861,6 +861,11 @@ export class GameController {
           totalBonusCost,
         );
         await this._showBonusTotalOverlay(bonusTotalWin, totalBonusCost);
+        await this._finalizeBonusWin({
+          totalWin: bonusTotalWin,
+          betAmount: totalBonusCost,
+          bonusType: spinResult.bonusMode.name,
+        });
       }
 
       await this._delay(ANIMATION_TIMING.controller.pauses.postBaseSpinMs);
@@ -962,6 +967,11 @@ export class GameController {
       });
       const bonusTotalWin = await this._playFreeSpins(betAmount, offer.cost);
       await this._showBonusTotalOverlay(bonusTotalWin, offer.cost);
+      await this._finalizeBonusWin({
+        totalWin: bonusTotalWin,
+        betAmount: offer.cost,
+        bonusType: bonusMeta.name,
+      });
     } catch (error) {
       console.error("Bonus buy error:", error);
       this._showResult(`Error: ${error.message}`, "loss");
@@ -1178,11 +1188,13 @@ export class GameController {
     }
 
     if (spinResult.totalWin > 0) {
-      this.currentBalance = this._roundCredits(
-        this.currentBalance + spinResult.totalWin,
-      );
+      if (!isFreeSpin) {
+        this.currentBalance = this._roundCredits(
+          this.currentBalance + spinResult.totalWin,
+        );
+        this._updateBalance();
+      }
       this.totalWins = this._roundCredits(this.totalWins + spinResult.totalWin);
-      this._updateBalance();
       this._updateTotalWinDisplay();
       await this.renderer.animateWin(
         spinResult.totalWin,
@@ -1303,39 +1315,51 @@ export class GameController {
       this._setCharacter("loss");
     }
 
-    // Report total bonus win to backend after all free spins (fire-and-forget)
-    if (
-      !this.debugModeEnabled &&
-      this.backend &&
-      typeof this.backend.reportWin === "function"
-    ) {
-      this.backend
-        .reportWin({
-          betAmount: totalCost ?? betAmount, // Use total cost if provided, fallback to betAmount
-          winAmount: bonusTotalWin,
-          gameId: this.game.config.id,
-          bonusType: this.game.bonusMode ? this.game.bonusMode.name : undefined,
-        })
-        .then((result) => {
-          if (result && typeof result.remainingCredits === "number") {
-            this.currentBalance = result.remainingCredits;
-            this._updateBalance && this._updateBalance();
-          }
-        })
-        .catch((err) => {
-          console.error(
-            "[GameController] Failed to report bonus win to backend",
-            err,
-          );
-        });
-    }
-
     // 2. Release the lock ONLY if we were the ones who turned it on for the free spins
     if (lockAcquiredHere) {
       await this._releaseWakeLock();
     }
 
     return bonusTotalWin;
+  }
+
+  async _finalizeBonusWin({ totalWin, betAmount, bonusType } = {}) {
+    const roundedTotalWin = this._roundCredits(totalWin || 0);
+
+    if (roundedTotalWin > 0) {
+      this.currentBalance = this._roundCredits(
+        this.currentBalance + roundedTotalWin,
+      );
+      this._updateBalance();
+    }
+
+    if (
+      this.debugModeEnabled ||
+      !this.backend ||
+      typeof this.backend.reportWin !== "function"
+    ) {
+      return;
+    }
+
+    this.backend
+      .reportWin({
+        betAmount,
+        winAmount: roundedTotalWin,
+        gameId: this.game.config.id,
+        bonusType,
+      })
+      .then((result) => {
+        if (result && typeof result.remainingCredits === "number") {
+          this.currentBalance = result.remainingCredits;
+          this._updateBalance && this._updateBalance();
+        }
+      })
+      .catch((err) => {
+        console.error(
+          "[GameController] Failed to report bonus win to backend",
+          err,
+        );
+      });
   }
 
   _syncBonusVisuals() {

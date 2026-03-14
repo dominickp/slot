@@ -89,13 +89,24 @@
 }
 
 @media (max-width: 1400px) {
-  #leaderboard-panel {
-    display: none;
-  }
   #leaderboard-wrapper {
-    /* Collapse back to a single column when leaderboard is hidden */
+    width: 100%;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  #app {
+    order: 1;
+    min-width: auto !important;
+  }
+  #leaderboard-panel {
+    order: 2;
+    display: block;
+    width: 100%;
+    max-width: 980px;
+    margin-right: 0;
+    justify-self: auto;
   }
   #character-wrapper {
     right: 0;
@@ -107,10 +118,7 @@
     pointer-events: none;
   }
   #character-wrapper img {
-    width: 128px;
-  }
-  #app {
-    min-width: auto !important;
+    width: 110px;
   }
   #app canvas {
     width: 100% !important;
@@ -128,6 +136,10 @@
   body {
     padding: 0 !important;
   }
+  #leaderboard-panel {
+    width: calc(100% - 20px);
+    margin-inline: 10px;
+  }
   .controls button {
     padding: 6px 12px !important;
   }
@@ -141,6 +153,10 @@
   #app {
     border-radius: 0 !important;
     border: 0 !important;
+  }
+  .header {
+    text-align: left !important;
+    padding-left: 2rem;
   }
 }
 
