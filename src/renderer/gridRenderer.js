@@ -1989,6 +1989,14 @@ export class GridRenderer {
       0.2,
       Math.min(1, Number(options.intensity ?? 1)),
     );
+    const pulseCycles = Math.max(1.2, Number(options.cycles ?? 2.4));
+    const liftAmplitude = Math.max(0, Number(options.liftAmplitude ?? 0));
+    const focusOverlayOptions =
+      options.focusOverlay && typeof options.focusOverlay === "object"
+        ? options.focusOverlay
+        : options.focusOverlay
+          ? {}
+          : null;
     const activeSymbols = [];
 
     for (const position of scatterPositions) {
@@ -2009,6 +2017,8 @@ export class GridRenderer {
       const centerY = symbolNode.y + height / 2;
 
       activeSymbols.push({
+        x: position.x,
+        y: position.y,
         symbolNode,
         baseScaleX: symbolNode.scale.x,
         baseScaleY: symbolNode.scale.y,
@@ -2024,19 +2034,42 @@ export class GridRenderer {
       return;
     }
 
-    await new Promise((resolve) => {
+    const focusOverlayPromise = focusOverlayOptions
+      ? Promise.all(
+          activeSymbols.map((item) =>
+            this._animateFocusedTileAtCell(item.x, item.y, duration, {
+              accentColor:
+                focusOverlayOptions.accentColor ||
+                SYMBOL_COLORS[SYMBOLS.SCATTER],
+              maxScale: Math.max(
+                1.08,
+                Number(focusOverlayOptions.maxScale ?? 1.18),
+              ),
+              growMs: Math.max(80, Number(focusOverlayOptions.growMs ?? 130)),
+              shrinkMs: Math.max(
+                80,
+                Number(focusOverlayOptions.shrinkMs ?? 190),
+              ),
+              renderTileSprite: focusOverlayOptions.renderTileSprite !== false,
+            }),
+          ),
+        )
+      : Promise.resolve();
+
+    const pulsePromise = new Promise((resolve) => {
       const startTime = Date.now();
       const animate = () => {
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
 
         for (const item of activeSymbols) {
-          const pulse = Math.max(0, Math.sin(progress * Math.PI * 2.4));
+          const pulse = Math.max(0, Math.sin(progress * Math.PI * pulseCycles));
           const scaleFactor = 1 + pulse * (0.08 * intensity);
           const scaledWidth = item.width * scaleFactor;
           const scaledHeight = item.height * scaleFactor;
           const offsetX = (scaledWidth - item.width) / 2;
           const offsetY = (scaledHeight - item.height) / 2;
+          const liftOffset = pulse * liftAmplitude * intensity;
 
           item.symbolNode.scale.set(
             item.baseScaleX * scaleFactor,
@@ -2044,7 +2077,7 @@ export class GridRenderer {
           );
           item.symbolNode.position.set(
             item.baseX - offsetX,
-            item.baseY - offsetY,
+            item.baseY - offsetY - liftOffset,
           );
           item.symbolNode.rotation = item.baseRotation;
         }
@@ -2059,6 +2092,8 @@ export class GridRenderer {
 
       animate();
     });
+
+    await Promise.all([pulsePromise, focusOverlayPromise]);
 
     for (const item of activeSymbols) {
       item.symbolNode.scale.set(item.baseScaleX, item.baseScaleY);

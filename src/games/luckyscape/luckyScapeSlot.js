@@ -12,36 +12,120 @@ import { BaseSlot } from "../../core/baseSlot.js";
 import { CascadeDetector } from "./cascadeDetector.js";
 import { CascadeEngine } from "./cascadeEngine.js";
 import { LUCKY_ESCAPE_CONFIG } from "./config.js";
-import { LockAndLoad } from "./bonusModes/lockAndLoad.js";
-import { GoldenRush } from "./bonusModes/goldenRush.js";
-import { CascadeMaster } from "./bonusModes/cascadeMaster.js";
+import { BonusMode } from "./bonusModes/bonusMode.js";
 
-const MODE_TO_CLASS = {
-  LEPRECHAUN: LockAndLoad,
-  GLITTER_GOLD: GoldenRush,
-  TREASURE_RAINBOW: CascadeMaster,
-};
+const DEBUG_OPTION_IDS = Object.freeze({
+  CONNECTION_RAINBOW: "connection-rainbow",
+  ALL_SYMBOLS: "all-symbols",
+  ALL_SYMBOLS_HIGHLIGHTED: "all-symbols-highlighted",
+  CONNECTION_SEQUENCE: "connection-sequence",
+  SCATTER_BAIT: "scatter-bait",
+});
 
-const MODE_TO_SPINS = {
-  LEPRECHAUN: 8,
-  GLITTER_GOLD: 12,
-  TREASURE_RAINBOW: 12,
-};
-
-export const MODE_TO_NAME = {
-  LEPRECHAUN: "Dom's Little Guy Bonus",
-  GLITTER_GOLD: "Dom's Big Boy Bonus",
-  TREASURE_RAINBOW: "Dom's Supreme Secret Bonus",
-};
-
-export const MODE_TO_DESCRIPTION = {
-  LEPRECHAUN:
-    "In this bonus, blue squares persist between spins until activated by [17] at which point they are reset.",
-  GLITTER_GOLD:
-    "In this bonus, blue squares build and stay active for the entire bonus and do not reset when activated by a [17].",
-  TREASURE_RAINBOW:
-    "This is a secret bonus. Guaranteed [17] every free spin with persistent blue squares.",
-};
+const DEBUG_BASE_GRID_SEQUENCE = Object.freeze([
+  1, 2, 3, 4, 5, 11, 12, 13, 14, 15,
+]);
+const DEBUG_SHOWCASE_SPECIALS = Object.freeze([
+  { x: 5, y: 0, symbolId: 6 },
+  { x: 5, y: 1, symbolId: 7 },
+  { x: 5, y: 2, symbolId: 8 },
+  { x: 5, y: 3, symbolId: 9 },
+  { x: 5, y: 4, symbolId: 10 },
+]);
+const DEBUG_SCATTER_BAIT_POSITIONS = Object.freeze([
+  { x: 1, y: 1 },
+  { x: 4, y: 3 },
+]);
+const DEBUG_CONNECTION_SEQUENCE_BOARDS = Object.freeze([
+  Object.freeze([
+    Object.freeze({
+      symbolId: 1,
+      pattern: Object.freeze([
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 2, y: 0 },
+        { x: 3, y: 0 },
+        { x: 4, y: 0 },
+      ]),
+    }),
+    Object.freeze({
+      symbolId: 11,
+      pattern: Object.freeze([
+        { x: 1, y: 4 },
+        { x: 2, y: 4 },
+        { x: 3, y: 4 },
+        { x: 4, y: 4 },
+        { x: 5, y: 4 },
+      ]),
+    }),
+  ]),
+  Object.freeze([
+    Object.freeze({
+      symbolId: 5,
+      pattern: Object.freeze([
+        { x: 0, y: 0 },
+        { x: 0, y: 1 },
+        { x: 0, y: 2 },
+        { x: 0, y: 3 },
+        { x: 0, y: 4 },
+      ]),
+    }),
+    Object.freeze({
+      symbolId: 15,
+      pattern: Object.freeze([
+        { x: 5, y: 0 },
+        { x: 5, y: 1 },
+        { x: 5, y: 2 },
+        { x: 5, y: 3 },
+        { x: 5, y: 4 },
+      ]),
+    }),
+  ]),
+  Object.freeze([
+    Object.freeze({
+      symbolId: 12,
+      pattern: Object.freeze([
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 2, y: 2 },
+      ]),
+    }),
+    Object.freeze({
+      symbolId: 13,
+      pattern: Object.freeze([
+        { x: 3, y: 2 },
+        { x: 3, y: 3 },
+        { x: 4, y: 3 },
+        { x: 4, y: 4 },
+        { x: 5, y: 4 },
+      ]),
+    }),
+  ]),
+  Object.freeze([
+    Object.freeze({
+      symbolId: 14,
+      pattern: Object.freeze([
+        { x: 0, y: 1 },
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 2, y: 2 },
+        { x: 2, y: 3 },
+      ]),
+    }),
+    Object.freeze({
+      symbolId: 4,
+      pattern: Object.freeze([
+        { x: 5, y: 1 },
+        { x: 4, y: 1 },
+        { x: 3, y: 1 },
+        { x: 3, y: 2 },
+        { x: 3, y: 3 },
+      ]),
+    }),
+  ]),
+]);
 
 export class LuckyScapeSlot extends BaseSlot {
   constructor(config = LUCKY_ESCAPE_CONFIG) {
@@ -77,10 +161,22 @@ export class LuckyScapeSlot extends BaseSlot {
     this.bonusEventTimeline = [];
     this.bonusHadRainbowActivationThisSession = false;
 
-    this.debugModeEnabled = Boolean(config?.debug?.enabled);
-    this.debugForceConnectionAndRainbow =
-      this.debugModeEnabled &&
-      Boolean(config?.debug?.forceConnectionAndRainbow);
+    this._applyDebugState(config?.debug);
+  }
+
+  setDebugOptions(selectedOptions = [], { enabled = true } = {}) {
+    this.config.debug = {
+      ...(this.config?.debug || {}),
+      enabled,
+      selectedOptions: Array.isArray(selectedOptions)
+        ? [...selectedOptions]
+        : [],
+      forceConnectionAndRainbow: Array.isArray(selectedOptions)
+        ? selectedOptions.includes(DEBUG_OPTION_IDS.CONNECTION_RAINBOW)
+        : false,
+    };
+
+    this._applyDebugState(this.config.debug);
   }
 
   async spin(backend, betAmount = 10) {
@@ -177,12 +273,8 @@ export class LuckyScapeSlot extends BaseSlot {
     if (!this.isInFreeSpins) {
       const nextMode = this._getModeFromScatterCount(scatterResult.count);
       if (nextMode) {
-        this._initializeBonusMode(nextMode, MODE_TO_SPINS[nextMode]);
-        bonusMode = {
-          type: nextMode,
-          name: MODE_TO_NAME[nextMode],
-          initialSpins: MODE_TO_SPINS[nextMode],
-        };
+        bonusMode = this._createBonusMeta(nextMode);
+        this._initializeBonusMode(nextMode, bonusMode.initialSpins);
       }
     }
 
@@ -210,12 +302,34 @@ export class LuckyScapeSlot extends BaseSlot {
       bonusFeatures: {
         rainbowTriggered: this.rainbowTriggered,
         bonusEventTimeline: this.bonusEventTimeline,
+        debugHighlightPositions: this._getDebugHighlightPositions(),
       },
     };
   }
 
   detectWins(grid) {
     return this.detector.findWins(grid);
+  }
+
+  _getBonusModeConfig(modeType) {
+    const modes = this.config?.bonuses?.modes || {};
+    const modeConfig = modes[modeType];
+    return modeConfig && typeof modeConfig === "object" ? modeConfig : null;
+  }
+
+  _createBonusMeta(modeType) {
+    const modeConfig = this._getBonusModeConfig(modeType);
+    if (!modeConfig) {
+      return null;
+    }
+
+    return {
+      type: modeType,
+      name: modeConfig.name,
+      description: modeConfig.description,
+      initialSpins: Number(modeConfig.initialSpins || 0),
+      triggerScatters: Number(modeConfig.triggerScatters || 0),
+    };
   }
 
   getBonus(finalGrid) {
@@ -226,23 +340,32 @@ export class LuckyScapeSlot extends BaseSlot {
       return null;
     }
 
-    const initialSpins = MODE_TO_SPINS[modeType];
+    const bonusMeta = this._createBonusMeta(modeType);
+    const initialSpins = bonusMeta?.initialSpins || 0;
     this._initializeBonusMode(modeType, initialSpins);
 
     return {
-      type: modeType,
+      ...bonusMeta,
       spins: initialSpins,
       scatterCount: scatterResult.count,
     };
   }
 
   _initializeBonusMode(modeType, initialSpins) {
-    const ModeClass = MODE_TO_CLASS[modeType];
-    if (!ModeClass) {
+    const modeConfig = this._getBonusModeConfig(modeType);
+    if (!modeConfig) {
       throw new Error(`Unknown bonus mode: ${modeType}`);
     }
 
-    this.bonusMode = new ModeClass(initialSpins);
+    this.bonusMode = new BonusMode(initialSpins, {
+      id: modeType,
+      name: modeConfig.name,
+      description: modeConfig.description,
+      tier: modeConfig.tier,
+      persistGoldenSquaresAfterActivation:
+        modeConfig.persistGoldenSquaresAfterActivation,
+      guaranteedRainbowEverySpin: modeConfig.guaranteedRainbowEverySpin,
+    });
     this.isInFreeSpins = true;
     this.freeSpinsRemaining = initialSpins;
     this.goldenSquares = new Set();
@@ -256,32 +379,39 @@ export class LuckyScapeSlot extends BaseSlot {
       throw new Error("Cannot start bonus buy during free spins");
     }
 
-    const initialSpins = MODE_TO_SPINS[modeType];
-    if (!initialSpins) {
+    const bonusMeta = this._createBonusMeta(modeType);
+    if (!bonusMeta?.initialSpins) {
       throw new Error(`Unknown bonus mode: ${modeType}`);
     }
 
+    const initialSpins = bonusMeta.initialSpins;
     this._initializeBonusMode(modeType, initialSpins);
 
     return {
-      type: modeType,
-      name: MODE_TO_NAME[modeType],
+      ...bonusMeta,
       initialSpins,
     };
   }
 
   getBonusBuyOffers(betAmount) {
-    const multipliers = this.config?.bonusBuy?.multipliers || {};
-    const offers = Object.entries(multipliers).map(
-      ([modeType, multiplier]) => ({
-        modeType,
-        multiplier: Number(multiplier),
-        cost:
-          Math.round(
-            (Number(betAmount) * Number(multiplier) + Number.EPSILON) * 100,
-          ) / 100,
-      }),
-    );
+    const offers = Object.values(this.config?.bonuses?.modes || {})
+      .filter((mode) => Number(mode?.bonusBuyMultiplier) > 0)
+      .sort(
+        (left, right) =>
+          Number(left.triggerScatters || 0) -
+          Number(right.triggerScatters || 0),
+      )
+      .map((mode) => {
+        const multiplier = Number(mode.bonusBuyMultiplier);
+        return {
+          modeType: mode.id,
+          multiplier,
+          cost:
+            Math.round(
+              (Number(betAmount) * multiplier + Number.EPSILON) * 100,
+            ) / 100,
+        };
+      });
 
     return {
       enabled: Boolean(this.config?.bonusBuy?.enabled),
@@ -322,9 +452,7 @@ export class LuckyScapeSlot extends BaseSlot {
 
   _upgradeBonusMode(modeType, additionalSpins) {
     const spins = this.freeSpinsRemaining + additionalSpins;
-    const ModeClass = MODE_TO_CLASS[modeType];
-    this.bonusMode = new ModeClass(spins);
-    this.freeSpinsRemaining = spins;
+    this._initializeBonusMode(modeType, spins);
   }
 
   advanceFreeSpins() {
@@ -412,16 +540,25 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   getPaytable() {
+    const scatterTriggers = Object.fromEntries(
+      Object.values(this.config?.bonuses?.modes || {})
+        .sort(
+          (left, right) =>
+            Number(left.triggerScatters || 0) -
+            Number(right.triggerScatters || 0),
+        )
+        .map((mode) => [
+          mode.triggerScatters,
+          `${mode.name} (${mode.initialSpins} free spins)`,
+        ]),
+    );
+
     return {
       symbols: this.config.symbols,
       basePayouts: CascadeDetector.BASE_PAYOUTS,
       clusterPaytable: CascadeDetector.CLUSTER_PAYTABLE,
       clusterMultipliers: CascadeDetector.CLUSTER_MULTIPLIERS,
-      scatterTriggers: {
-        3: "Luck of the Leprechaun (8 free spins)",
-        4: "All That Glitters Is Gold (12 free spins)",
-        5: "Treasure at the End of the Rainbow (12 free spins)",
-      },
+      scatterTriggers,
       maxWin: this.config.maxWin,
       rtp: this.config.rtp,
     };
@@ -597,75 +734,146 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   _applyDebugSpinGuarantees() {
-    if (!this.debugForceConnectionAndRainbow) {
+    if (!this.debugModeEnabled) {
       return;
     }
 
-    this._injectRainbowIfMissing();
-    this._enforceSingleRainbowPerSpin();
-
-    const currentWins = this.detector.findWins(this.currentGrid);
-    if (currentWins.clusters.length > 0) {
-      return;
+    if (this._shouldUseScriptedDebugBoard()) {
+      this.currentGrid = this._createDebugBaseGrid();
     }
 
-    const forcedPattern = this._pickDebugConnectionPattern();
-    if (!forcedPattern) {
-      return;
+    if (this.debugShowAllSymbols || this.debugShowAllSymbolsHighlighted) {
+      this._applyDebugAllSymbolsBoard();
     }
 
-    const symbolId = this._rollDebugRegularSymbol();
-    for (const { x, y } of forcedPattern) {
-      this.currentGrid[y][x] = symbolId;
+    if (this.debugScatterBaitEnabled && !this.isInFreeSpins) {
+      this._forceScatterCount(2, DEBUG_SCATTER_BAIT_POSITIONS);
     }
+
+    if (this.debugConnectionSequenceEnabled) {
+      this._applyForcedDebugConnectionGroup(
+        this._getDebugConnectionSequenceBoard(),
+      );
+    }
+
+    if (this.debugForceConnectionAndRainbow) {
+      this._injectRainbowIfMissing();
+      this._enforceSingleRainbowPerSpin();
+      this._applyForcedDebugConnection(this._pickDebugConnectionPattern());
+    }
+
+    this.debugSpinCounter += 1;
   }
 
-  _pickDebugConnectionPattern() {
+  _pickDebugConnectionPattern({ useSequence = false } = {}) {
     const rainbowKeys = new Set(
       this._findSymbolPositions(9).map((entry) => `${entry.x},${entry.y}`),
     );
 
+    const candidatePatterns = useSequence
+      ? this._getDebugConnectionSequenceBoard().map((entry) => entry.pattern)
+      : this._getDefaultDebugConnectionPatterns();
+
+    for (const pattern of candidatePatterns) {
+      const intersectsRainbow = pattern.some(({ x, y }) =>
+        rainbowKeys.has(`${x},${y}`),
+      );
+
+      if (!intersectsRainbow) {
+        return pattern;
+      }
+    }
+
+    return null;
+  }
+
+  _getDefaultDebugConnectionPatterns() {
+    const patterns = [];
+
     for (let y = 0; y < this.gridHeight; y++) {
       for (let x = 0; x <= this.gridWidth - 5; x++) {
-        const pattern = [
+        patterns.push([
           { x, y },
           { x: x + 1, y },
           { x: x + 2, y },
           { x: x + 3, y },
           { x: x + 4, y },
-        ];
-
-        const intersectsRainbow = pattern.some(({ x: px, y: py }) =>
-          rainbowKeys.has(`${px},${py}`),
-        );
-
-        if (!intersectsRainbow) {
-          return pattern;
-        }
+        ]);
       }
     }
 
     for (let x = 0; x < this.gridWidth; x++) {
       for (let y = 0; y <= this.gridHeight - 5; y++) {
-        const pattern = [
+        patterns.push([
           { x, y },
           { x, y: y + 1 },
           { x, y: y + 2 },
           { x, y: y + 3 },
           { x, y: y + 4 },
-        ];
-
-        const intersectsRainbow = pattern.some(({ x: px, y: py }) =>
-          rainbowKeys.has(`${px},${py}`),
-        );
-
-        if (!intersectsRainbow) {
-          return pattern;
-        }
+        ]);
       }
     }
 
-    return null;
+    return patterns;
+  }
+
+  _getDebugConnectionSequenceBoard() {
+    const boardCount = DEBUG_CONNECTION_SEQUENCE_BOARDS.length;
+    if (boardCount === 0) {
+      return [];
+    }
+
+    const board =
+      DEBUG_CONNECTION_SEQUENCE_BOARDS[this.debugSpinCounter % boardCount] ||
+      [];
+
+    return board.map((entry) => ({
+      symbolId: entry.symbolId,
+      pattern: entry.pattern.map((cell) => ({ ...cell })),
+    }));
+  }
+
+  _applyForcedDebugConnection(
+    pattern,
+    symbolId = this._rollDebugRegularSymbol(),
+    { allowExistingWins = false } = {},
+  ) {
+    if (!pattern) {
+      return false;
+    }
+
+    if (!allowExistingWins) {
+      const currentWins = this.detector.findWins(this.currentGrid);
+      if (currentWins.clusters.length > 0) {
+        return false;
+      }
+    }
+
+    for (const { x, y } of pattern) {
+      this.currentGrid[y][x] = symbolId;
+    }
+
+    return true;
+  }
+
+  _applyForcedDebugConnectionGroup(connectionGroup = []) {
+    let appliedCount = 0;
+
+    for (const connection of connectionGroup) {
+      if (
+        this._applyForcedDebugConnection(
+          connection.pattern,
+          connection.symbolId,
+          {
+            allowExistingWins: true,
+          },
+        )
+      ) {
+        appliedCount += 1;
+      }
+    }
+
+    return appliedCount > 0;
   }
 
   _rollDebugRegularSymbol() {
@@ -749,6 +957,137 @@ export class LuckyScapeSlot extends BaseSlot {
     }
 
     return positions;
+  }
+
+  _resolveDebugState(debugConfig = {}) {
+    const enabled = Boolean(debugConfig?.enabled);
+    const selectedOptions = this._resolveDebugOptionIds(debugConfig);
+
+    return {
+      enabled,
+      selectedOptions,
+    };
+  }
+
+  _applyDebugState(debugConfig = {}) {
+    const debugState = this._resolveDebugState(debugConfig);
+    this.debugModeEnabled = debugState.enabled;
+    this.debugSelectedOptions = debugState.selectedOptions;
+    this.debugSelectedOptionSet = new Set(debugState.selectedOptions);
+    this.debugForceConnectionAndRainbow = this.debugSelectedOptionSet.has(
+      DEBUG_OPTION_IDS.CONNECTION_RAINBOW,
+    );
+    this.debugShowAllSymbols = this.debugSelectedOptionSet.has(
+      DEBUG_OPTION_IDS.ALL_SYMBOLS,
+    );
+    this.debugShowAllSymbolsHighlighted = this.debugSelectedOptionSet.has(
+      DEBUG_OPTION_IDS.ALL_SYMBOLS_HIGHLIGHTED,
+    );
+    this.debugConnectionSequenceEnabled = this.debugSelectedOptionSet.has(
+      DEBUG_OPTION_IDS.CONNECTION_SEQUENCE,
+    );
+    this.debugScatterBaitEnabled = this.debugSelectedOptionSet.has(
+      DEBUG_OPTION_IDS.SCATTER_BAIT,
+    );
+    this.debugSpinCounter = 0;
+  }
+
+  _resolveDebugOptionIds(debugConfig = {}) {
+    const rawSelectedOptions = Array.isArray(debugConfig?.selectedOptions)
+      ? debugConfig.selectedOptions
+      : [];
+
+    const normalizedOptions = [
+      ...new Set(
+        rawSelectedOptions
+          .map((entry) => String(entry || "").trim())
+          .filter(Boolean),
+      ),
+    ];
+
+    if (normalizedOptions.length > 0) {
+      return normalizedOptions;
+    }
+
+    if (Boolean(debugConfig?.forceConnectionAndRainbow)) {
+      return [DEBUG_OPTION_IDS.CONNECTION_RAINBOW];
+    }
+
+    return [];
+  }
+
+  _shouldUseScriptedDebugBoard() {
+    return (
+      this.debugShowAllSymbols ||
+      this.debugShowAllSymbolsHighlighted ||
+      this.debugConnectionSequenceEnabled ||
+      (this.debugScatterBaitEnabled && !this.isInFreeSpins)
+    );
+  }
+
+  _createDebugBaseGrid() {
+    return Array.from({ length: this.gridHeight }, (_, y) =>
+      Array.from({ length: this.gridWidth }, (_, x) => {
+        const index = y * this.gridWidth + x;
+        return DEBUG_BASE_GRID_SEQUENCE[
+          index % DEBUG_BASE_GRID_SEQUENCE.length
+        ];
+      }),
+    );
+  }
+
+  _applyDebugAllSymbolsBoard() {
+    for (const { x, y, symbolId } of DEBUG_SHOWCASE_SPECIALS) {
+      if (y < this.gridHeight && x < this.gridWidth) {
+        this.currentGrid[y][x] = symbolId;
+      }
+    }
+  }
+
+  _getDebugHighlightPositions() {
+    if (!this.debugShowAllSymbolsHighlighted) {
+      return [];
+    }
+
+    return Array.from({ length: this.gridHeight }, (_, y) =>
+      Array.from({ length: this.gridWidth }, (_, x) => ({ x, y })),
+    ).flat();
+  }
+
+  _forceScatterCount(targetCount, preferredPositions = []) {
+    const preferredKeys = new Set();
+
+    for (const { x, y } of preferredPositions) {
+      if (preferredKeys.size >= targetCount) {
+        break;
+      }
+
+      if (x < 0 || y < 0 || x >= this.gridWidth || y >= this.gridHeight) {
+        continue;
+      }
+
+      this.currentGrid[y][x] = 7;
+      preferredKeys.add(`${x},${y}`);
+    }
+
+    const scatterPositions = this._findSymbolPositions(7);
+    for (const position of scatterPositions) {
+      const key = `${position.x},${position.y}`;
+      if (preferredKeys.has(key)) {
+        continue;
+      }
+
+      this.currentGrid[position.y][position.x] = this._rollDebugRegularSymbol();
+    }
+
+    while (this._findSymbolPositions(7).length < targetCount) {
+      const cell = this._pickRandomRegularPosition();
+      if (!cell) {
+        break;
+      }
+
+      this.currentGrid[cell.y][cell.x] = 7;
+    }
   }
 
   _trackGoldenSquaresFromWins(winResult) {
@@ -1247,38 +1586,7 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   _rollCoinValue() {
-    const fallbackDefaultTable = [
-      { value: 0.2, weight: 18 },
-      { value: 0.5, weight: 16 },
-      { value: 1, weight: 14 },
-      { value: 2, weight: 12 },
-      { value: 3, weight: 10 },
-      { value: 4, weight: 9 },
-      { value: 5, weight: 7 },
-      { value: 10, weight: 5 },
-      { value: 15, weight: 4 },
-      { value: 20, weight: 3 },
-      { value: 25, weight: 2 },
-      { value: 50, weight: 2 },
-      { value: 100, weight: 1 },
-      { value: 250, weight: 1 },
-      { value: 500, weight: 1 },
-    ];
-    const fallbackTreasureTable = [
-      { value: 5, weight: 14 },
-      { value: 10, weight: 12 },
-      { value: 15, weight: 10 },
-      { value: 20, weight: 8 },
-      { value: 25, weight: 4 },
-      { value: 50, weight: 3 },
-      { value: 100, weight: 2 },
-      { value: 250, weight: 1 },
-      { value: 500, weight: 1 },
-    ];
-
     const modeId = this.bonusMode?.id;
-    const configuredTables = this.config?.balance?.coinValueWeights || {};
-
     const weights = this.config?.balance?.coinValueWeights || {};
 
     // Look for a table matching the specific mode name, then fall back to default
@@ -1334,19 +1642,16 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   _getModeFromScatterCount(scatterCount) {
-    if (scatterCount >= 5) {
-      return "TREASURE_RAINBOW";
-    }
+    const modes = Object.values(this.config?.bonuses?.modes || {}).sort(
+      (left, right) =>
+        Number(right.triggerScatters || 0) - Number(left.triggerScatters || 0),
+    );
 
-    if (scatterCount === 4) {
-      return "GLITTER_GOLD";
-    }
+    const mode = modes.find(
+      (entry) => scatterCount >= Number(entry.triggerScatters || 0),
+    );
 
-    if (scatterCount === 3) {
-      return "LEPRECHAUN";
-    }
-
-    return null;
+    return mode?.id || null;
   }
 }
 

@@ -23,7 +23,7 @@ export const ANIMATION_TIMING = {
       // Scatter pulse duration on base-spin bonus trigger.
       bonusScatterPulseMs: 1100,
       // Scatter pulse duration for 2-scatter tease.
-      teaseScatterPulseMs: 760,
+      teaseScatterPulseMs: 980,
       // Scatter pulse duration for free-spin retrigger.
       retriggerScatterPulseMs: 860,
       // Center callout duration for retrigger award text.

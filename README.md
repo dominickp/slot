@@ -23,6 +23,10 @@ There is a test in this repo that runs a few modes 10K times and reports the fol
 └─────────┴────────────────┴───────┴──────────┴───────────┴───────────────┴─────────────────────┴──────────┴────────────┴─────────────────┘
 ```
 
+```sh
+npm test -- src/games/luckyscape/rtpBenchmark.test.js
+```
+
 ## Quick Start
 
 ### Prerequisites

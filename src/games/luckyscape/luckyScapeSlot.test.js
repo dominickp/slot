@@ -273,4 +273,123 @@ describe("LuckyScapeSlot debug spin guarantees", () => {
       slot.bonusEventTimeline[0].reveals.some((r) => r.type === "collector"),
     ).toBe(true);
   });
+
+  it("builds a showcase board with every symbol visible", () => {
+    const slot = new LuckyScapeSlot({
+      debug: {
+        enabled: true,
+        selectedOptions: ["all-symbols"],
+      },
+    });
+
+    slot.currentGrid = [[0]];
+
+    slot._applyDebugSpinGuarantees();
+
+    const visibleSymbols = new Set(slot.currentGrid.flat());
+
+    for (const symbolId of [
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+    ]) {
+      expect(visibleSymbols.has(symbolId)).toBe(true);
+    }
+  });
+
+  it("marks every tile for highlighting in the highlighted showcase mode", async () => {
+    const slot = new LuckyScapeSlot({
+      debug: {
+        enabled: true,
+        selectedOptions: ["all-symbols-highlighted"],
+      },
+    });
+
+    const result = await slot.spin(null, 1);
+
+    expect(result.bonusFeatures.debugHighlightPositions).toHaveLength(
+      slot.gridWidth * slot.gridHeight,
+    );
+  });
+
+  it("rotates through a deterministic multi-connection sequence", () => {
+    const slot = new LuckyScapeSlot({
+      debug: {
+        enabled: true,
+        selectedOptions: ["connection-sequence"],
+      },
+    });
+
+    slot.currentGrid = [[0]];
+    slot._applyDebugSpinGuarantees();
+    const firstSpinTopRow = slot.currentGrid[0].slice(0, 5);
+    const firstSpinWinCount = slot.detector.findWins(slot.currentGrid).clusters
+      .length;
+
+    slot.currentGrid = [[0]];
+    slot._applyDebugSpinGuarantees();
+    const secondSpinFirstColumn = slot.currentGrid.map((row) => row[0]);
+    const secondSpinWinCount = slot.detector.findWins(slot.currentGrid).clusters
+      .length;
+
+    expect(new Set(firstSpinTopRow).size).toBe(1);
+    expect(new Set(secondSpinFirstColumn).size).toBe(1);
+    expect(firstSpinWinCount).toBeGreaterThan(1);
+    expect(secondSpinWinCount).toBeGreaterThan(1);
+  });
+
+  it("forces a two-scatter bait board without triggering the bonus", () => {
+    const slot = new LuckyScapeSlot({
+      debug: {
+        enabled: true,
+        selectedOptions: ["scatter-bait"],
+      },
+    });
+
+    slot.currentGrid = [[0]];
+
+    slot._applyDebugSpinGuarantees();
+
+    const scatterResult = slot.detector.findScatters(slot.currentGrid);
+    const winResult = slot.detector.findWins(slot.currentGrid);
+
+    expect(scatterResult.count).toBe(2);
+    expect(winResult.clusters.length).toBe(0);
+  });
+});
+
+describe("LuckyScapeSlot bonus spin metadata", () => {
+  it("uses configured initial spins when starting the Leprechaun bonus", () => {
+    const slot = new LuckyScapeSlot();
+
+    const bonus = slot.startBonusMode("LEPRECHAUN");
+
+    expect(bonus.initialSpins).toBe(9);
+    expect(slot.freeSpinsRemaining).toBe(9);
+  });
+
+  it("derives paytable scatter trigger copy from the bonus config", () => {
+    const slot = new LuckyScapeSlot();
+
+    const paytable = slot.getPaytable();
+
+    expect(paytable.scatterTriggers[3]).toBe(
+      "Dom's Little Guy Bonus (9 free spins)",
+    );
+    expect(paytable.scatterTriggers[4]).toBe(
+      "Dom's Big Boy Bonus (12 free spins)",
+    );
+    expect(paytable.scatterTriggers[5]).toBe(
+      "Dom's Supreme Secret Bonus (12 free spins)",
+    );
+  });
+
+  it("derives bonus buy offers from the bonus config", () => {
+    const slot = new LuckyScapeSlot();
+
+    const offers = slot.getBonusBuyOffers(2).offers;
+
+    expect(offers).toEqual([
+      { modeType: "LEPRECHAUN", multiplier: 100, cost: 200 },
+      { modeType: "GLITTER_GOLD", multiplier: 250, cost: 500 },
+    ]);
+  });
 });

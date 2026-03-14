@@ -27,6 +27,11 @@ async function simulateBaseGame(runs) {
   let profits = 0;
   let bonusTriggers = 0;
   let maxWin = 0;
+  const scatterTriggerCounts = {
+    3: 0,
+    4: 0,
+    5: 0,
+  };
 
   for (let i = 0; i < runs; i++) {
     let runWin = 0;
@@ -35,6 +40,10 @@ async function simulateBaseGame(runs) {
     // 1. Play the base spin
     const result = await slot.spin(null, BET_AMOUNT);
     runWin += result.totalWin || 0;
+
+    if (result.scatterCount >= 3 && result.scatterCount <= 5) {
+      scatterTriggerCounts[result.scatterCount]++;
+    }
 
     // 2. If it triggered a bonus, play all the free spins immediately
     if (result.bonusMode) {
@@ -70,6 +79,7 @@ async function simulateBaseGame(runs) {
     hitRate: hits / runs,
     profitRate: profits / runs, // How often spin pays more than bet
     bonusTriggerRate: bonusTriggers / runs,
+    scatterTriggerCounts,
     avgWin: totalWin / runs,
     maxWin,
   };
@@ -168,6 +178,21 @@ describe("LuckyScape Isolated RTP Benchmark", () => {
     }));
 
     console.table(tableData);
+
+    const scatterTableData = [3, 4, 5].map((scatterCount) => {
+      const hitCount = baseResult.scatterTriggerCounts[scatterCount] || 0;
+      const hitRate = baseResult.runs > 0 ? hitCount / baseResult.runs : 0;
+
+      return {
+        Outcome: `${scatterCount} Scatters`,
+        Hits: hitCount,
+        Frequency: toPercent(hitRate),
+        Odds: hitCount > 0 ? `1 in ${(baseResult.runs / hitCount).toFixed(0)}` : "Never",
+      };
+    });
+
+    console.log("\nBase Game Scatter Frequency");
+    console.table(scatterTableData);
 
     // Provide some immediate tuning suggestions based on the new isolated metrics
     console.log("\n--- Quick Tuning Analysis ---");
