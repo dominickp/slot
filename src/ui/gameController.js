@@ -837,14 +837,10 @@ export class GameController {
         // Show rapping character during bonus
         this._setCharacter("bonus");
 
-        const scatterPositions = Array.isArray(spinResult.scatterPositions)
-          ? spinResult.scatterPositions
-          : [];
-
-        await this.renderer.animateScatterTrigger(scatterPositions, {
-          duration:
-            ANIMATION_TIMING.controller.triggerEffects.bonusScatterPulseMs,
-        });
+        await this._animateBonusScatterTrigger(
+          spinResult.scatterCount,
+          spinResult.scatterPositions,
+        );
 
         this._showResult(
           `Free Bonus Unlocked: ${spinResult.bonusMode.name} (${this._formatCount(spinResult.bonusMode.initialSpins)} Free Spins) via ${this._formatCount(spinResult.scatterCount)} 🎲`,
@@ -1167,26 +1163,22 @@ export class GameController {
       });
     }
 
+    const teaseScatterPositions = this._getEligibleScatterTriggerPositions(
+      spinResult.scatterCount,
+      spinResult.scatterPositions,
+    );
+
     if (
       !isFreeSpin &&
       !spinResult.bonusMode &&
-      spinResult.scatterCount === 2 &&
-      Array.isArray(spinResult.scatterPositions) &&
-      spinResult.scatterPositions.length === 2
+      teaseScatterPositions.length > 0
     ) {
-      await this.renderer.animateScatterTrigger(spinResult.scatterPositions, {
-        duration:
+      await this.renderer.animateScatterTrigger(
+        teaseScatterPositions,
+        this._getScatterBaitAnimationOptions(
           ANIMATION_TIMING.controller.triggerEffects.teaseScatterPulseMs,
-        intensity: 0.82,
-        cycles: 3.15,
-        liftAmplitude: 5,
-        focusOverlay: {
-          accentColor: 0xffd56f,
-          maxScale: 1.24,
-          growMs: 110,
-          shrinkMs: 240,
-        },
-      });
+        ),
+      );
     }
 
     const collectorSummary = this._getCollectorSummary(spinResult, betAmount);
@@ -1779,13 +1771,52 @@ export class GameController {
     });
     this.game.currentGrid = triggerGrid.map((row) => [...row]);
 
-    await this.renderer.animateScatterTrigger(scatterPositions, {
-      duration: ANIMATION_TIMING.controller.triggerEffects.bonusScatterPulseMs,
-    });
+    await this._animateBonusScatterTrigger(scatterCount, scatterPositions);
 
     this._showResult(
       `Bought ${modeName} for ${this._formatCredits(cost)} — landed ${this._formatCount(scatterCount)} scatters`,
       "win",
+    );
+  }
+
+  _getEligibleScatterTriggerPositions(scatterCount, scatterPositions) {
+    if (Number(scatterCount || 0) < 2 || !Array.isArray(scatterPositions)) {
+      return [];
+    }
+
+    return scatterPositions.length >= 2 ? scatterPositions : [];
+  }
+
+  _getScatterBaitAnimationOptions(duration) {
+    return {
+      duration,
+      intensity: 0.82,
+      cycles: 3.15,
+      liftAmplitude: 5,
+      focusOverlay: {
+        accentColor: 0xffd56f,
+        maxScale: 1.24,
+        growMs: 110,
+        shrinkMs: 240,
+      },
+    };
+  }
+
+  async _animateBonusScatterTrigger(scatterCount, scatterPositions) {
+    const eligibleScatterPositions = this._getEligibleScatterTriggerPositions(
+      scatterCount,
+      scatterPositions,
+    );
+
+    if (eligibleScatterPositions.length === 0) {
+      return;
+    }
+
+    await this.renderer.animateScatterTrigger(
+      eligibleScatterPositions,
+      this._getScatterBaitAnimationOptions(
+        ANIMATION_TIMING.controller.triggerEffects.bonusScatterPulseMs,
+      ),
     );
   }
 
