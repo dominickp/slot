@@ -354,6 +354,29 @@ export const LUCKY_ESCAPE_CONFIG = {
   debug: {
     enabled: false,
     forceConnectionAndRainbow: true,
+    defaultOptions: ["connection-rainbow"],
+    options: {
+      "connection-rainbow": {
+        label: "Connection + Rainbow",
+        aliases: ["default", "force-win", "connection", "rainbow"],
+      },
+      "all-symbols": {
+        label: "All Symbols Board",
+        aliases: ["all", "symbols", "showcase"],
+      },
+      "all-symbols-highlighted": {
+        label: "All Symbols Highlighted",
+        aliases: ["all-highlighted", "highlighted", "showcase-highlighted"],
+      },
+      "connection-sequence": {
+        label: "Connection Sequence",
+        aliases: ["sequence", "connections"],
+      },
+      "scatter-bait": {
+        label: "2 Scatter Bait",
+        aliases: ["scatter", "bait", "tease"],
+      },
+    },
     gate: {
       allowedHosts: ["localhost", "127.0.0.1"],
       queryParam: "debug",

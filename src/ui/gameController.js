@@ -36,6 +36,9 @@ const DEFAULT_BONUS_WIN_CELEBRATION = {
   },
 };
 
+const DEBUG_QUERY_TOKEN_SPLIT = /[\s,+]+/;
+const DEBUG_DEFAULT_LABEL = "Debug Mode";
+
 export class GameController {
   // Character image logic
   _setCharacter(state) {
@@ -117,12 +120,18 @@ export class GameController {
   constructor(containerElement) {
     this.container = containerElement;
 
-    this.debugModeEnabled = this._resolveDebugModeEnabled();
+    const debugState = this._resolveDebugState();
+    this.debugModeEnabled = debugState.enabled;
+    this.debugSelectedOptions = debugState.selectedOptions;
+    this.debugSelectedOptionLabels = debugState.selectedOptionLabels;
+    this.debugOptionCycle = this._getDebugOptionCycle();
+    this.debugQueryParam = debugState.queryParam;
     const gameConfig = {
       ...LUCKY_ESCAPE_CONFIG,
       debug: {
         ...(LUCKY_ESCAPE_CONFIG?.debug || {}),
         enabled: this.debugModeEnabled,
+        selectedOptions: this.debugSelectedOptions,
       },
     };
 
@@ -209,9 +218,13 @@ export class GameController {
       this._requestSkipBonusTotalAnimation();
     });
 
-    this.debugIndicatorEl = document.createElement("div");
+    this.debugIndicatorEl = document.createElement("button");
+    this.debugIndicatorEl.type = "button";
     this.debugIndicatorEl.className = "debug-indicator";
-    this.debugIndicatorEl.textContent = "DEBUG MODE";
+    this._updateDebugIndicator();
+    this.debugIndicatorEl.addEventListener("click", () => {
+      this._cycleDebugMode();
+    });
     if (!this.debugModeEnabled) {
       this.debugIndicatorEl.style.display = "none";
     }
@@ -252,7 +265,10 @@ export class GameController {
 
     if (this.debugModeEnabled) {
       console.warn(
-        "[Debug] LuckyScape debug mode enabled: forcing rainbow + guaranteed connection each spin.",
+        "[Debug] LuckyScape debug mode enabled:",
+        this.debugSelectedOptions.length > 0
+          ? this.debugSelectedOptions.join(", ")
+          : "connection-rainbow",
       );
     }
 
@@ -260,9 +276,14 @@ export class GameController {
     this.ready = this._initialize();
   }
 
-  _resolveDebugModeEnabled() {
+  _resolveDebugState() {
     if (typeof window === "undefined") {
-      return false;
+      return {
+        enabled: false,
+        selectedOptions: [],
+        selectedOptionLabels: [],
+        queryParam: "debug",
+      };
     }
 
     const debugConfig = LUCKY_ESCAPE_CONFIG?.debug || {};
@@ -277,7 +298,12 @@ export class GameController {
     );
 
     if (!hostAllowed) {
-      return false;
+      return {
+        enabled: false,
+        selectedOptions: [],
+        selectedOptionLabels: [],
+        queryParam: String(gate.queryParam || "debug"),
+      };
     }
 
     const queryParam = String(gate.queryParam || "debug");
@@ -285,9 +311,186 @@ export class GameController {
       ? gate.enabledValues.map((entry) => String(entry).toLowerCase())
       : ["1", "true", "on", "yes"];
     const params = new URLSearchParams(window.location.search);
-    const queryValue = String(params.get(queryParam) || "").toLowerCase();
+    const queryValue = String(params.get(queryParam) || "")
+      .trim()
+      .toLowerCase();
 
-    return queryValue.length > 0 && enabledValues.includes(queryValue);
+    if (!queryValue) {
+      return {
+        enabled: false,
+        selectedOptions: [],
+        selectedOptionLabels: [],
+        queryParam,
+      };
+    }
+
+    const optionEntries = Object.entries(debugConfig.options || {});
+    const optionLabels = new Map();
+    const optionAliases = new Map();
+
+    for (const [optionId, optionConfig] of optionEntries) {
+      optionLabels.set(optionId, optionConfig?.label || optionId);
+      optionAliases.set(optionId.toLowerCase(), optionId);
+      const aliases = Array.isArray(optionConfig?.aliases)
+        ? optionConfig.aliases
+        : [];
+      for (const alias of aliases) {
+        optionAliases.set(String(alias || "").toLowerCase(), optionId);
+      }
+    }
+
+    const defaultOptions = Array.isArray(debugConfig.defaultOptions)
+      ? debugConfig.defaultOptions
+      : [];
+    const tokens = queryValue
+      .split(DEBUG_QUERY_TOKEN_SPLIT)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    const matchedOptions = [];
+    const addOption = (optionId) => {
+      if (!matchedOptions.includes(optionId)) {
+        matchedOptions.push(optionId);
+      }
+    };
+
+    let hasEnableToken = false;
+    for (const token of tokens) {
+      if (enabledValues.includes(token)) {
+        hasEnableToken = true;
+        continue;
+      }
+
+      const optionId = optionAliases.get(token);
+      if (optionId) {
+        addOption(optionId);
+      }
+    }
+
+    if (matchedOptions.length === 0 && hasEnableToken) {
+      for (const optionId of defaultOptions) {
+        addOption(optionId);
+      }
+    }
+
+    return {
+      enabled: hasEnableToken || matchedOptions.length > 0,
+      selectedOptions: matchedOptions,
+      selectedOptionLabels: matchedOptions.map(
+        (optionId) => optionLabels.get(optionId) || optionId,
+      ),
+      queryParam,
+    };
+  }
+
+  _getDebugOptionCycle() {
+    return Object.keys(LUCKY_ESCAPE_CONFIG?.debug?.options || {});
+  }
+
+  _getDebugOptionLabel(optionId) {
+    return LUCKY_ESCAPE_CONFIG?.debug?.options?.[optionId]?.label || optionId;
+  }
+
+  _getActiveDebugOptionId() {
+    if (this.debugSelectedOptions.length > 0) {
+      return this.debugSelectedOptions[0];
+    }
+
+    const defaultOptions = Array.isArray(
+      LUCKY_ESCAPE_CONFIG?.debug?.defaultOptions,
+    )
+      ? LUCKY_ESCAPE_CONFIG.debug.defaultOptions
+      : [];
+
+    if (defaultOptions.length > 0) {
+      return defaultOptions[0];
+    }
+
+    return this.debugOptionCycle[0] || null;
+  }
+
+  _updateDebugIndicator() {
+    if (!this.debugIndicatorEl) {
+      return;
+    }
+
+    const activeOptionId = this._getActiveDebugOptionId();
+    const activeLabel = activeOptionId
+      ? this._getDebugOptionLabel(activeOptionId)
+      : DEBUG_DEFAULT_LABEL;
+    const cycleCount = this.debugOptionCycle.length;
+
+    this.debugIndicatorEl.textContent = activeOptionId
+      ? `Debug: ${activeLabel}`
+      : DEBUG_DEFAULT_LABEL;
+    this.debugIndicatorEl.title =
+      cycleCount > 1
+        ? `Click to cycle debug scenario (${activeLabel})`
+        : activeLabel;
+    this.debugIndicatorEl.setAttribute(
+      "aria-label",
+      this.debugIndicatorEl.title,
+    );
+  }
+
+  _cycleDebugMode() {
+    if (!this.debugModeEnabled || this.debugOptionCycle.length === 0) {
+      return;
+    }
+
+    if (this.isSpinning) {
+      this._showResult(
+        "Finish the current spin before changing debug mode",
+        "info",
+      );
+      return;
+    }
+
+    if (this.game?.isInFreeSpins) {
+      this._showResult("Finish free spins before changing debug mode", "info");
+      return;
+    }
+
+    const activeOptionId = this._getActiveDebugOptionId();
+    const currentIndex = this.debugOptionCycle.indexOf(activeOptionId);
+    const nextIndex =
+      currentIndex >= 0 ? (currentIndex + 1) % this.debugOptionCycle.length : 0;
+    const nextOptionId = this.debugOptionCycle[nextIndex];
+
+    this.debugSelectedOptions = nextOptionId ? [nextOptionId] : [];
+    this.debugSelectedOptionLabels = this.debugSelectedOptions.map((optionId) =>
+      this._getDebugOptionLabel(optionId),
+    );
+
+    this.game.setDebugOptions(this.debugSelectedOptions, {
+      enabled: this.debugModeEnabled,
+    });
+    this._persistDebugStateToUrl();
+    this._updateDebugIndicator();
+    this._showResult(
+      `Debug scenario: ${this.debugSelectedOptionLabels[0] || DEBUG_DEFAULT_LABEL}`,
+      "info",
+    );
+  }
+
+  _persistDebugStateToUrl() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const queryParam = this.debugQueryParam || "debug";
+    const params = new URLSearchParams(window.location.search);
+
+    if (!this.debugModeEnabled) {
+      params.delete(queryParam);
+    } else if (this.debugSelectedOptions.length > 0) {
+      params.set(queryParam, this.debugSelectedOptions.join(","));
+    } else {
+      params.set(queryParam, "1");
+    }
+
+    const nextQuery = params.toString();
+    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash || ""}`;
+    window.history.replaceState({}, "", nextUrl);
   }
 
   async _initialize() {
@@ -843,6 +1046,15 @@ export class GameController {
         ? spinResult.cascades[0].beforeGrid
         : spinResult.grid;
 
+    const debugHighlightPositions = Array.isArray(
+      spinResult?.bonusFeatures?.debugHighlightPositions,
+    )
+      ? spinResult.bonusFeatures.debugHighlightPositions
+      : [];
+    const debugHighlightSet = new Set(
+      debugHighlightPositions.map((entry) => `${entry.x},${entry.y}`),
+    );
+
     await this.renderer.animateSpinTransition(
       previousGrid,
       initialGrid,
@@ -854,10 +1066,13 @@ export class GameController {
     );
 
     this.renderer.setPersistentConnectionHighlights(
-      spinResult.initialWins || new Set(),
+      new Set([...(spinResult.initialWins || new Set()), ...debugHighlightSet]),
     );
 
     const accumulatedHighlights = new Set(spinResult.initialWins || []);
+    for (const key of debugHighlightSet) {
+      accumulatedHighlights.add(key);
+    }
     for (const cascade of spinResult.cascades || []) {
       const highlightPositions =
         cascade.connectionPositions || cascade.winPositions || new Set();
@@ -866,7 +1081,7 @@ export class GameController {
       }
     }
 
-    this.renderer.render(initialGrid, spinResult.initialWins, {
+    this.renderer.render(initialGrid, accumulatedHighlights, {
       showBonusOverlays: false,
     });
     await this._delay(this.timings.preCascadePause);

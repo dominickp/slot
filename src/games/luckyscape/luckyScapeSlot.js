@@ -14,6 +14,119 @@ import { CascadeEngine } from "./cascadeEngine.js";
 import { LUCKY_ESCAPE_CONFIG } from "./config.js";
 import { BonusMode } from "./bonusModes/bonusMode.js";
 
+const DEBUG_OPTION_IDS = Object.freeze({
+  CONNECTION_RAINBOW: "connection-rainbow",
+  ALL_SYMBOLS: "all-symbols",
+  ALL_SYMBOLS_HIGHLIGHTED: "all-symbols-highlighted",
+  CONNECTION_SEQUENCE: "connection-sequence",
+  SCATTER_BAIT: "scatter-bait",
+});
+
+const DEBUG_BASE_GRID_SEQUENCE = Object.freeze([
+  1, 2, 3, 4, 5, 11, 12, 13, 14, 15,
+]);
+const DEBUG_SHOWCASE_SPECIALS = Object.freeze([
+  { x: 5, y: 0, symbolId: 6 },
+  { x: 5, y: 1, symbolId: 7 },
+  { x: 5, y: 2, symbolId: 8 },
+  { x: 5, y: 3, symbolId: 9 },
+  { x: 5, y: 4, symbolId: 10 },
+]);
+const DEBUG_SCATTER_BAIT_POSITIONS = Object.freeze([
+  { x: 1, y: 1 },
+  { x: 4, y: 3 },
+]);
+const DEBUG_CONNECTION_SEQUENCE_BOARDS = Object.freeze([
+  Object.freeze([
+    Object.freeze({
+      symbolId: 1,
+      pattern: Object.freeze([
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 2, y: 0 },
+        { x: 3, y: 0 },
+        { x: 4, y: 0 },
+      ]),
+    }),
+    Object.freeze({
+      symbolId: 11,
+      pattern: Object.freeze([
+        { x: 1, y: 4 },
+        { x: 2, y: 4 },
+        { x: 3, y: 4 },
+        { x: 4, y: 4 },
+        { x: 5, y: 4 },
+      ]),
+    }),
+  ]),
+  Object.freeze([
+    Object.freeze({
+      symbolId: 5,
+      pattern: Object.freeze([
+        { x: 0, y: 0 },
+        { x: 0, y: 1 },
+        { x: 0, y: 2 },
+        { x: 0, y: 3 },
+        { x: 0, y: 4 },
+      ]),
+    }),
+    Object.freeze({
+      symbolId: 15,
+      pattern: Object.freeze([
+        { x: 5, y: 0 },
+        { x: 5, y: 1 },
+        { x: 5, y: 2 },
+        { x: 5, y: 3 },
+        { x: 5, y: 4 },
+      ]),
+    }),
+  ]),
+  Object.freeze([
+    Object.freeze({
+      symbolId: 12,
+      pattern: Object.freeze([
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 2, y: 2 },
+      ]),
+    }),
+    Object.freeze({
+      symbolId: 13,
+      pattern: Object.freeze([
+        { x: 3, y: 2 },
+        { x: 3, y: 3 },
+        { x: 4, y: 3 },
+        { x: 4, y: 4 },
+        { x: 5, y: 4 },
+      ]),
+    }),
+  ]),
+  Object.freeze([
+    Object.freeze({
+      symbolId: 14,
+      pattern: Object.freeze([
+        { x: 0, y: 1 },
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 2, y: 2 },
+        { x: 2, y: 3 },
+      ]),
+    }),
+    Object.freeze({
+      symbolId: 4,
+      pattern: Object.freeze([
+        { x: 5, y: 1 },
+        { x: 4, y: 1 },
+        { x: 3, y: 1 },
+        { x: 3, y: 2 },
+        { x: 3, y: 3 },
+      ]),
+    }),
+  ]),
+]);
+
 export class LuckyScapeSlot extends BaseSlot {
   constructor(config = LUCKY_ESCAPE_CONFIG) {
     super(config);
@@ -48,10 +161,22 @@ export class LuckyScapeSlot extends BaseSlot {
     this.bonusEventTimeline = [];
     this.bonusHadRainbowActivationThisSession = false;
 
-    this.debugModeEnabled = Boolean(config?.debug?.enabled);
-    this.debugForceConnectionAndRainbow =
-      this.debugModeEnabled &&
-      Boolean(config?.debug?.forceConnectionAndRainbow);
+    this._applyDebugState(config?.debug);
+  }
+
+  setDebugOptions(selectedOptions = [], { enabled = true } = {}) {
+    this.config.debug = {
+      ...(this.config?.debug || {}),
+      enabled,
+      selectedOptions: Array.isArray(selectedOptions)
+        ? [...selectedOptions]
+        : [],
+      forceConnectionAndRainbow: Array.isArray(selectedOptions)
+        ? selectedOptions.includes(DEBUG_OPTION_IDS.CONNECTION_RAINBOW)
+        : false,
+    };
+
+    this._applyDebugState(this.config.debug);
   }
 
   async spin(backend, betAmount = 10) {
@@ -177,6 +302,7 @@ export class LuckyScapeSlot extends BaseSlot {
       bonusFeatures: {
         rainbowTriggered: this.rainbowTriggered,
         bonusEventTimeline: this.bonusEventTimeline,
+        debugHighlightPositions: this._getDebugHighlightPositions(),
       },
     };
   }
@@ -608,75 +734,146 @@ export class LuckyScapeSlot extends BaseSlot {
   }
 
   _applyDebugSpinGuarantees() {
-    if (!this.debugForceConnectionAndRainbow) {
+    if (!this.debugModeEnabled) {
       return;
     }
 
-    this._injectRainbowIfMissing();
-    this._enforceSingleRainbowPerSpin();
-
-    const currentWins = this.detector.findWins(this.currentGrid);
-    if (currentWins.clusters.length > 0) {
-      return;
+    if (this._shouldUseScriptedDebugBoard()) {
+      this.currentGrid = this._createDebugBaseGrid();
     }
 
-    const forcedPattern = this._pickDebugConnectionPattern();
-    if (!forcedPattern) {
-      return;
+    if (this.debugShowAllSymbols || this.debugShowAllSymbolsHighlighted) {
+      this._applyDebugAllSymbolsBoard();
     }
 
-    const symbolId = this._rollDebugRegularSymbol();
-    for (const { x, y } of forcedPattern) {
-      this.currentGrid[y][x] = symbolId;
+    if (this.debugScatterBaitEnabled && !this.isInFreeSpins) {
+      this._forceScatterCount(2, DEBUG_SCATTER_BAIT_POSITIONS);
     }
+
+    if (this.debugConnectionSequenceEnabled) {
+      this._applyForcedDebugConnectionGroup(
+        this._getDebugConnectionSequenceBoard(),
+      );
+    }
+
+    if (this.debugForceConnectionAndRainbow) {
+      this._injectRainbowIfMissing();
+      this._enforceSingleRainbowPerSpin();
+      this._applyForcedDebugConnection(this._pickDebugConnectionPattern());
+    }
+
+    this.debugSpinCounter += 1;
   }
 
-  _pickDebugConnectionPattern() {
+  _pickDebugConnectionPattern({ useSequence = false } = {}) {
     const rainbowKeys = new Set(
       this._findSymbolPositions(9).map((entry) => `${entry.x},${entry.y}`),
     );
 
+    const candidatePatterns = useSequence
+      ? this._getDebugConnectionSequenceBoard().map((entry) => entry.pattern)
+      : this._getDefaultDebugConnectionPatterns();
+
+    for (const pattern of candidatePatterns) {
+      const intersectsRainbow = pattern.some(({ x, y }) =>
+        rainbowKeys.has(`${x},${y}`),
+      );
+
+      if (!intersectsRainbow) {
+        return pattern;
+      }
+    }
+
+    return null;
+  }
+
+  _getDefaultDebugConnectionPatterns() {
+    const patterns = [];
+
     for (let y = 0; y < this.gridHeight; y++) {
       for (let x = 0; x <= this.gridWidth - 5; x++) {
-        const pattern = [
+        patterns.push([
           { x, y },
           { x: x + 1, y },
           { x: x + 2, y },
           { x: x + 3, y },
           { x: x + 4, y },
-        ];
-
-        const intersectsRainbow = pattern.some(({ x: px, y: py }) =>
-          rainbowKeys.has(`${px},${py}`),
-        );
-
-        if (!intersectsRainbow) {
-          return pattern;
-        }
+        ]);
       }
     }
 
     for (let x = 0; x < this.gridWidth; x++) {
       for (let y = 0; y <= this.gridHeight - 5; y++) {
-        const pattern = [
+        patterns.push([
           { x, y },
           { x, y: y + 1 },
           { x, y: y + 2 },
           { x, y: y + 3 },
           { x, y: y + 4 },
-        ];
-
-        const intersectsRainbow = pattern.some(({ x: px, y: py }) =>
-          rainbowKeys.has(`${px},${py}`),
-        );
-
-        if (!intersectsRainbow) {
-          return pattern;
-        }
+        ]);
       }
     }
 
-    return null;
+    return patterns;
+  }
+
+  _getDebugConnectionSequenceBoard() {
+    const boardCount = DEBUG_CONNECTION_SEQUENCE_BOARDS.length;
+    if (boardCount === 0) {
+      return [];
+    }
+
+    const board =
+      DEBUG_CONNECTION_SEQUENCE_BOARDS[this.debugSpinCounter % boardCount] ||
+      [];
+
+    return board.map((entry) => ({
+      symbolId: entry.symbolId,
+      pattern: entry.pattern.map((cell) => ({ ...cell })),
+    }));
+  }
+
+  _applyForcedDebugConnection(
+    pattern,
+    symbolId = this._rollDebugRegularSymbol(),
+    { allowExistingWins = false } = {},
+  ) {
+    if (!pattern) {
+      return false;
+    }
+
+    if (!allowExistingWins) {
+      const currentWins = this.detector.findWins(this.currentGrid);
+      if (currentWins.clusters.length > 0) {
+        return false;
+      }
+    }
+
+    for (const { x, y } of pattern) {
+      this.currentGrid[y][x] = symbolId;
+    }
+
+    return true;
+  }
+
+  _applyForcedDebugConnectionGroup(connectionGroup = []) {
+    let appliedCount = 0;
+
+    for (const connection of connectionGroup) {
+      if (
+        this._applyForcedDebugConnection(
+          connection.pattern,
+          connection.symbolId,
+          {
+            allowExistingWins: true,
+          },
+        )
+      ) {
+        appliedCount += 1;
+      }
+    }
+
+    return appliedCount > 0;
   }
 
   _rollDebugRegularSymbol() {
@@ -760,6 +957,137 @@ export class LuckyScapeSlot extends BaseSlot {
     }
 
     return positions;
+  }
+
+  _resolveDebugState(debugConfig = {}) {
+    const enabled = Boolean(debugConfig?.enabled);
+    const selectedOptions = this._resolveDebugOptionIds(debugConfig);
+
+    return {
+      enabled,
+      selectedOptions,
+    };
+  }
+
+  _applyDebugState(debugConfig = {}) {
+    const debugState = this._resolveDebugState(debugConfig);
+    this.debugModeEnabled = debugState.enabled;
+    this.debugSelectedOptions = debugState.selectedOptions;
+    this.debugSelectedOptionSet = new Set(debugState.selectedOptions);
+    this.debugForceConnectionAndRainbow = this.debugSelectedOptionSet.has(
+      DEBUG_OPTION_IDS.CONNECTION_RAINBOW,
+    );
+    this.debugShowAllSymbols = this.debugSelectedOptionSet.has(
+      DEBUG_OPTION_IDS.ALL_SYMBOLS,
+    );
+    this.debugShowAllSymbolsHighlighted = this.debugSelectedOptionSet.has(
+      DEBUG_OPTION_IDS.ALL_SYMBOLS_HIGHLIGHTED,
+    );
+    this.debugConnectionSequenceEnabled = this.debugSelectedOptionSet.has(
+      DEBUG_OPTION_IDS.CONNECTION_SEQUENCE,
+    );
+    this.debugScatterBaitEnabled = this.debugSelectedOptionSet.has(
+      DEBUG_OPTION_IDS.SCATTER_BAIT,
+    );
+    this.debugSpinCounter = 0;
+  }
+
+  _resolveDebugOptionIds(debugConfig = {}) {
+    const rawSelectedOptions = Array.isArray(debugConfig?.selectedOptions)
+      ? debugConfig.selectedOptions
+      : [];
+
+    const normalizedOptions = [
+      ...new Set(
+        rawSelectedOptions
+          .map((entry) => String(entry || "").trim())
+          .filter(Boolean),
+      ),
+    ];
+
+    if (normalizedOptions.length > 0) {
+      return normalizedOptions;
+    }
+
+    if (Boolean(debugConfig?.forceConnectionAndRainbow)) {
+      return [DEBUG_OPTION_IDS.CONNECTION_RAINBOW];
+    }
+
+    return [];
+  }
+
+  _shouldUseScriptedDebugBoard() {
+    return (
+      this.debugShowAllSymbols ||
+      this.debugShowAllSymbolsHighlighted ||
+      this.debugConnectionSequenceEnabled ||
+      (this.debugScatterBaitEnabled && !this.isInFreeSpins)
+    );
+  }
+
+  _createDebugBaseGrid() {
+    return Array.from({ length: this.gridHeight }, (_, y) =>
+      Array.from({ length: this.gridWidth }, (_, x) => {
+        const index = y * this.gridWidth + x;
+        return DEBUG_BASE_GRID_SEQUENCE[
+          index % DEBUG_BASE_GRID_SEQUENCE.length
+        ];
+      }),
+    );
+  }
+
+  _applyDebugAllSymbolsBoard() {
+    for (const { x, y, symbolId } of DEBUG_SHOWCASE_SPECIALS) {
+      if (y < this.gridHeight && x < this.gridWidth) {
+        this.currentGrid[y][x] = symbolId;
+      }
+    }
+  }
+
+  _getDebugHighlightPositions() {
+    if (!this.debugShowAllSymbolsHighlighted) {
+      return [];
+    }
+
+    return Array.from({ length: this.gridHeight }, (_, y) =>
+      Array.from({ length: this.gridWidth }, (_, x) => ({ x, y })),
+    ).flat();
+  }
+
+  _forceScatterCount(targetCount, preferredPositions = []) {
+    const preferredKeys = new Set();
+
+    for (const { x, y } of preferredPositions) {
+      if (preferredKeys.size >= targetCount) {
+        break;
+      }
+
+      if (x < 0 || y < 0 || x >= this.gridWidth || y >= this.gridHeight) {
+        continue;
+      }
+
+      this.currentGrid[y][x] = 7;
+      preferredKeys.add(`${x},${y}`);
+    }
+
+    const scatterPositions = this._findSymbolPositions(7);
+    for (const position of scatterPositions) {
+      const key = `${position.x},${position.y}`;
+      if (preferredKeys.has(key)) {
+        continue;
+      }
+
+      this.currentGrid[position.y][position.x] = this._rollDebugRegularSymbol();
+    }
+
+    while (this._findSymbolPositions(7).length < targetCount) {
+      const cell = this._pickRandomRegularPosition();
+      if (!cell) {
+        break;
+      }
+
+      this.currentGrid[cell.y][cell.x] = 7;
+    }
   }
 
   _trackGoldenSquaresFromWins(winResult) {
