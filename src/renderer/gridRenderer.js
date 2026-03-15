@@ -136,6 +136,8 @@ export class GridRenderer {
     this.randomRotationAnglesDeg = this._normalizeRotationAngles(
       options.randomRotationAnglesDeg || [0, 90, 180, 270],
     );
+    this.randomRotationAnglesBySymbolId =
+      this._normalizeRotationAngleMap(options.randomRotationAnglesBySymbolId);
     this.gridColors = this._normalizeGridColors(options.gridColors || {});
     this.highlightColors = this._normalizeHighlightColors(
       options.highlightColors || {},
@@ -213,6 +215,25 @@ export class GridRenderer {
 
     if (normalized.length === 0) {
       return [0];
+    }
+
+    return normalized;
+  }
+
+  _normalizeRotationAngleMap(angleMap) {
+    const normalized = new Map();
+
+    if (!angleMap || typeof angleMap !== "object") {
+      return normalized;
+    }
+
+    for (const [rawSymbolId, rawAngles] of Object.entries(angleMap)) {
+      const symbolId = Number(rawSymbolId);
+      if (!Number.isFinite(symbolId)) {
+        continue;
+      }
+
+      normalized.set(symbolId, this._normalizeRotationAngles(rawAngles));
     }
 
     return normalized;
@@ -454,8 +475,11 @@ export class GridRenderer {
     };
   }
 
-  _pickRandomRotationRadians() {
-    const angles = this.randomRotationAnglesDeg;
+  _pickRandomRotationRadians(symbolId) {
+    const numericSymbolId = Number(symbolId);
+    const angles =
+      this.randomRotationAnglesBySymbolId.get(numericSymbolId) ||
+      this.randomRotationAnglesDeg;
     const index = Math.floor(Math.random() * angles.length);
     const selectedDeg = angles[index] ?? 0;
     return (selectedDeg * Math.PI) / 180;
@@ -482,7 +506,13 @@ export class GridRenderer {
   _getRotationForCellSymbol(cellKey, symbolId, options = {}) {
     const { preferredRotation = null } = options;
     const numericSymbolId = Number(symbolId);
-    if (!this.randomRotationSymbolIds.has(numericSymbolId)) {
+    const hasSymbolSpecificAngles = this.randomRotationAnglesBySymbolId.has(
+      numericSymbolId,
+    );
+    if (
+      !hasSymbolSpecificAngles &&
+      !this.randomRotationSymbolIds.has(numericSymbolId)
+    ) {
       this.rotationByCell.delete(cellKey);
       return 0;
     }
@@ -500,7 +530,7 @@ export class GridRenderer {
       return existing.rotation;
     }
 
-    const rotation = this._pickRandomRotationRadians();
+    const rotation = this._pickRandomRotationRadians(numericSymbolId);
     this.rotationByCell.set(cellKey, {
       symbolId: numericSymbolId,
       rotation,

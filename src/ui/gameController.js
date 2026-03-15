@@ -186,6 +186,8 @@ export class GameController {
       symbolTextureMap: gameConfig?.assets?.symbols || {},
       randomRotationSymbolIds:
         gameConfig?.visuals?.randomRotationSymbolIds || [],
+      randomRotationAnglesBySymbolId:
+        gameConfig?.visuals?.randomRotationAnglesBySymbolId || {},
       randomRotationAnglesDeg: gameConfig?.visuals?.randomRotationAnglesDeg || [
         0, 90, 180, 270,
       ],

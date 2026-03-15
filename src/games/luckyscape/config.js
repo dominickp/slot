@@ -146,6 +146,12 @@ export const LUCKY_ESCAPE_CONFIG = {
   visuals: {
     randomRotationSymbolIds: [4, 5, 14, 15],
     randomRotationAnglesDeg: [0, 90, 180, 270],
+    randomRotationAnglesBySymbolId: {
+      4: [90, 270],
+      5: [0, 180],
+      14: [90, 270],
+      15: [0, 180],
+    },
     gridColors: {
       boardBackground: 0x1a1a2e,
       cellFill: "#2d2d2d",
