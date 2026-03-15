@@ -208,29 +208,35 @@ export class LuckyScapeSlot extends BaseSlot {
 
     while (cascadeIndex < maxCascades) {
       const winResult = this.detector.findWins(this.currentGrid);
+      const activeCluster = winResult.clusters[0] || null;
 
-      if (winResult.clusters.length === 0) {
+      if (!activeCluster) {
         break;
       }
 
+      const cascadeWinResult = this._buildCascadeWinResult(
+        this.currentGrid,
+        activeCluster,
+      );
+
       if (cascadeIndex === 0) {
-        initialWinPositions = new Set(winResult.winPositions);
+        initialWinPositions = new Set(cascadeWinResult.winPositions);
       }
 
-      this._trackGoldenSquaresFromWins(winResult);
-      finalWinPositions = new Set(winResult.winPositions);
+      this._trackGoldenSquaresFromWins(cascadeWinResult);
+      finalWinPositions = new Set(cascadeWinResult.winPositions);
 
       const beforeGrid = CascadeEngine.cloneGrid(this.currentGrid);
-      const connectionPositions = new Set(winResult.winPositions);
+      const connectionPositions = new Set(cascadeWinResult.winPositions);
       const removePositions = this.detector.getSuperCascadeRemovalPositions(
         this.currentGrid,
-        winResult,
+        cascadeWinResult,
       );
       for (const connectionKey of connectionPositions) {
         removePositions.add(connectionKey);
       }
 
-      this.totalWinFromSpin += winResult.totalWin;
+      this.totalWinFromSpin += cascadeWinResult.totalWin;
 
       const cascadeResult = this.engine.executeCascade(
         this.currentGrid,
@@ -309,6 +315,10 @@ export class LuckyScapeSlot extends BaseSlot {
 
   detectWins(grid) {
     return this.detector.findWins(grid);
+  }
+
+  _buildCascadeWinResult(grid, cluster) {
+    return this.detector.buildWinResult(grid, cluster ? [cluster] : []);
   }
 
   _getBonusModeConfig(modeType) {

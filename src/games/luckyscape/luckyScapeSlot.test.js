@@ -172,6 +172,35 @@ describe("LuckyScapeSlot golden square cleanup timing", () => {
 });
 
 describe("LuckyScapeSlot super-cascade removal integration", () => {
+  it("resolves simultaneous symbol connections as separate cascade steps", async () => {
+    const slot = new LuckyScapeSlot();
+
+    slot._generateRandomGrid = () => [
+      [1, 1, 1, 1, 1, 4],
+      [2, 2, 2, 2, 2, 5],
+      [3, 3, 3, 3, 3, 11],
+      [4, 5, 11, 12, 13, 14],
+      [5, 4, 12, 13, 14, 15],
+    ];
+    slot._getSymbolWeightsForCurrentSpin = () => [{ id: 7, weight: 1 }];
+
+    const result = await slot.spin(null, 1);
+
+    expect(result.cascades).toHaveLength(3);
+    expect(result.initialWins).toEqual(
+      new Set(["0,0", "1,0", "2,0", "3,0", "4,0"]),
+    );
+    expect(result.cascades[0].connectionPositions).toEqual(
+      new Set(["0,0", "1,0", "2,0", "3,0", "4,0"]),
+    );
+    expect(result.cascades[1].connectionPositions).toEqual(
+      new Set(["0,1", "1,1", "2,1", "3,1", "4,1"]),
+    );
+    expect(result.cascades[2].connectionPositions).toEqual(
+      new Set(["0,2", "1,2", "2,2", "3,2", "4,2"]),
+    );
+  });
+
   it("removes extra matching symbols outside the connected cluster", async () => {
     const slot = new LuckyScapeSlot();
 

@@ -55,7 +55,7 @@ export class GameController {
     } else if (state === "loss") {
       // Randomly choose between loss.gif and anger.gif
       src =
-        Math.random() < 0.5
+        Math.random() < 0.1
           ? "assets/character/loss.gif"
           : "assets/character/anger.gif";
     } else if (state === "win") {
@@ -1071,23 +1071,18 @@ export class GameController {
       },
     );
 
-    this.renderer.setPersistentConnectionHighlights(
-      new Set([...(spinResult.initialWins || new Set()), ...debugHighlightSet]),
-    );
-
-    const accumulatedHighlights = new Set(spinResult.initialWins || []);
+    const accumulatedHighlights = new Set();
     for (const key of debugHighlightSet) {
       accumulatedHighlights.add(key);
     }
-    for (const cascade of spinResult.cascades || []) {
-      const highlightPositions =
-        cascade.connectionPositions || cascade.winPositions || new Set();
-      for (const key of highlightPositions) {
-        accumulatedHighlights.add(key);
-      }
+
+    const initialHighlightPositions = new Set(accumulatedHighlights);
+    for (const key of spinResult.initialWins || []) {
+      initialHighlightPositions.add(key);
     }
 
-    this.renderer.render(initialGrid, accumulatedHighlights, {
+    this.renderer.setPersistentConnectionHighlights(accumulatedHighlights);
+    this.renderer.render(initialGrid, initialHighlightPositions, {
       showBonusOverlays: false,
     });
     await this._delay(this.timings.preCascadePause);
@@ -1099,9 +1094,16 @@ export class GameController {
       );
 
       for (const cascade of cascadesToAnimate) {
-        this.renderer.setPersistentConnectionHighlights(accumulatedHighlights);
         const cascadeHighlightPositions =
           cascade.connectionPositions || cascade.winPositions || new Set();
+        const cascadePersistentHighlights = new Set(accumulatedHighlights);
+        for (const key of cascadeHighlightPositions) {
+          cascadePersistentHighlights.add(key);
+        }
+
+        this.renderer.setPersistentConnectionHighlights(
+          cascadePersistentHighlights,
+        );
 
         this.soundManager.playCascade();
         await this.renderer.animateCascade(
@@ -1114,6 +1116,9 @@ export class GameController {
             highlightPositions: cascadeHighlightPositions,
           },
         );
+        for (const key of cascadeHighlightPositions) {
+          accumulatedHighlights.add(key);
+        }
         await this._delay(this.timings.betweenCascades);
       }
 

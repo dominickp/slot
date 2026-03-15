@@ -46,6 +46,122 @@ jest.unstable_mockModule("../api/backend.js", () => ({
 const { GameController } = await import("./gameController.js");
 
 describe("GameController bonus balance settlement", () => {
+  it("does not persist future connection highlights before their cascade runs", async () => {
+    const firstConnection = new Set(["0,0", "1,0", "2,0", "3,0", "4,0"]);
+    const secondConnection = new Set(["0,1", "1,1", "2,1", "3,1", "4,1"]);
+    const persistentHighlightSnapshots = [];
+    const controller = {
+      totalSpins: 0,
+      currentBalance: 100,
+      totalWins: 0,
+      lastWin: 0,
+      timings: {
+        spinDrop: 0,
+        cascade: 0,
+        betweenCascades: 0,
+        preCascadePause: 0,
+        winText: 0,
+        maxAnimatedCascades: 4,
+      },
+      game: {
+        currentGrid: [[1]],
+        isInFreeSpins: false,
+        config: { id: "luckyscape" },
+        spin: jest.fn().mockResolvedValue({
+          grid: [[7]],
+          cascades: [
+            {
+              beforeGrid: [[1]],
+              winPositions: new Set(firstConnection),
+              connectionPositions: new Set(firstConnection),
+              afterGrid: [[2]],
+              moveData: { movedCells: [] },
+            },
+            {
+              beforeGrid: [[2]],
+              winPositions: new Set(secondConnection),
+              connectionPositions: new Set(secondConnection),
+              afterGrid: [[3]],
+              moveData: { movedCells: [] },
+            },
+          ],
+          initialWins: new Set(firstConnection),
+          winPositions: new Set(secondConnection),
+          totalWin: 0,
+          bonusMode: null,
+          scatterCount: 0,
+          scatterPositions: [],
+          bonusFeatures: {},
+        }),
+        finalizeSpinVisualState: jest.fn(),
+      },
+      renderer: {
+        animateSpinStart: jest.fn().mockResolvedValue(),
+        animateSpinTransition: jest.fn().mockResolvedValue(),
+        setPersistentConnectionHighlights: jest
+          .fn()
+          .mockImplementation((positions) => {
+            persistentHighlightSnapshots.push(Array.from(positions).sort());
+          }),
+        render: jest.fn(),
+        animateCascade: jest.fn().mockResolvedValue(),
+        animateWin: jest.fn().mockResolvedValue(),
+        setBonusVisuals: jest.fn(),
+        animateScatterTrigger: jest.fn().mockResolvedValue(),
+        clearBonusVisuals: jest.fn(),
+      },
+      soundManager: {
+        playSpinStart: jest.fn(),
+        playFreeSpinStart: jest.fn(),
+        playCascade: jest.fn(),
+        playRainbow: jest.fn(),
+        playCloverMultiply: jest.fn(),
+        playCollectorCollect: jest.fn(),
+        playCollectorPop: jest.fn(),
+        playCoinReveal: jest.fn(),
+        playWin: jest.fn(),
+        playBigWin: jest.fn(),
+      },
+      backend: null,
+      debugModeEnabled: false,
+      _updateBonusSpinProgress: jest.fn(),
+      _delay: jest.fn().mockResolvedValue(),
+      _syncBonusVisuals: jest.fn(),
+      _getCollectorSummary: jest.fn().mockReturnValue(""),
+      _getEligibleScatterTriggerPositions:
+        GameController.prototype._getEligibleScatterTriggerPositions,
+      _roundCredits: GameController.prototype._roundCredits,
+      _updateBalance: jest.fn(),
+      _updateTotalWinDisplay: jest.fn(),
+      _updateLastWinDisplay: jest.fn(),
+      _showResult: jest.fn(),
+      _hideResult: jest.fn(),
+      _setCharacter: jest.fn(),
+      _formatCredits: (value) => String(value),
+      _getScatterBaitAnimationOptions: jest.fn(),
+    };
+
+    await GameController.prototype._playSingleSpin.call(controller, {
+      betAmount: 2,
+      isFreeSpin: false,
+      freeSpinIndex: 0,
+    });
+
+    expect(persistentHighlightSnapshots[0]).toEqual([]);
+    expect(persistentHighlightSnapshots[1]).toEqual(
+      Array.from(firstConnection).sort(),
+    );
+    expect(persistentHighlightSnapshots[2]).toEqual(
+      Array.from(new Set([...firstConnection, ...secondConnection])).sort(),
+    );
+    expect(controller.renderer.render).toHaveBeenNthCalledWith(
+      1,
+      [[1]],
+      new Set(firstConnection),
+      { showBonusOverlays: false },
+    );
+  });
+
   it("does not credit balance during a winning free spin", async () => {
     const controller = {
       totalSpins: 0,
