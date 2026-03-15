@@ -104,9 +104,9 @@ describe("CascadeDetector (Le Bandit placeholder rules)", () => {
   });
 
   describe("Wild behavior", () => {
-    it("does not substitute wild with regular symbols", () => {
+    it("counts a 4-symbol connection when one adjacent wild completes the 5", () => {
       const grid = [
-        [RED, RED, WILD, RED, RED],
+        [WILD, RED, RED, RED, RED],
         [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
         [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
         [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
@@ -115,7 +115,27 @@ describe("CascadeDetector (Le Bandit placeholder rules)", () => {
 
       const result = detector.findWins(grid);
 
-      expect(result.clusters).toHaveLength(0);
+      expect(result.clusters).toHaveLength(1);
+      expect(result.clusters[0].positions).toHaveLength(5);
+      expect(result.clusters[0].symbolId).toBe(RED);
+      expect(result.totalWin).toBeCloseTo(0.1);
+    });
+
+    it("counts a 3-symbol connection when two touching wilds make 5", () => {
+      const grid = [
+        [WILD, RED, RED, EMPTY, EMPTY],
+        [EMPTY, EMPTY, WILD, EMPTY, EMPTY],
+        [EMPTY, EMPTY, RED, EMPTY, EMPTY],
+        [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+        [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+      ];
+
+      const result = detector.findWins(grid);
+
+      expect(result.clusters).toHaveLength(1);
+      expect(result.clusters[0].positions).toHaveLength(5);
+      expect(result.clusters[0].symbolId).toBe(RED);
+      expect(result.totalWin).toBeCloseTo(0.1);
     });
 
     it("still allows pure wild cluster", () => {

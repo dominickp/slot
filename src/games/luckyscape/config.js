@@ -372,6 +372,10 @@ export const LUCKY_ESCAPE_CONFIG = {
         label: "Connection Sequence",
         aliases: ["sequence", "connections"],
       },
+      "wild-connections": {
+        label: "Wild Connection Check",
+        aliases: ["wild", "wilds", "wild-check", "wild-connection"],
+      },
       "scatter-bait": {
         label: "2 Scatter Bait",
         aliases: ["scatter", "bait", "tease"],

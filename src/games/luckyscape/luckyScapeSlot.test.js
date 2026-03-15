@@ -392,6 +392,66 @@ describe("LuckyScapeSlot debug spin guarantees", () => {
     expect(secondSpinWinCount).toBeGreaterThan(1);
   });
 
+  it("scripts wild-assisted line and L-shaped connection boards", () => {
+    const slot = new LuckyScapeSlot({
+      debug: {
+        enabled: true,
+        selectedOptions: ["wild-connections"],
+      },
+    });
+
+    slot.currentGrid = [[0]];
+    slot._applyDebugSpinGuarantees();
+
+    const firstWin = slot.detector.findWins(slot.currentGrid);
+    const firstSymbols = firstWin.clusters[0].positions.map(
+      ({ x, y }) => slot.currentGrid[y][x],
+    );
+    const firstRegularCount = firstSymbols.filter((symbol) => symbol === 1).length;
+    const firstWildCount = firstSymbols.filter((symbol) => symbol === 6).length;
+
+    slot.currentGrid = [[0]];
+    slot._applyDebugSpinGuarantees();
+
+    const secondWin = slot.detector.findWins(slot.currentGrid);
+    const secondSymbols = secondWin.clusters[0].positions.map(
+      ({ x, y }) => slot.currentGrid[y][x],
+    );
+    const secondRegularCount = secondSymbols.filter((symbol) => symbol === 1).length;
+    const secondWildCount = secondSymbols.filter((symbol) => symbol === 6).length;
+
+    slot.currentGrid = [[0]];
+    slot._applyDebugSpinGuarantees();
+
+    const thirdWin = slot.detector.findWins(slot.currentGrid);
+    const thirdClusterPositions = thirdWin.clusters[0].positions.map(
+      ({ x, y }) => `${x},${y}`,
+    );
+    const thirdSymbols = thirdWin.clusters[0].positions.map(
+      ({ x, y }) => slot.currentGrid[y][x],
+    );
+    const thirdRegularCount = thirdSymbols.filter((symbol) => symbol === 1).length;
+    const thirdWildCount = thirdSymbols.filter((symbol) => symbol === 6).length;
+
+    expect(firstWin.clusters).toHaveLength(1);
+    expect(firstWin.clusters[0].positions).toHaveLength(5);
+    expect(firstRegularCount).toBe(4);
+    expect(firstWildCount).toBe(1);
+
+    expect(secondWin.clusters).toHaveLength(1);
+    expect(secondWin.clusters[0].positions).toHaveLength(5);
+    expect(secondRegularCount).toBe(3);
+    expect(secondWildCount).toBe(2);
+
+    expect(thirdWin.clusters).toHaveLength(1);
+    expect(thirdWin.clusters[0].positions).toHaveLength(5);
+    expect(thirdRegularCount).toBe(3);
+    expect(thirdWildCount).toBe(2);
+    expect(thirdClusterPositions).toEqual(
+      expect.arrayContaining(["0,0", "1,0", "2,0", "2,1", "2,2"]),
+    );
+  });
+
   it("forces a two-scatter bait board without triggering the bonus", () => {
     const slot = new LuckyScapeSlot({
       debug: {

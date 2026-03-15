@@ -4,7 +4,7 @@
  * Responsible for:
  * - Finding winning clusters (5+ adjacent matching symbols)
  * - Calculating payouts via size-banded paytable rows
- * - Supporting exact-symbol cluster matching
+ * - Supporting wild-assisted regular symbol clusters
  * - Detecting multiple simultaneous wins
  *
  * Algorithm: Flood-fill connected component detection
@@ -200,7 +200,7 @@ export class CascadeDetector {
   }
 
   /**
-   * Main entry point: Find all winning clusters in a grid
+  * Main entry point: Find all winning clusters in a grid
    *
    * @param {number[][]} grid - 5x5 grid of symbol IDs
    * @returns {Object} {
@@ -210,22 +210,50 @@ export class CascadeDetector {
    * }
    */
   findWins(grid) {
-    const visited = new Set();
+    const visitedRegulars = new Set();
+    const claimedWilds = new Set();
     const clusters = [];
 
-    // Scan entire grid for unvisited symbols
+    // Scan regular symbols first so adjacent wilds can complete 5+ clusters.
+    for (let y = 0; y < this.gridHeight; y++) {
+      for (let x = 0; x < this.gridWidth; x++) {
+        const symbolId = grid[y][x];
+        const posKey = this._posKey(x, y);
+
+        if (visitedRegulars.has(posKey)) continue;
+        if (!CascadeDetector.REGULAR_SYMBOL_IDS.has(symbolId)) continue;
+
+        const cluster = this._findRegularCluster(
+          grid,
+          x,
+          y,
+          visitedRegulars,
+          claimedWilds,
+        );
+
+        if (cluster.positions.length >= 5) {
+          clusters.push(cluster);
+
+          for (const pos of cluster.positions) {
+            if (grid[pos.y][pos.x] === CascadeDetector.SYMBOL_IDS.WILD) {
+              claimedWilds.add(this._posKey(pos.x, pos.y));
+            }
+          }
+        }
+      }
+    }
+
+    const visitedWilds = new Set(claimedWilds);
+
     for (let y = 0; y < this.gridHeight; y++) {
       for (let x = 0; x < this.gridWidth; x++) {
         const posKey = this._posKey(x, y);
 
-        // Skip if already part of a cluster or non-paying special
-        if (visited.has(posKey)) continue;
-        if (CascadeDetector.NON_CLUSTER_SYMBOL_IDS.has(grid[y][x])) continue;
+        if (visitedWilds.has(posKey)) continue;
+        if (grid[y][x] !== CascadeDetector.SYMBOL_IDS.WILD) continue;
 
-        // Start flood-fill from this position
-        const cluster = this._findCluster(grid, x, y, visited);
+        const cluster = this._findPureWildCluster(grid, x, y, visitedWilds);
 
-        // Only consider valid wins (5+ symbols)
         if (cluster.positions.length >= 5) {
           clusters.push(cluster);
         }
@@ -261,60 +289,68 @@ export class CascadeDetector {
   }
 
   /**
-   * Flood-fill algorithm to find connected component of matching symbols
-   * Uses BFS to avoid stack overflow on large clusters
+  * Flood-fill a regular-symbol cluster, allowing adjacent wilds to count.
    *
    * @private
    * @param {number[][]} grid - Game grid
    * @param {number} startX - Starting X position
    * @param {number} startY - Starting Y position
-   * @param {Set} visited - Visited positions tracker
+   * @param {Set} visitedRegulars - Visited regular positions tracker
+   * @param {Set} claimedWilds - Wilds already committed to earlier wins
    * @returns {Object} {positions: [{x, y}], symbolId: number}
    */
-  _findCluster(grid, startX, startY, visited) {
+  _findRegularCluster(grid, startX, startY, visitedRegulars, claimedWilds) {
     const positions = [];
     const symbolId = grid[startY][startX];
     const queue = [[startX, startY]];
     const posKey = this._posKey(startX, startY);
+    const explored = new Set([posKey]);
+    const regularKeys = new Set([posKey]);
 
-    visited.add(posKey);
-
-    // BFS queue processing
     while (queue.length > 0) {
       const [x, y] = queue.shift();
       positions.push({ x, y });
 
-      // Check all 4 adjacent positions
       const neighbors = [
-        [x + 1, y], // Right
-        [x - 1, y], // Left
-        [x, y + 1], // Down
-        [x, y - 1], // Up
+        [x + 1, y],
+        [x - 1, y],
+        [x, y + 1],
+        [x, y - 1],
       ];
 
       for (const [nx, ny] of neighbors) {
-        // Check bounds
         if (nx < 0 || nx >= this.gridWidth || ny < 0 || ny >= this.gridHeight) {
           continue;
         }
 
         const nPosKey = this._posKey(nx, ny);
+        const neighborSymbol = grid[ny][nx];
 
-        // Skip if already visited
-        if (visited.has(nPosKey)) {
+        if (explored.has(nPosKey)) {
           continue;
         }
 
-        const neighborSymbol = grid[ny][nx];
+        if (
+          neighborSymbol === CascadeDetector.SYMBOL_IDS.WILD &&
+          claimedWilds.has(nPosKey)
+        ) {
+          continue;
+        }
 
-        // Match if same symbol or if neighbor is wild or current is wild
-        const matches = this._symbolsMatch(symbolId, neighborSymbol);
+        const matches = this._matchesRegularClusterSymbol(symbolId, neighborSymbol);
 
         if (matches) {
-          visited.add(nPosKey);
+          explored.add(nPosKey);
+          if (neighborSymbol !== CascadeDetector.SYMBOL_IDS.WILD) {
+            regularKeys.add(nPosKey);
+          }
           queue.push([nx, ny]);
         }
       }
+    }
+
+    for (const regularKey of regularKeys) {
+      visitedRegulars.add(regularKey);
     }
 
     return {
@@ -323,44 +359,73 @@ export class CascadeDetector {
     };
   }
 
+  _findPureWildCluster(grid, startX, startY, visitedWilds) {
+    const positions = [];
+    const queue = [[startX, startY]];
+    const posKey = this._posKey(startX, startY);
+
+    visitedWilds.add(posKey);
+
+    while (queue.length > 0) {
+      const [x, y] = queue.shift();
+      positions.push({ x, y });
+
+      const neighbors = [
+        [x + 1, y],
+        [x - 1, y],
+        [x, y + 1],
+        [x, y - 1],
+      ];
+
+      for (const [nx, ny] of neighbors) {
+        if (nx < 0 || nx >= this.gridWidth || ny < 0 || ny >= this.gridHeight) {
+          continue;
+        }
+
+        const nPosKey = this._posKey(nx, ny);
+
+        if (visitedWilds.has(nPosKey)) {
+          continue;
+        }
+
+        if (grid[ny][nx] !== CascadeDetector.SYMBOL_IDS.WILD) {
+          continue;
+        }
+
+        visitedWilds.add(nPosKey);
+        queue.push([nx, ny]);
+      }
+    }
+
+    return {
+      positions,
+      symbolId: CascadeDetector.SYMBOL_IDS.WILD,
+    };
+  }
+
   /**
-   * Check if two symbols match.
-   * Matching is exact-symbol only; no substitution.
+   * Check whether a regular symbol cluster can absorb the candidate symbol.
    *
    * @private
-   * @param {number} symbol1 - First symbol ID
-   * @param {number} symbol2 - Second symbol ID
+   * @param {number} rootSymbol - Regular symbol ID anchoring the cluster
+   * @param {number} candidateSymbol - Neighbor symbol ID
    * @returns {boolean} True if symbols match
    */
-  _symbolsMatch(symbol1, symbol2) {
-    // Exclude empty and special symbols immediately
+  _matchesRegularClusterSymbol(rootSymbol, candidateSymbol) {
     if (
-      symbol1 === CascadeDetector.SYMBOL_IDS.EMPTY ||
-      symbol2 === CascadeDetector.SYMBOL_IDS.EMPTY ||
-      symbol1 === CascadeDetector.SYMBOL_IDS.SCATTER ||
-      symbol2 === CascadeDetector.SYMBOL_IDS.SCATTER ||
-      symbol1 === CascadeDetector.SYMBOL_IDS.CLOVER ||
-      symbol2 === CascadeDetector.SYMBOL_IDS.CLOVER ||
-      symbol1 === CascadeDetector.SYMBOL_IDS.RAINBOW ||
-      symbol2 === CascadeDetector.SYMBOL_IDS.RAINBOW ||
-      symbol1 === CascadeDetector.SYMBOL_IDS.BUCKET ||
-      symbol2 === CascadeDetector.SYMBOL_IDS.BUCKET
+      candidateSymbol === CascadeDetector.SYMBOL_IDS.EMPTY ||
+      candidateSymbol === CascadeDetector.SYMBOL_IDS.SCATTER ||
+      candidateSymbol === CascadeDetector.SYMBOL_IDS.CLOVER ||
+      candidateSymbol === CascadeDetector.SYMBOL_IDS.RAINBOW ||
+      candidateSymbol === CascadeDetector.SYMBOL_IDS.BUCKET
     ) {
       return false;
     }
 
-    // Same symbol always matches
-    if (symbol1 === symbol2) return true;
-
-    // Wild substitution: If the root (symbol1) is a regular symbol, it matches a Wild
-    if (
-      symbol1 !== CascadeDetector.SYMBOL_IDS.WILD &&
-      symbol2 === CascadeDetector.SYMBOL_IDS.WILD
-    ) {
-      return true;
-    }
-
-    return false;
+    return (
+      candidateSymbol === rootSymbol ||
+      candidateSymbol === CascadeDetector.SYMBOL_IDS.WILD
+    );
   }
 
   /**
@@ -375,11 +440,8 @@ export class CascadeDetector {
   _calculateClusterPayout(cluster, grid) {
     const { positions } = cluster;
     const clusterSize = positions.length;
-    const highestSymbolId = this._getHighestPayingSymbolInCluster(
-      positions,
-      grid,
-    );
-    const paytable = CascadeDetector.CLUSTER_PAYTABLE[highestSymbolId];
+    const payoutSymbolId = this._getClusterPayoutSymbol(cluster, grid);
+    const paytable = CascadeDetector.CLUSTER_PAYTABLE[payoutSymbolId];
 
     if (!paytable) {
       return 0;
@@ -387,6 +449,17 @@ export class CascadeDetector {
 
     const band = this._getClusterSizeBand(clusterSize);
     return Number(paytable[band] || 0);
+  }
+
+  _getClusterPayoutSymbol(cluster, grid) {
+    if (
+      CascadeDetector.REGULAR_SYMBOL_IDS.has(cluster?.symbolId) &&
+      CascadeDetector.CLUSTER_PAYTABLE[cluster.symbolId]
+    ) {
+      return cluster.symbolId;
+    }
+
+    return this._getHighestPayingSymbolInCluster(cluster?.positions || [], grid);
   }
 
   _getHighestPayingSymbolInCluster(positions, grid) {

@@ -19,6 +19,7 @@ const DEBUG_OPTION_IDS = Object.freeze({
   ALL_SYMBOLS: "all-symbols",
   ALL_SYMBOLS_HIGHLIGHTED: "all-symbols-highlighted",
   CONNECTION_SEQUENCE: "connection-sequence",
+  WILD_CONNECTIONS: "wild-connections",
   SCATTER_BAIT: "scatter-bait",
 });
 
@@ -124,6 +125,29 @@ const DEBUG_CONNECTION_SEQUENCE_BOARDS = Object.freeze([
         { x: 3, y: 3 },
       ]),
     }),
+  ]),
+]);
+const DEBUG_WILD_CONNECTION_BOARDS = Object.freeze([
+  Object.freeze([
+    Object.freeze([6, 1, 1, 1, 1, 2]),
+    Object.freeze([3, 4, 5, 11, 12, 13]),
+    Object.freeze([14, 15, 2, 3, 4, 5]),
+    Object.freeze([11, 12, 13, 14, 15, 2]),
+    Object.freeze([3, 4, 5, 11, 12, 13]),
+  ]),
+  Object.freeze([
+    Object.freeze([6, 1, 1, 4, 5, 11]),
+    Object.freeze([3, 4, 6, 11, 12, 13]),
+    Object.freeze([14, 15, 1, 3, 4, 5]),
+    Object.freeze([11, 12, 13, 14, 15, 2]),
+    Object.freeze([3, 4, 5, 11, 12, 13]),
+  ]),
+  Object.freeze([
+    Object.freeze([6, 1, 1, 4, 5, 11]),
+    Object.freeze([3, 4, 1, 11, 12, 13]),
+    Object.freeze([14, 15, 6, 3, 4, 5]),
+    Object.freeze([11, 12, 13, 14, 15, 2]),
+    Object.freeze([3, 4, 5, 11, 12, 13]),
   ]),
 ]);
 
@@ -766,6 +790,10 @@ export class LuckyScapeSlot extends BaseSlot {
       );
     }
 
+    if (this.debugWildConnectionsEnabled) {
+      this.currentGrid = this._getDebugWildConnectionBoard();
+    }
+
     if (this.debugForceConnectionAndRainbow) {
       this._injectRainbowIfMissing();
       this._enforceSingleRainbowPerSpin();
@@ -841,6 +869,19 @@ export class LuckyScapeSlot extends BaseSlot {
       symbolId: entry.symbolId,
       pattern: entry.pattern.map((cell) => ({ ...cell })),
     }));
+  }
+
+  _getDebugWildConnectionBoard() {
+    const boardCount = DEBUG_WILD_CONNECTION_BOARDS.length;
+    if (boardCount === 0) {
+      return this._createDebugBaseGrid();
+    }
+
+    const board =
+      DEBUG_WILD_CONNECTION_BOARDS[this.debugSpinCounter % boardCount] ||
+      DEBUG_WILD_CONNECTION_BOARDS[0];
+
+    return board.map((row) => [...row]);
   }
 
   _applyForcedDebugConnection(
@@ -998,6 +1039,9 @@ export class LuckyScapeSlot extends BaseSlot {
     this.debugConnectionSequenceEnabled = this.debugSelectedOptionSet.has(
       DEBUG_OPTION_IDS.CONNECTION_SEQUENCE,
     );
+    this.debugWildConnectionsEnabled = this.debugSelectedOptionSet.has(
+      DEBUG_OPTION_IDS.WILD_CONNECTIONS,
+    );
     this.debugScatterBaitEnabled = this.debugSelectedOptionSet.has(
       DEBUG_OPTION_IDS.SCATTER_BAIT,
     );
@@ -1033,6 +1077,7 @@ export class LuckyScapeSlot extends BaseSlot {
       this.debugShowAllSymbols ||
       this.debugShowAllSymbolsHighlighted ||
       this.debugConnectionSequenceEnabled ||
+      this.debugWildConnectionsEnabled ||
       (this.debugScatterBaitEnabled && !this.isInFreeSpins)
     );
   }
