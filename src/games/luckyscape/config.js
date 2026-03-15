@@ -384,5 +384,3 @@ export const LUCKY_ESCAPE_CONFIG = {
     },
   },
 };
-
-export default LUCKY_ESCAPE_CONFIG;

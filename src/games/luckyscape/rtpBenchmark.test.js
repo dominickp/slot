@@ -1,5 +1,4 @@
 import { LuckyScapeSlot } from "./luckyScapeSlot.js";
-import { LUCKY_ESCAPE_CONFIG } from "./config.js";
 
 // What this gives you:
 //     Isolated RTP: Now you can see if the GLITTER_GOLD bonus alone has a 120% RTP while your Base Game has an 85% RTP.
@@ -187,7 +186,10 @@ describe("LuckyScape Isolated RTP Benchmark", () => {
         Outcome: `${scatterCount} Scatters`,
         Hits: hitCount,
         Frequency: toPercent(hitRate),
-        Odds: hitCount > 0 ? `1 in ${(baseResult.runs / hitCount).toFixed(0)}` : "Never",
+        Odds:
+          hitCount > 0
+            ? `1 in ${(baseResult.runs / hitCount).toFixed(0)}`
+            : "Never",
       };
     });
 

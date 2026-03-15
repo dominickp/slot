@@ -6,7 +6,7 @@
 
 import GameEngine from "./core/gameEngine.js";
 import BackendService from "./api/backend.js";
-import BaseSlot from "./core/baseSlot.js";
+import { BaseSlot } from "./core/baseSlot.js";
 
 console.log(
   "%c🎰 Slot Machine Engine",

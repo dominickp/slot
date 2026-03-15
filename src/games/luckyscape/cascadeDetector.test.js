@@ -1,6 +1,6 @@
 import { CascadeDetector } from "./cascadeDetector.js";
 
-const { RED, GREEN, PURPLE, YELLOW, BLUE, WILD, SCATTER, RAINBOW, EMPTY } =
+const { RED, GREEN, PURPLE, BLUE, WILD, SCATTER, RAINBOW, EMPTY } =
   CascadeDetector.SYMBOL_IDS;
 
 describe("CascadeDetector (Le Bandit placeholder rules)", () => {

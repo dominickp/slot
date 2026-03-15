@@ -642,5 +642,3 @@ export class SoundManager {
     this.backgroundMusic.volume = target;
   }
 }
-
-export default SoundManager;

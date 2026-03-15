@@ -48,7 +48,7 @@ export class BaseSlot {
   /**
    * Execute a spin
    */
-  async spin(backend, betAmount) {
+  async spin(_backend, _betAmount) {
     throw new Error("spin() must be implemented by subclass");
   }
 
@@ -82,5 +82,3 @@ export class BaseSlot {
     return this.state.balance;
   }
 }
-
-export default BaseSlot;

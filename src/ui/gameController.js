@@ -55,7 +55,7 @@ export class GameController {
     } else if (state === "loss") {
       // Randomly choose between loss.gif and anger.gif
       src =
-        Math.random() < 0.5
+        Math.random() < 0.1
           ? "assets/character/loss.gif"
           : "assets/character/anger.gif";
     } else if (state === "win") {
@@ -244,6 +244,7 @@ export class GameController {
     this.confirmResolver = null;
     this.bonusIntroOpen = false;
     this.bonusIntroResolver = null;
+    this.displayedFreeSpinNumber = 0;
     this.soundManager = new SoundManager();
     this.soundManager.setSoundAssetMap(
       LUCKY_ESCAPE_CONFIG?.assets?.sounds || {},
@@ -837,14 +838,10 @@ export class GameController {
         // Show rapping character during bonus
         this._setCharacter("bonus");
 
-        const scatterPositions = Array.isArray(spinResult.scatterPositions)
-          ? spinResult.scatterPositions
-          : [];
-
-        await this.renderer.animateScatterTrigger(scatterPositions, {
-          duration:
-            ANIMATION_TIMING.controller.triggerEffects.bonusScatterPulseMs,
-        });
+        await this._animateBonusScatterTrigger(
+          spinResult.scatterCount,
+          spinResult.scatterPositions,
+        );
 
         this._showResult(
           `Free Bonus Unlocked: ${spinResult.bonusMode.name} (${this._formatCount(spinResult.bonusMode.initialSpins)} Free Spins) via ${this._formatCount(spinResult.scatterCount)} 🎲`,
@@ -989,6 +986,10 @@ export class GameController {
       this.currentBalance = this._roundCredits(this.currentBalance - betAmount);
       this._updateBalance();
     } else {
+      this.displayedFreeSpinNumber = Math.max(
+        1,
+        Number(freeSpinIndex || this.displayedFreeSpinNumber || 1),
+      );
       this.soundManager.playFreeSpinStart(freeSpinIndex);
     }
 
@@ -1031,7 +1032,7 @@ export class GameController {
     if (spinResult && spinResult.reelStops && !spinResult.grid) {
       // Generate a grid for the UI to display based on reelStops (fallback)
       // This is a placeholder: you may want to map reelStops to a grid more accurately
-      const grid = Array.from({ length: 5 }, (_, row) =>
+      const grid = Array.from({ length: 5 }, () =>
         Array.from({ length: 3 }, (_, col) => spinResult.reelStops[col] || 0),
       );
       spinResult.grid = grid;
@@ -1075,23 +1076,18 @@ export class GameController {
       },
     );
 
-    this.renderer.setPersistentConnectionHighlights(
-      new Set([...(spinResult.initialWins || new Set()), ...debugHighlightSet]),
-    );
-
-    const accumulatedHighlights = new Set(spinResult.initialWins || []);
+    const accumulatedHighlights = new Set();
     for (const key of debugHighlightSet) {
       accumulatedHighlights.add(key);
     }
-    for (const cascade of spinResult.cascades || []) {
-      const highlightPositions =
-        cascade.connectionPositions || cascade.winPositions || new Set();
-      for (const key of highlightPositions) {
-        accumulatedHighlights.add(key);
-      }
+
+    const initialHighlightPositions = new Set(accumulatedHighlights);
+    for (const key of spinResult.initialWins || []) {
+      initialHighlightPositions.add(key);
     }
 
-    this.renderer.render(initialGrid, accumulatedHighlights, {
+    this.renderer.setPersistentConnectionHighlights(accumulatedHighlights);
+    this.renderer.render(initialGrid, initialHighlightPositions, {
       showBonusOverlays: false,
     });
     await this._delay(this.timings.preCascadePause);
@@ -1103,9 +1099,16 @@ export class GameController {
       );
 
       for (const cascade of cascadesToAnimate) {
-        this.renderer.setPersistentConnectionHighlights(accumulatedHighlights);
         const cascadeHighlightPositions =
           cascade.connectionPositions || cascade.winPositions || new Set();
+        const cascadePersistentHighlights = new Set(accumulatedHighlights);
+        for (const key of cascadeHighlightPositions) {
+          cascadePersistentHighlights.add(key);
+        }
+
+        this.renderer.setPersistentConnectionHighlights(
+          cascadePersistentHighlights,
+        );
 
         this.soundManager.playCascade();
         await this.renderer.animateCascade(
@@ -1118,6 +1121,9 @@ export class GameController {
             highlightPositions: cascadeHighlightPositions,
           },
         );
+        for (const key of cascadeHighlightPositions) {
+          accumulatedHighlights.add(key);
+        }
         await this._delay(this.timings.betweenCascades);
       }
 
@@ -1167,26 +1173,22 @@ export class GameController {
       });
     }
 
+    const teaseScatterPositions = this._getEligibleScatterTriggerPositions(
+      spinResult.scatterCount,
+      spinResult.scatterPositions,
+    );
+
     if (
       !isFreeSpin &&
       !spinResult.bonusMode &&
-      spinResult.scatterCount === 2 &&
-      Array.isArray(spinResult.scatterPositions) &&
-      spinResult.scatterPositions.length === 2
+      teaseScatterPositions.length > 0
     ) {
-      await this.renderer.animateScatterTrigger(spinResult.scatterPositions, {
-        duration:
+      await this.renderer.animateScatterTrigger(
+        teaseScatterPositions,
+        this._getScatterBaitAnimationOptions(
           ANIMATION_TIMING.controller.triggerEffects.teaseScatterPulseMs,
-        intensity: 0.82,
-        cycles: 3.15,
-        liftAmplitude: 5,
-        focusOverlay: {
-          accentColor: 0xffd56f,
-          maxScale: 1.24,
-          growMs: 110,
-          shrinkMs: 240,
-        },
-      });
+        ),
+      );
     }
 
     const collectorSummary = this._getCollectorSummary(spinResult, betAmount);
@@ -1245,7 +1247,7 @@ export class GameController {
     return spinResult;
   }
 
-  async _playFreeSpins(betAmount, totalCost = null) {
+  async _playFreeSpins(betAmount, _totalCost = null) {
     // 1. Request the lock if it isn't already active (e.g., if Autoplay is off)
     let lockAcquiredHere = false;
     if (this.wakeLockSentinel === null) {
@@ -1283,12 +1285,13 @@ export class GameController {
           : [];
 
         if (retriggerScatterPositions.length > 0) {
-          await this.renderer.animateScatterTrigger(retriggerScatterPositions, {
-            duration:
+          await this.renderer.animateScatterTrigger(
+            retriggerScatterPositions,
+            this._getScatterBaitAnimationOptions(
               ANIMATION_TIMING.controller.triggerEffects
                 .retriggerScatterPulseMs,
-            intensity: 0.7,
-          });
+            ),
+          );
         }
 
         await this.renderer.animateCenterCallout(
@@ -1311,6 +1314,7 @@ export class GameController {
       await this._delay(ANIMATION_TIMING.controller.pauses.betweenFreeSpinsMs);
     }
 
+    this.displayedFreeSpinNumber = 0;
     this._updateBonusSpinProgress();
 
     this.lastWin = this._roundCredits(bonusTotalWin);
@@ -1679,8 +1683,12 @@ export class GameController {
     const completed = this.game.bonusMode.spinsCompleted || 0;
     const remaining = this.game.freeSpinsRemaining || 0;
     const total = completed + remaining;
+    const current = Math.min(
+      Math.max(total, 1),
+      Math.max(1, Number(this.displayedFreeSpinNumber || completed || 1)),
+    );
 
-    return `${this._formatCount(completed)} of ${this._formatCount(total)}`;
+    return `${this._formatCount(current)} of ${this._formatCount(total)}`;
   }
 
   _updateBonusSpinProgress() {
@@ -1689,6 +1697,7 @@ export class GameController {
     }
 
     if (!this.game?.isInFreeSpins || !this.game?.bonusMode) {
+      this.displayedFreeSpinNumber = 0;
       this.ui.bonusSpinStat.classList.add("hidden");
       return;
     }
@@ -1699,8 +1708,12 @@ export class GameController {
       Number(this.game.bonusMode.spinsCompleted || 0),
     );
     const total = Math.max(remaining + completed, 0);
+    const current = Math.min(
+      Math.max(total, 1),
+      Math.max(1, Number(this.displayedFreeSpinNumber || completed || 1)),
+    );
 
-    this.ui.bonusSpinProgress.textContent = `${this._formatCount(completed)}/${this._formatCount(total)} spins`;
+    this.ui.bonusSpinProgress.textContent = `${this._formatCount(current)}/${this._formatCount(total)} spins`;
     this.ui.bonusSpinStat.classList.remove("hidden");
   }
 
@@ -1742,7 +1755,12 @@ export class GameController {
     return modes?.[modeType] || null;
   }
 
-  async _playBonusBuyTriggerSpin({ modeType, modeName, scatterCount, cost }) {
+  async _playBonusBuyTriggerSpin({
+    modeType: _modeType,
+    modeName,
+    scatterCount,
+    cost,
+  }) {
     const previousGrid = this.game.currentGrid.map((row) => [...row]);
     const triggerGrid = this._buildBonusBuyTriggerGrid(scatterCount);
     const scatterPositions = [];
@@ -1774,13 +1792,53 @@ export class GameController {
     });
     this.game.currentGrid = triggerGrid.map((row) => [...row]);
 
-    await this.renderer.animateScatterTrigger(scatterPositions, {
-      duration: ANIMATION_TIMING.controller.triggerEffects.bonusScatterPulseMs,
-    });
+    await this._animateBonusScatterTrigger(scatterCount, scatterPositions);
 
     this._showResult(
       `Bought ${modeName} for ${this._formatCredits(cost)} — landed ${this._formatCount(scatterCount)} scatters`,
       "win",
+    );
+  }
+
+  _getEligibleScatterTriggerPositions(scatterCount, scatterPositions) {
+    if (Number(scatterCount || 0) < 2 || !Array.isArray(scatterPositions)) {
+      return [];
+    }
+
+    return scatterPositions.length >= 2 ? scatterPositions : [];
+  }
+
+  _getScatterBaitAnimationOptions(duration) {
+    return {
+      duration,
+      intensity: 0.82,
+      cycles: 3.15,
+      liftAmplitude: 5,
+      focusOverlay: {
+        accentColor: 0xffd56f,
+        maxScale: 1.24,
+        growMs: 110,
+        shrinkMs: 240,
+        renderOutline: false,
+      },
+    };
+  }
+
+  async _animateBonusScatterTrigger(scatterCount, scatterPositions) {
+    const eligibleScatterPositions = this._getEligibleScatterTriggerPositions(
+      scatterCount,
+      scatterPositions,
+    );
+
+    if (eligibleScatterPositions.length === 0) {
+      return;
+    }
+
+    await this.renderer.animateScatterTrigger(
+      eligibleScatterPositions,
+      this._getScatterBaitAnimationOptions(
+        ANIMATION_TIMING.controller.triggerEffects.bonusScatterPulseMs,
+      ),
     );
   }
 

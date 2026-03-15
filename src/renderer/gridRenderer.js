@@ -747,7 +747,7 @@ export class GridRenderer {
     return null;
   }
 
-  _drawCellBonusOverlay(cellContainer, x, y) {
+  _drawCellBonusOverlay(_cellContainer, _x, _y) {
     if (!this.bonusVisuals?.modeName) {
       return;
     }
@@ -797,7 +797,7 @@ export class GridRenderer {
     cellContainer.addChildAt(background, 0);
   }
 
-  _renderBonusLabel(show = true) {
+  _renderBonusLabel(_show = true) {
     if (this.bonusLabel && this.app?.stage) {
       this.app.stage.removeChild(this.bonusLabel);
       this.bonusLabel.destroy();
@@ -1120,6 +1120,7 @@ export class GridRenderer {
         growMs = 170,
         shrinkMs = 170,
         renderTileSprite = true,
+        renderOutline = true,
       } = options;
 
       const safeGrowMs = Math.max(80, Math.min(duration / 2, growMs));
@@ -1138,10 +1139,13 @@ export class GridRenderer {
         overlay.addChild(focusTile);
       }
 
-      const glow = new PIXI.Graphics();
-      glow.roundRect(-width / 2, -height / 2, width, height, 14);
-      glow.stroke({ color: accentColor, width: 4, alpha: 0.9 });
-      overlay.addChild(glow);
+      const glow = renderOutline ? new PIXI.Graphics() : null;
+
+      if (glow) {
+        glow.roundRect(-width / 2, -height / 2, width, height, 14);
+        glow.stroke({ color: accentColor, width: 4, alpha: 0.9 });
+        overlay.addChild(glow);
+      }
 
       const aura = new PIXI.Graphics();
       aura.roundRect(
@@ -1179,7 +1183,9 @@ export class GridRenderer {
         overlay.scale.set(focusScale);
         overlay.position.set(center.x, center.y);
         overlay.rotation = 0;
-        glow.alpha = 0.25 + scaleProgress * 0.7;
+        if (glow) {
+          glow.alpha = 0.25 + scaleProgress * 0.7;
+        }
         aura.alpha = 0.06 + scaleProgress * 0.24;
 
         if (progress < 1) {
@@ -1758,7 +1764,6 @@ export class GridRenderer {
       (source) => {
         const sourceKey = `${source.x}_${source.y}`;
         const existingSource = this.revealedSymbolMap.get(sourceKey) || {};
-        const isRainbowCell = this._isRainbowCell(source.x, source.y);
         const text =
           existingSource.label ||
           source.label ||
@@ -2013,8 +2018,6 @@ export class GridRenderer {
 
       const width = symbolNode.width || this.cellSize - 10;
       const height = symbolNode.height || this.cellSize - 10;
-      const centerX = symbolNode.x + width / 2;
-      const centerY = symbolNode.y + height / 2;
 
       activeSymbols.push({
         x: position.x,
@@ -2051,6 +2054,7 @@ export class GridRenderer {
                 Number(focusOverlayOptions.shrinkMs ?? 190),
               ),
               renderTileSprite: focusOverlayOptions.renderTileSprite !== false,
+              renderOutline: focusOverlayOptions.renderOutline !== false,
             }),
           ),
         )
@@ -2797,7 +2801,6 @@ export class GridRenderer {
     await this.ready;
 
     const {
-      betAmount = 1,
       onCloverMultiply = null,
       onCollectorCollect = null,
       onCollectorTick = null,
@@ -3397,5 +3400,3 @@ export class GridRenderer {
     this.app.destroy(true, true);
   }
 }
-
-export default GridRenderer;

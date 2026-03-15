@@ -232,11 +232,17 @@ export class CascadeDetector {
       }
     }
 
+    return this.buildWinResult(grid, clusters);
+  }
+
+  buildWinResult(grid, clusters = []) {
+    const normalizedClusters = Array.isArray(clusters) ? clusters : [];
+
     // Calculate payouts and aggregate results
     const winPositions = new Set();
     let totalWin = 0;
 
-    for (const cluster of clusters) {
+    for (const cluster of normalizedClusters) {
       // Calculate payout for this cluster
       const payout = this._calculateClusterPayout(cluster, grid);
       totalWin += payout;
@@ -248,7 +254,7 @@ export class CascadeDetector {
     }
 
     return {
-      clusters,
+      clusters: normalizedClusters,
       totalWin,
       winPositions,
     };
@@ -577,5 +583,3 @@ export class CascadeDetector {
     console.log("---");
   }
 }
-
-export default CascadeDetector;
