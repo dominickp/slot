@@ -136,8 +136,9 @@ export class GridRenderer {
     this.randomRotationAnglesDeg = this._normalizeRotationAngles(
       options.randomRotationAnglesDeg || [0, 90, 180, 270],
     );
-    this.randomRotationAnglesBySymbolId =
-      this._normalizeRotationAngleMap(options.randomRotationAnglesBySymbolId);
+    this.randomRotationAnglesBySymbolId = this._normalizeRotationAngleMap(
+      options.randomRotationAnglesBySymbolId,
+    );
     this.gridColors = this._normalizeGridColors(options.gridColors || {});
     this.highlightColors = this._normalizeHighlightColors(
       options.highlightColors || {},
@@ -506,9 +507,8 @@ export class GridRenderer {
   _getRotationForCellSymbol(cellKey, symbolId, options = {}) {
     const { preferredRotation = null } = options;
     const numericSymbolId = Number(symbolId);
-    const hasSymbolSpecificAngles = this.randomRotationAnglesBySymbolId.has(
-      numericSymbolId,
-    );
+    const hasSymbolSpecificAngles =
+      this.randomRotationAnglesBySymbolId.has(numericSymbolId);
     if (
       !hasSymbolSpecificAngles &&
       !this.randomRotationSymbolIds.has(numericSymbolId)
