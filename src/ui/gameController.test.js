@@ -517,6 +517,70 @@ describe("GameController bonus balance settlement", () => {
           maxScale: 1.24,
           growMs: 110,
           shrinkMs: 240,
+          renderOutline: false,
+        },
+      },
+    );
+  });
+
+  it("uses the same scatter bait animation for free-spin retriggers", async () => {
+    const controller = {
+      game: {
+        isInFreeSpins: true,
+        freeSpinsRemaining: 0,
+        handleFreeSpinsRetrigger: jest.fn().mockReturnValue(5),
+        advanceFreeSpins: jest.fn().mockImplementation(() => {
+          controller.game.isInFreeSpins = false;
+        }),
+      },
+      soundManager: {
+        playBonus: jest.fn(),
+      },
+      renderer: {
+        animateScatterTrigger: jest.fn().mockResolvedValue(),
+        animateCenterCallout: jest.fn().mockResolvedValue(),
+      },
+      _playSingleSpin: jest.fn().mockResolvedValue({
+        totalWin: 0,
+        scatterCount: 2,
+        scatterPositions: [
+          { x: 0, y: 0 },
+          { x: 2, y: 1 },
+        ],
+      }),
+      _getScatterBaitAnimationOptions:
+        GameController.prototype._getScatterBaitAnimationOptions,
+      _roundCredits: GameController.prototype._roundCredits,
+      _setCharacter: jest.fn(),
+      _requestWakeLock: jest.fn().mockResolvedValue(),
+      _syncBonusVisuals: jest.fn(),
+      _updateBonusSpinProgress: jest.fn(),
+      _updateLastWinDisplay: jest.fn(),
+      _showResult: jest.fn(),
+      _delay: jest.fn().mockResolvedValue(),
+      _formatCount: (value) => String(value),
+      _formatCredits: (value) => String(value),
+      wakeLockSentinel: {},
+    };
+
+    await GameController.prototype._playFreeSpins.call(controller, 2);
+
+    expect(controller.renderer.animateScatterTrigger).toHaveBeenCalledWith(
+      [
+        { x: 0, y: 0 },
+        { x: 2, y: 1 },
+      ],
+      {
+        duration: 0,
+        intensity: 0.82,
+        cycles: 3.15,
+        liftAmplitude: 5,
+        focusOverlay: {
+          accentColor: 0xffd56f,
+          maxScale: 1.24,
+          growMs: 110,
+          shrinkMs: 240,
+          renderOutline: false,
         },
       },
     );

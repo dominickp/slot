@@ -1285,12 +1285,13 @@ export class GameController {
           : [];
 
         if (retriggerScatterPositions.length > 0) {
-          await this.renderer.animateScatterTrigger(retriggerScatterPositions, {
-            duration:
+          await this.renderer.animateScatterTrigger(
+            retriggerScatterPositions,
+            this._getScatterBaitAnimationOptions(
               ANIMATION_TIMING.controller.triggerEffects
                 .retriggerScatterPulseMs,
-            intensity: 0.7,
-          });
+            ),
+          );
         }
 
         await this.renderer.animateCenterCallout(
@@ -1818,6 +1819,7 @@ export class GameController {
         maxScale: 1.24,
         growMs: 110,
         shrinkMs: 240,
+        renderOutline: false,
       },
     };
   }

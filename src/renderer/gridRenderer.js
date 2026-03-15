@@ -1120,6 +1120,7 @@ export class GridRenderer {
         growMs = 170,
         shrinkMs = 170,
         renderTileSprite = true,
+        renderOutline = true,
       } = options;
 
       const safeGrowMs = Math.max(80, Math.min(duration / 2, growMs));
@@ -1138,10 +1139,13 @@ export class GridRenderer {
         overlay.addChild(focusTile);
       }
 
-      const glow = new PIXI.Graphics();
-      glow.roundRect(-width / 2, -height / 2, width, height, 14);
-      glow.stroke({ color: accentColor, width: 4, alpha: 0.9 });
-      overlay.addChild(glow);
+      const glow = renderOutline ? new PIXI.Graphics() : null;
+
+      if (glow) {
+        glow.roundRect(-width / 2, -height / 2, width, height, 14);
+        glow.stroke({ color: accentColor, width: 4, alpha: 0.9 });
+        overlay.addChild(glow);
+      }
 
       const aura = new PIXI.Graphics();
       aura.roundRect(
@@ -1179,7 +1183,9 @@ export class GridRenderer {
         overlay.scale.set(focusScale);
         overlay.position.set(center.x, center.y);
         overlay.rotation = 0;
-        glow.alpha = 0.25 + scaleProgress * 0.7;
+        if (glow) {
+          glow.alpha = 0.25 + scaleProgress * 0.7;
+        }
         aura.alpha = 0.06 + scaleProgress * 0.24;
 
         if (progress < 1) {
@@ -2048,6 +2054,7 @@ export class GridRenderer {
                 Number(focusOverlayOptions.shrinkMs ?? 190),
               ),
               renderTileSprite: focusOverlayOptions.renderTileSprite !== false,
+              renderOutline: focusOverlayOptions.renderOutline !== false,
             }),
           ),
         )
