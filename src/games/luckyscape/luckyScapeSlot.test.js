@@ -251,6 +251,33 @@ describe("LuckyScapeSlot super-cascade removal integration", () => {
 });
 
 describe("LuckyScapeSlot debug spin guarantees", () => {
+  it("does not force collector reveals when debug mode is disabled", () => {
+    const slot = new LuckyScapeSlot({
+      debug: {
+        enabled: false,
+        forceConnectionAndRainbow: true,
+      },
+    });
+
+    slot.goldenSquares = new Set(["0,0", "1,0", "2,0", "3,0", "4,0"]);
+    slot._getGoldenSquareOutcomeChances = () => ({
+      coin: 1,
+      clover: 0,
+      pot: 0,
+    });
+    slot._rollCoinValue = () => 1;
+    slot.rng.nextFloat = () => 0;
+
+    const round = slot._executeSingleChainRound(1);
+
+    expect(slot.debugModeEnabled).toBe(false);
+    expect(slot.debugForceConnectionAndRainbow).toBe(false);
+    expect(round.potCount).toBe(0);
+    expect(
+      slot.bonusEventTimeline[0].reveals.some((r) => r.type === "collector"),
+    ).toBe(false);
+  });
+
   it("forces at least one rainbow and one connection when debug mode is enabled", () => {
     const slot = new LuckyScapeSlot({
       debug: {

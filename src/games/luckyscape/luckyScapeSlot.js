@@ -971,7 +971,9 @@ export class LuckyScapeSlot extends BaseSlot {
 
   _resolveDebugState(debugConfig = {}) {
     const enabled = Boolean(debugConfig?.enabled);
-    const selectedOptions = this._resolveDebugOptionIds(debugConfig);
+    const selectedOptions = enabled
+      ? this._resolveDebugOptionIds(debugConfig)
+      : [];
 
     return {
       enabled,
@@ -1367,7 +1369,11 @@ export class LuckyScapeSlot extends BaseSlot {
       }
     }
 
-    if (this.debugForceConnectionAndRainbow && collectorQueue.length === 0) {
+    if (
+      this.debugModeEnabled &&
+      this.debugForceConnectionAndRainbow &&
+      collectorQueue.length === 0
+    ) {
       const forcedCollectorKey = sortedGoldenKeys.find((key) => {
         const tile = tileState.get(key);
         return tile && tile.type !== "collector_empty";
