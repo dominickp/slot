@@ -35,7 +35,7 @@ export const ANIMATION_TIMING = {
       // Pause after retrigger text/callout before continuing.
       postRetriggerMs: 240,
       // Delay between free spins in an active bonus round.
-      betweenFreeSpinsMs: 350,
+      betweenFreeSpinsMs: 750,
     },
   },
   renderer: {
