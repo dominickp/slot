@@ -1,3 +1,4 @@
+import { Console } from "node:console";
 import { LuckyScapeSlot } from "./luckyScapeSlot.js";
 
 // What this gives you:
@@ -8,9 +9,39 @@ import { LuckyScapeSlot } from "./luckyScapeSlot.js";
 // You can override these with environment variables if needed
 const BET_AMOUNT = Number.parseFloat(process.env.RTP_BENCH_BET || "1");
 const RUNS = Number.parseInt(process.env.RTP_BENCH_RUNS || "10000", 10);
+const benchmarkConsole = new Console({
+  stdout: process.stdout,
+  stderr: process.stderr,
+});
 
 function toPercent(value) {
   return `${(value * 100).toFixed(2)}%`;
+}
+
+function formatTable(rows) {
+  if (rows.length === 0) {
+    return "(no rows)";
+  }
+
+  const headers = Object.keys(rows[0]);
+  const stringRows = rows.map((row) =>
+    headers.map((header) => String(row[header] ?? "")),
+  );
+  const columnWidths = headers.map((header, index) =>
+    Math.max(header.length, ...stringRows.map((row) => row[index].length)),
+  );
+  const padCell = (value, index) => value.padEnd(columnWidths[index], " ");
+  const separator = columnWidths.map((width) => "-".repeat(width)).join("-+-");
+
+  const lines = [
+    headers.map((header, index) => padCell(header, index)).join(" | "),
+    separator,
+    ...stringRows.map((row) =>
+      row.map((value, index) => padCell(value, index)).join(" | "),
+    ),
+  ];
+
+  return lines.join("\n");
 }
 
 /**
@@ -152,7 +183,7 @@ async function simulateBonusMode(modeType, runs) {
 describe("LuckyScape Isolated RTP Benchmark", () => {
   // We set a very high timeout because running 30,000 spins total might take a minute or two
   it("benchmarks base game and independent bonus modes", async () => {
-    console.log(`Starting isolated benchmarks (${RUNS} runs each)...`);
+    benchmarkConsole.log(`Starting isolated benchmarks (${RUNS} runs each)...`);
 
     const baseResult = await simulateBaseGame(RUNS);
     const leprechaunResult = await simulateBonusMode("LEPRECHAUN", RUNS);
@@ -176,7 +207,7 @@ describe("LuckyScape Isolated RTP Benchmark", () => {
           : "N/A",
     }));
 
-    console.table(tableData);
+    benchmarkConsole.log(formatTable(tableData));
 
     const scatterTableData = [3, 4, 5].map((scatterCount) => {
       const hitCount = baseResult.scatterTriggerCounts[scatterCount] || 0;
@@ -193,24 +224,24 @@ describe("LuckyScape Isolated RTP Benchmark", () => {
       };
     });
 
-    console.log("\nBase Game Scatter Frequency");
-    console.table(scatterTableData);
+    benchmarkConsole.log("\nBase Game Scatter Frequency");
+    benchmarkConsole.log(formatTable(scatterTableData));
 
     // Provide some immediate tuning suggestions based on the new isolated metrics
-    console.log("\n--- Quick Tuning Analysis ---");
+    benchmarkConsole.log("\n--- Quick Tuning Analysis ---");
     for (const r of results) {
       if (r.rtp > 1.05) {
-        console.warn(
+        benchmarkConsole.warn(
           `⚠️ ${r.mode} RTP is too high (${toPercent(r.rtp)}). Reduce coin values or payout combinations.`,
         );
       } else if (r.rtp < 0.9) {
-        console.warn(
+        benchmarkConsole.warn(
           `⚠️ ${r.mode} RTP is too low (${toPercent(r.rtp)}). Increase multipliers or feature frequencies.`,
         );
       }
 
       if (r.mode !== "Base Game" && r.profitRate > 0.3) {
-        console.warn(
+        benchmarkConsole.warn(
           `⚠️ ${r.mode} is highly profitable. Players win their money back over ${toPercent(r.profitRate)} of the time. You may want to lower the average win but increase the max win potential.`,
         );
       }
