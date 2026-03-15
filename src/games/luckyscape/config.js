@@ -138,6 +138,8 @@ export const LUCKY_ESCAPE_CONFIG = {
       "big-win": withBasePath("assets/audio/big_win.ogg"),
       "bg-music": withBasePath("assets/audio/background_music.ogg"),
       "coin-reveal": withBasePath("assets/audio/coin_reveal.ogg"),
+      "feature-trigger": withBasePath("assets/audio/feature-trigger.ogg"),
+      retrigger: withBasePath("assets/audio/retrigger.ogg"),
     },
   },
 
@@ -379,6 +381,10 @@ export const LUCKY_ESCAPE_CONFIG = {
       "scatter-bait": {
         label: "2 Scatter Bait",
         aliases: ["scatter", "bait", "tease"],
+      },
+      "retrigger-test": {
+        label: "Bonus Retrigger Test",
+        aliases: ["retrigger", "bonus-retrigger", "retrigger-check"],
       },
     },
     gate: {

@@ -20,6 +20,8 @@ export class SoundManager {
     this.backgroundMusicVolumeScale = 0.35;
     this.backgroundMusicMuted = false;
     this.backgroundMusicPathStatus = new Map();
+    this.backgroundMusicDuckLayers = new Map();
+    this.currentFeatureTriggerStop = null;
   }
 
   setSoundAssetMap(assetMap = {}) {
@@ -58,7 +60,7 @@ export class SoundManager {
     fallback();
   }
 
-  _playAsset(key) {
+  _playAsset(key, options = {}) {
     if (!this.enabled) {
       return false;
     }
@@ -81,6 +83,7 @@ export class SoundManager {
         try {
           const immediate = new Audio(assetPath);
           immediate.volume = Math.max(0, Math.min(1, this.volume));
+          options.onPlayer?.(immediate);
           immediate.play().catch(() => {});
           return true;
         } catch {
@@ -99,6 +102,7 @@ export class SoundManager {
 
       const player = template.cloneNode();
       player.volume = Math.max(0, Math.min(1, this.volume));
+      options.onPlayer?.(player);
       player.play().catch(() => {});
       return true;
     } catch {
@@ -333,6 +337,94 @@ export class SoundManager {
         duration: 0.2,
         volume: 0.14,
         delay: 0.15,
+      });
+    });
+  }
+
+  playFeatureTrigger(scatterCount = 0) {
+    this.stopFeatureTrigger();
+
+    this._playHookOrFallback("feature-trigger", () => {
+      if (
+        this._playAsset("feature-trigger", {
+          onPlayer: (player) =>
+            this._trackFeatureTriggerPlayer(player, {
+              duckScale: 0.1,
+              maxDurationMs: 12000,
+            }),
+        })
+      ) {
+        return;
+      }
+      this._setFeatureTriggerStop(
+        this._duckBackgroundMusicForDuration(700, 0.3),
+      );
+      const accent = Math.min(90, Math.max(0, Number(scatterCount || 0)) * 18);
+      this.playTone({
+        frequency: 520 + accent,
+        type: "triangle",
+        duration: 0.1,
+        volume: 0.16,
+      });
+      this.playTone({
+        frequency: 780 + accent,
+        type: "triangle",
+        duration: 0.14,
+        volume: 0.15,
+        delay: 0.05,
+      });
+      this.playTone({
+        frequency: 1180 + accent,
+        type: "sine",
+        duration: 0.24,
+        volume: 0.13,
+        delay: 0.12,
+      });
+    });
+  }
+
+  stopFeatureTrigger() {
+    if (typeof this.currentFeatureTriggerStop !== "function") {
+      return;
+    }
+
+    const stop = this.currentFeatureTriggerStop;
+    this.currentFeatureTriggerStop = null;
+    stop();
+  }
+
+  playRetrigger(spinsAwarded = 0) {
+    this._playHookOrFallback("retrigger", () => {
+      if (this._playAsset("retrigger")) {
+        return;
+      }
+      const rise = Math.min(120, Math.max(0, Number(spinsAwarded || 0)) * 12);
+      this.playTone({
+        frequency: 460 + rise,
+        type: "square",
+        duration: 0.08,
+        volume: 0.15,
+      });
+      this.playTone({
+        frequency: 620 + rise,
+        type: "square",
+        duration: 0.1,
+        volume: 0.14,
+        delay: 0.05,
+      });
+      this.playTone({
+        frequency: 840 + rise,
+        type: "triangle",
+        duration: 0.18,
+        volume: 0.13,
+        delay: 0.1,
+      });
+      this.playTone({
+        frequency: 1080 + rise,
+        type: "triangle",
+        duration: 0.2,
+        volume: 0.11,
+        delay: 0.16,
       });
     });
   }
@@ -627,6 +719,146 @@ export class SoundManager {
     this.backgroundMusic.currentTime = 0;
   }
 
+  _getBackgroundMusicDuckScale() {
+    if (this.backgroundMusicDuckLayers.size === 0) {
+      return 1;
+    }
+
+    let targetScale = 1;
+    for (const scale of this.backgroundMusicDuckLayers.values()) {
+      targetScale = Math.min(targetScale, scale);
+    }
+
+    return targetScale;
+  }
+
+  _beginBackgroundMusicDuck(scale = 0.3) {
+    const token = Symbol("bg-music-duck");
+    const nextScale = Number.isFinite(Number(scale))
+      ? Math.max(0, Math.min(1, Number(scale)))
+      : 0.3;
+    this.backgroundMusicDuckLayers.set(token, nextScale);
+    this._syncBackgroundMusicVolume();
+    return token;
+  }
+
+  _endBackgroundMusicDuck(token) {
+    if (!token) {
+      return;
+    }
+
+    this.backgroundMusicDuckLayers.delete(token);
+    this._syncBackgroundMusicVolume();
+  }
+
+  _duckBackgroundMusicForDuration(durationMs = 0, duckScale = 0.3) {
+    const token = this._beginBackgroundMusicDuck(duckScale);
+    const timeoutMs = Math.max(0, Number(durationMs) || 0);
+    let released = false;
+
+    const release = () => {
+      if (released) {
+        return;
+      }
+
+      released = true;
+      clearTimeout(timeoutId);
+      this._endBackgroundMusicDuck(token);
+    };
+
+    if (timeoutMs === 0) {
+      release();
+      return null;
+    }
+
+    const timeoutId = setTimeout(release, timeoutMs);
+
+    return release;
+  }
+
+  _duckBackgroundMusicForPlayer(
+    player,
+    { duckScale = 0.3, maxDurationMs = 12000 } = {},
+  ) {
+    if (!player || typeof player.addEventListener !== "function") {
+      return this._duckBackgroundMusicForDuration(maxDurationMs, duckScale);
+    }
+
+    const token = this._beginBackgroundMusicDuck(duckScale);
+    let released = false;
+
+    const release = () => {
+      if (released) {
+        return;
+      }
+
+      released = true;
+      clearTimeout(fallbackTimeout);
+      player.removeEventListener?.("ended", release);
+      player.removeEventListener?.("error", release);
+      this._endBackgroundMusicDuck(token);
+    };
+
+    const fallbackTimeout = setTimeout(release, Math.max(0, maxDurationMs));
+
+    player.addEventListener("ended", release, { once: true });
+    player.addEventListener("error", release, { once: true });
+
+    return release;
+  }
+
+  _setFeatureTriggerStop(stopPlayback) {
+    if (typeof stopPlayback !== "function") {
+      this.currentFeatureTriggerStop = null;
+      return null;
+    }
+
+    let stopped = false;
+    const stop = () => {
+      if (stopped) {
+        return;
+      }
+
+      stopped = true;
+      if (this.currentFeatureTriggerStop === stop) {
+        this.currentFeatureTriggerStop = null;
+      }
+      stopPlayback();
+    };
+
+    this.currentFeatureTriggerStop = stop;
+    return stop;
+  }
+
+  _trackFeatureTriggerPlayer(
+    player,
+    { duckScale = 0.3, maxDurationMs = 12000 } = {},
+  ) {
+    const releaseDuck = this._duckBackgroundMusicForPlayer(player, {
+      duckScale,
+      maxDurationMs,
+    });
+
+    const finalize = this._setFeatureTriggerStop(() => {
+      player.removeEventListener?.("ended", finalize);
+      player.removeEventListener?.("error", finalize);
+      releaseDuck?.();
+      try {
+        player.pause?.();
+      } catch {}
+      try {
+        if ("currentTime" in player) {
+          player.currentTime = 0;
+        }
+      } catch {}
+    });
+
+    player.addEventListener?.("ended", finalize, { once: true });
+    player.addEventListener?.("error", finalize, { once: true });
+
+    return finalize;
+  }
+
   _syncBackgroundMusicVolume() {
     if (!this.backgroundMusic) {
       return;
@@ -636,7 +868,12 @@ export class SoundManager {
       this.enabled && !this.backgroundMusicMuted
         ? Math.max(
             0,
-            Math.min(1, this.volume * this.backgroundMusicVolumeScale),
+            Math.min(
+              1,
+              this.volume *
+                this.backgroundMusicVolumeScale *
+                this._getBackgroundMusicDuckScale(),
+            ),
           )
         : 0;
     this.backgroundMusic.volume = target;

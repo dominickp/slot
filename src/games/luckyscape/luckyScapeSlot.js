@@ -21,6 +21,7 @@ const DEBUG_OPTION_IDS = Object.freeze({
   CONNECTION_SEQUENCE: "connection-sequence",
   WILD_CONNECTIONS: "wild-connections",
   SCATTER_BAIT: "scatter-bait",
+  RETRIGGER_TEST: "retrigger-test",
 });
 
 const DEBUG_BASE_GRID_SEQUENCE = Object.freeze([
@@ -36,6 +37,15 @@ const DEBUG_SHOWCASE_SPECIALS = Object.freeze([
 const DEBUG_SCATTER_BAIT_POSITIONS = Object.freeze([
   { x: 1, y: 1 },
   { x: 4, y: 3 },
+]);
+const DEBUG_RETRIGGER_TRIGGER_POSITIONS = Object.freeze([
+  { x: 0, y: 0 },
+  { x: 2, y: 2 },
+  { x: 5, y: 4 },
+]);
+const DEBUG_RETRIGGER_BONUS_POSITIONS = Object.freeze([
+  { x: 1, y: 0 },
+  { x: 4, y: 4 },
 ]);
 const DEBUG_CONNECTION_SEQUENCE_BOARDS = Object.freeze([
   Object.freeze([
@@ -405,6 +415,7 @@ export class LuckyScapeSlot extends BaseSlot {
     this.goldenSquares = new Set();
     this.pendingGoldenSquareReset = false;
     this.bonusHadRainbowActivationThisSession = false;
+    this.debugRetriggerPending = this.debugRetriggerTestEnabled;
     this._resetSpinFeatureState();
   }
 
@@ -504,6 +515,7 @@ export class LuckyScapeSlot extends BaseSlot {
       this.goldenSquares.clear();
       this.pendingGoldenSquareReset = false;
       this.bonusHadRainbowActivationThisSession = false;
+      this.debugRetriggerPending = false;
       return true;
     }
 
@@ -784,6 +796,15 @@ export class LuckyScapeSlot extends BaseSlot {
       this._forceScatterCount(2, DEBUG_SCATTER_BAIT_POSITIONS);
     }
 
+    if (this.debugRetriggerTestEnabled) {
+      if (!this.isInFreeSpins) {
+        this._forceScatterCount(3, DEBUG_RETRIGGER_TRIGGER_POSITIONS);
+      } else if (this.debugRetriggerPending) {
+        this._forceScatterCount(2, DEBUG_RETRIGGER_BONUS_POSITIONS);
+        this.debugRetriggerPending = false;
+      }
+    }
+
     if (this.debugConnectionSequenceEnabled) {
       this._applyForcedDebugConnectionGroup(
         this._getDebugConnectionSequenceBoard(),
@@ -1045,6 +1066,10 @@ export class LuckyScapeSlot extends BaseSlot {
     this.debugScatterBaitEnabled = this.debugSelectedOptionSet.has(
       DEBUG_OPTION_IDS.SCATTER_BAIT,
     );
+    this.debugRetriggerTestEnabled = this.debugSelectedOptionSet.has(
+      DEBUG_OPTION_IDS.RETRIGGER_TEST,
+    );
+    this.debugRetriggerPending = false;
     this.debugSpinCounter = 0;
   }
 
@@ -1078,7 +1103,9 @@ export class LuckyScapeSlot extends BaseSlot {
       this.debugShowAllSymbolsHighlighted ||
       this.debugConnectionSequenceEnabled ||
       this.debugWildConnectionsEnabled ||
-      (this.debugScatterBaitEnabled && !this.isInFreeSpins)
+      (this.debugScatterBaitEnabled && !this.isInFreeSpins) ||
+      (this.debugRetriggerTestEnabled &&
+        (!this.isInFreeSpins || this.debugRetriggerPending))
     );
   }
 

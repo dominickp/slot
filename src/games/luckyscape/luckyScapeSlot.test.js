@@ -1,4 +1,5 @@
 import { LuckyScapeSlot } from "./luckyScapeSlot.js";
+import { LUCKY_ESCAPE_CONFIG } from "./config.js";
 
 describe("LuckyScapeSlot rainbow enforcement", () => {
   it("keeps a single rainbow visible when already spawned this spin", () => {
@@ -477,6 +478,48 @@ describe("LuckyScapeSlot debug spin guarantees", () => {
 
     expect(scatterResult.count).toBe(2);
     expect(winResult.clusters.length).toBe(0);
+  });
+
+  it("forces one bonus entry spin and one in-bonus retrigger in retrigger test mode", () => {
+    const slot = new LuckyScapeSlot({
+      ...LUCKY_ESCAPE_CONFIG,
+      debug: {
+        ...(LUCKY_ESCAPE_CONFIG.debug || {}),
+        enabled: true,
+        selectedOptions: ["retrigger-test"],
+      },
+    });
+
+    slot.currentGrid = [[0]];
+
+    slot._applyDebugSpinGuarantees();
+
+    const triggerScatterResult = slot.detector.findScatters(slot.currentGrid);
+    const triggerWinResult = slot.detector.findWins(slot.currentGrid);
+
+    expect(triggerScatterResult.count).toBe(3);
+    expect(triggerWinResult.clusters.length).toBe(0);
+
+    slot.startBonusMode("LEPRECHAUN");
+
+    expect(slot.debugRetriggerPending).toBe(true);
+
+    slot.currentGrid = slot._createDebugBaseGrid();
+    slot._applyDebugSpinGuarantees();
+
+    const retriggerScatterResult = slot.detector.findScatters(slot.currentGrid);
+    const retriggerWinResult = slot.detector.findWins(slot.currentGrid);
+
+    expect(retriggerScatterResult.count).toBe(2);
+    expect(retriggerWinResult.clusters.length).toBe(0);
+    expect(slot.debugRetriggerPending).toBe(false);
+
+    slot.currentGrid = slot._createDebugBaseGrid();
+    slot._applyDebugSpinGuarantees();
+
+    const followUpScatterResult = slot.detector.findScatters(slot.currentGrid);
+
+    expect(followUpScatterResult.count).toBe(0);
   });
 });
 

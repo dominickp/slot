@@ -261,7 +261,6 @@ describe("GameController bonus balance settlement", () => {
       },
       soundManager: {
         playSpinStart: jest.fn(),
-        playBonus: jest.fn(),
       },
       renderer: {
         animateScatterTrigger: jest.fn().mockResolvedValue(),
@@ -338,7 +337,6 @@ describe("GameController bonus balance settlement", () => {
       soundManager: {
         ensureReady: jest.fn().mockResolvedValue(),
         playButton: jest.fn(),
-        playBonus: jest.fn(),
       },
       _hideBonusTotalOverlay: jest.fn(),
       _updateControlButtons: jest.fn(),
@@ -524,6 +522,7 @@ describe("GameController bonus balance settlement", () => {
   });
 
   it("uses the same scatter bait animation for free-spin retriggers", async () => {
+    const playRetrigger = jest.fn();
     const controller = {
       game: {
         isInFreeSpins: true,
@@ -534,7 +533,7 @@ describe("GameController bonus balance settlement", () => {
         }),
       },
       soundManager: {
-        playBonus: jest.fn(),
+        playRetrigger,
       },
       renderer: {
         animateScatterTrigger: jest.fn().mockResolvedValue(),
@@ -565,6 +564,7 @@ describe("GameController bonus balance settlement", () => {
 
     await GameController.prototype._playFreeSpins.call(controller, 2);
 
+    expect(playRetrigger).toHaveBeenCalledWith(5);
     expect(controller.renderer.animateScatterTrigger).toHaveBeenCalledWith(
       [
         { x: 0, y: 0 },
@@ -642,5 +642,73 @@ describe("GameController bonus balance settlement", () => {
     expect(controller.ui.bonusSpinStat.classList.add).toHaveBeenCalledWith(
       "hidden",
     );
+  });
+
+  it("stops the feature-trigger sound when bonus intro continue is pressed", () => {
+    const stopFeatureTrigger = jest.fn();
+    const resolver = jest.fn();
+    const controller = {
+      bonusIntroOpen: true,
+      bonusIntroResolver: resolver,
+      soundManager: {
+        stopFeatureTrigger,
+      },
+      ui: {
+        bonusIntroModal: {
+          classList: {
+            remove: jest.fn(),
+          },
+        },
+      },
+    };
+
+    GameController.prototype._resolveBonusIntroContinue.call(controller);
+
+    expect(stopFeatureTrigger).toHaveBeenCalledTimes(1);
+    expect(controller.bonusIntroOpen).toBe(false);
+    expect(controller.ui.bonusIntroModal.classList.remove).toHaveBeenCalledWith(
+      "show",
+    );
+    expect(resolver).toHaveBeenCalledWith(true);
+  });
+
+  it("starts the feature-trigger sound when the bonus intro modal is shown", () => {
+    const playFeatureTrigger = jest.fn();
+    const controller = {
+      bonusIntroOpen: false,
+      soundManager: {
+        playFeatureTrigger,
+      },
+      ui: {
+        bonusIntroModal: {
+          classList: {
+            add: jest.fn(),
+          },
+        },
+        bonusIntroTitle: {
+          textContent: "",
+        },
+        bonusIntroCopy: {
+          textContent: "",
+        },
+        bonusIntroGraphic: null,
+      },
+      _getBonusModeConfig: jest.fn().mockReturnValue({
+        description: "Test bonus description",
+      }),
+      _formatCount: (value) => String(value),
+      _formatCredits: (value) => String(value),
+    };
+
+    GameController.prototype._showBonusIntro.call(
+      controller,
+      { type: "LEPRECHAUN", name: "Test Bonus", initialSpins: 9 },
+      3,
+    );
+
+    expect(controller.ui.bonusIntroModal.classList.add).toHaveBeenCalledWith(
+      "show",
+    );
+    expect(playFeatureTrigger).toHaveBeenCalledWith(3);
   });
 });

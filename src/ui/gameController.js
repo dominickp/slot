@@ -833,8 +833,6 @@ export class GameController {
       });
 
       if (spinResult.bonusMode) {
-        this.soundManager.playBonus();
-
         // Show rapping character during bonus
         this._setCharacter("bonus");
 
@@ -950,7 +948,6 @@ export class GameController {
 
       const bonusMeta = this.game.startBonusMode(modeType);
       this._syncBonusVisuals();
-      this.soundManager.playBonus();
       this._showResult(
         `${this._formatCount(scatterCount)} scatters landed — ${bonusMeta.name} unlocked (${this._formatCount(bonusMeta.initialSpins)} Free Spins)`,
         "win",
@@ -1279,7 +1276,7 @@ export class GameController {
       }
 
       if (retriggerSpinsAwarded > 0) {
-        this.soundManager.playBonus();
+        this.soundManager.playRetrigger(retriggerSpinsAwarded);
         const retriggerScatterPositions = Array.isArray(result.scatterPositions)
           ? result.scatterPositions
           : [];
@@ -1484,6 +1481,7 @@ export class GameController {
       }
     }
     this.ui.bonusIntroModal.classList.add("show");
+    this.soundManager?.playFeatureTrigger?.(scatterCount);
 
     return new Promise((resolve) => {
       this.bonusIntroResolver = resolve;
@@ -1495,6 +1493,7 @@ export class GameController {
       return;
     }
 
+    this.soundManager?.stopFeatureTrigger?.();
     this.bonusIntroOpen = false;
     this.ui.bonusIntroModal.classList.remove("show");
 
