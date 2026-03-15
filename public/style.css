@@ -70,6 +70,10 @@
   padding: 0 !important;
 }
 
+.game-container {
+  display: none;
+}
+
 #character-wrapper {
   display: inline-block;
   top: 496px;
@@ -88,7 +92,7 @@
   padding: 10px 15px;
 }
 
-@media (max-width: 1400px) {
+@media (max-width: 1300px) {
   #leaderboard-wrapper {
     width: 100%;
     display: flex;
@@ -130,6 +134,7 @@
 }
 #spinBtn {
   height: 100%;
+  min-height: 60px;
 }
 
 @media (max-width: 800px) {
@@ -229,6 +234,19 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 15px;
   margin-bottom: 14px;
+}
+
+.controls--buy,
+.controls--toggles {
+  margin-top: 12px;
+}
+
+.controls--buy {
+  grid-template-columns: 1fr 2fr;
+}
+
+.controls--toggles {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .control-group {
@@ -628,6 +646,12 @@ button {
   padding: 0;
   list-style: none;
 }
+
+.list-reset {
+  padding-left: 0;
+  list-style: none;
+}
+
 .symbol-list li {
   display: inline-block;
   margin-bottom: 10px;
@@ -654,9 +678,6 @@ button {
   display: flex;
   align-items: center;
   margin-bottom: 8px; /* optional, for spacing between rows */
-}
-#symbolInfoCloseBtn {
-  display: none;
 }
 
 .footer {
@@ -699,6 +720,29 @@ button {
   position: relative;
 }
 
+.modal-card-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.modal-card-close:hover {
+  color: #fff;
+  transform: none;
+  box-shadow: none;
+}
+
+.modal-card-close:focus-visible {
+  outline: 2px solid rgba(110, 168, 255, 0.5);
+  outline-offset: 4px;
+}
+
 .modal-title {
   font-size: 19px;
   font-weight: 700;
@@ -717,6 +761,10 @@ button {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.modal-actions--stack {
+  grid-template-columns: 1fr;
 }
 
 .bonus-intro-card {
@@ -791,6 +839,26 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .controls--buy {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  }
+
+  .controls--toggles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .controls--buy button,
+  .controls--toggles button {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .controls--toggles button {
+    min-height: 44px;
+    padding-block: 12px;
+  }
+
   .stats {
     grid-template-columns: 1fr 1fr;
   }
@@ -863,5 +931,6 @@ button {
 
 /* Firefox */
 #betInput[type="number"] {
+  appearance: textfield;
   -moz-appearance: textfield;
 }

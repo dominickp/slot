@@ -679,27 +679,28 @@ export class GameController {
     document.addEventListener("DOMContentLoaded", () => {
       const infoBtn = document.getElementById("symbolInfoBtn");
       const infoModal = document.getElementById("symbolInfoModal");
-      const infoCloseBtn = document.getElementById("symbolInfoCloseBtn");
-      if (infoBtn && infoModal && infoCloseBtn) {
+      const closeX = document.getElementById("closeX");
+
+      const openInfoModal = () => {
+        infoModal.classList.add("show");
+      };
+
+      const closeInfoModal = () => {
+        infoModal.classList.remove("show");
+      };
+
+      if (infoBtn && infoModal && closeX) {
         infoBtn.addEventListener("click", () => {
-          infoModal.style.display = "flex";
-          infoModal.classList.add("show");
-        });
-        infoCloseBtn.addEventListener("click", () => {
-          infoModal.style.display = "none";
-          infoModal.classList.remove("show");
+          openInfoModal();
         });
         // Dismiss modal on outside click
         infoModal.addEventListener("click", (e) => {
           if (e.target === infoModal) {
-            infoModal.style.display = "none";
-            infoModal.classList.remove("show");
+            closeInfoModal();
           }
         });
-        const closeX = document.getElementById("closeX");
         closeX.addEventListener("click", () => {
-          infoModal.style.display = "none";
-          infoModal.classList.remove("show");
+          closeInfoModal();
         });
       }
     });

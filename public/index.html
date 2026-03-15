@@ -35,7 +35,7 @@
           ℹ️ Info
         </button>
 
-        <div class="game-container loading" style="display: none">
+        <div class="game-container loading">
           <div>🔧 Game loader initializing...</div>
         </div>
 
@@ -105,20 +105,14 @@
           </div>
         </div>
 
-        <div
-          class="controls"
-          style="grid-template-columns: 1fr 2fr; margin-top: 12px"
-        >
+        <div class="controls controls--buy">
           <button class="btn-secondary" id="buyBonusBtn">BUY BONUS</button>
           <div class="control-group">
             <button class="btn-primary" id="spinBtn" disabled>SPIN</button>
           </div>
         </div>
 
-        <div
-          class="controls"
-          style="grid-template-columns: 1fr 1fr 1fr; margin-top: 12px"
-        >
+        <div class="controls controls--toggles">
           <button class="btn-secondary" id="autoplayBtn">AUTOPLAY: OFF</button>
           <button class="btn-secondary" id="soundBtn">SOUND: ON</button>
           <button class="btn-secondary" id="bgMusicBtn">BG MUSIC: ON</button>
@@ -139,21 +133,13 @@
         role="dialog"
         aria-modal="true"
         aria-labelledby="symbolInfoTitle"
-        style="display: none"
       >
         <div class="modal-card">
           <button
             id="closeX"
-            style="
-              position: absolute;
-              top: 15px;
-              right: 15px;
-              background: none;
-              border: none;
-              color: white;
-              font-size: 20px;
-              cursor: pointer;
-            "
+            class="modal-card-close"
+            type="button"
+            aria-label="Close information modal"
           >
             ✕
           </button>
@@ -185,10 +171,7 @@
           </div>
           <div class="modal-title symbol-info-title">Special Symbols</div>
           <div class="modal-copy symbol-info-content">
-            <ul
-              class="symbol-list-labelled"
-              style="padding-left: 0; list-style: none"
-            >
+            <ul class="symbol-list-labelled list-reset">
               <li>
                 <img src="assets/symbols/scatter_fs.png" class="symbol-icon" />
                 Scatter, gives free spins or unlocks bonus.
@@ -217,7 +200,7 @@
 
           <div class="modal-title symbol-info-title">Regular Symbols</div>
           <div class="modal-copy symbol-info-content">
-            <ul class="symbol-list" style="padding-left: 0; list-style: none">
+            <ul class="symbol-list list-reset">
               <li><img src="assets/symbols/10.png" class="symbol-icon" /></li>
               <li><img src="assets/symbols/J.png" class="symbol-icon" /></li>
               <li><img src="assets/symbols/Q.png" class="symbol-icon" /></li>
@@ -238,7 +221,7 @@
           </div>
           <div class="modal-title symbol-info-title">Judgement Symbols</div>
           <div class="modal-copy symbol-info-content">
-            <ul class="symbol-list" style="padding-left: 0; list-style: none">
+            <ul class="symbol-list list-reset">
               <li>
                 <img src="assets/symbols/coin_bronze.png" class="symbol-icon" />
               </li>
@@ -251,9 +234,6 @@
             </ul>
           </div>
 
-          <div class="modal-actions">
-            <button class="btn-secondary" id="symbolInfoCloseBtn">Close</button>
-          </div>
         </div>
       </div>
     </div>
@@ -287,7 +267,7 @@
         <div class="modal-copy" id="buyOptionsText">
           Pick a bonus option. Higher tier has the higher buy cost.
         </div>
-        <div class="modal-actions" style="grid-template-columns: 1fr">
+        <div class="modal-actions modal-actions--stack">
           <button class="btn-secondary" id="buyOptionLeprechaunBtn">
             BUY 3 SCATTER BONUS
           </button>
