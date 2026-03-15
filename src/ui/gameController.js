@@ -244,6 +244,7 @@ export class GameController {
     this.confirmResolver = null;
     this.bonusIntroOpen = false;
     this.bonusIntroResolver = null;
+    this.displayedFreeSpinNumber = 0;
     this.soundManager = new SoundManager();
     this.soundManager.setSoundAssetMap(
       LUCKY_ESCAPE_CONFIG?.assets?.sounds || {},
@@ -985,6 +986,10 @@ export class GameController {
       this.currentBalance = this._roundCredits(this.currentBalance - betAmount);
       this._updateBalance();
     } else {
+      this.displayedFreeSpinNumber = Math.max(
+        1,
+        Number(freeSpinIndex || this.displayedFreeSpinNumber || 1),
+      );
       this.soundManager.playFreeSpinStart(freeSpinIndex);
     }
 
@@ -1308,6 +1313,7 @@ export class GameController {
       await this._delay(ANIMATION_TIMING.controller.pauses.betweenFreeSpinsMs);
     }
 
+    this.displayedFreeSpinNumber = 0;
     this._updateBonusSpinProgress();
 
     this.lastWin = this._roundCredits(bonusTotalWin);
@@ -1676,8 +1682,12 @@ export class GameController {
     const completed = this.game.bonusMode.spinsCompleted || 0;
     const remaining = this.game.freeSpinsRemaining || 0;
     const total = completed + remaining;
+    const current = Math.min(
+      Math.max(total, 1),
+      Math.max(1, Number(this.displayedFreeSpinNumber || completed || 1)),
+    );
 
-    return `${this._formatCount(completed)} of ${this._formatCount(total)}`;
+    return `${this._formatCount(current)} of ${this._formatCount(total)}`;
   }
 
   _updateBonusSpinProgress() {
@@ -1686,6 +1696,7 @@ export class GameController {
     }
 
     if (!this.game?.isInFreeSpins || !this.game?.bonusMode) {
+      this.displayedFreeSpinNumber = 0;
       this.ui.bonusSpinStat.classList.add("hidden");
       return;
     }
@@ -1696,8 +1707,12 @@ export class GameController {
       Number(this.game.bonusMode.spinsCompleted || 0),
     );
     const total = Math.max(remaining + completed, 0);
+    const current = Math.min(
+      Math.max(total, 1),
+      Math.max(1, Number(this.displayedFreeSpinNumber || completed || 1)),
+    );
 
-    this.ui.bonusSpinProgress.textContent = `${this._formatCount(completed)}/${this._formatCount(total)} spins`;
+    this.ui.bonusSpinProgress.textContent = `${this._formatCount(current)}/${this._formatCount(total)} spins`;
     this.ui.bonusSpinStat.classList.remove("hidden");
   }
 

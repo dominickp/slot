@@ -521,4 +521,62 @@ describe("GameController bonus balance settlement", () => {
       },
     );
   });
+
+  it("shows the active free spin number instead of completed spins", () => {
+    const hiddenClasses = new Set(["hidden"]);
+    const controller = {
+      game: {
+        isInFreeSpins: true,
+        freeSpinsRemaining: 1,
+        bonusMode: {
+          spinsCompleted: 11,
+        },
+      },
+      displayedFreeSpinNumber: 12,
+      ui: {
+        bonusSpinStat: {
+          classList: {
+            add: jest.fn((name) => hiddenClasses.add(name)),
+            remove: jest.fn((name) => hiddenClasses.delete(name)),
+          },
+        },
+        bonusSpinProgress: {
+          textContent: "",
+        },
+      },
+      _formatCount: (value) => String(value),
+    };
+
+    GameController.prototype._updateBonusSpinProgress.call(controller);
+
+    expect(controller.ui.bonusSpinProgress.textContent).toBe("12/12 spins");
+    expect(hiddenClasses.has("hidden")).toBe(false);
+  });
+
+  it("hides the bonus counter and clears the displayed spin after free spins end", () => {
+    const controller = {
+      game: {
+        isInFreeSpins: false,
+        bonusMode: null,
+      },
+      displayedFreeSpinNumber: 12,
+      ui: {
+        bonusSpinStat: {
+          classList: {
+            add: jest.fn(),
+          },
+        },
+        bonusSpinProgress: {
+          textContent: "12/12 spins",
+        },
+      },
+    };
+
+    GameController.prototype._updateBonusSpinProgress.call(controller);
+
+    expect(controller.displayedFreeSpinNumber).toBe(0);
+    expect(controller.ui.bonusSpinStat.classList.add).toHaveBeenCalledWith(
+      "hidden",
+    );
+  });
 });
