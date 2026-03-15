@@ -455,6 +455,96 @@ describe("GameController bonus balance settlement", () => {
     expect(controller.renderer.animateScatterTrigger).not.toHaveBeenCalled();
   });
 
+  it("plays rainbow activation focus on a base spin before reveal sequencing", async () => {
+    const controller = {
+      totalSpins: 0,
+      currentBalance: 100,
+      totalWins: 0,
+      lastWin: 0,
+      timings: {
+        spinDrop: 0,
+        cascade: 0,
+        betweenCascades: 0,
+        preCascadePause: 0,
+        winText: 0,
+        maxAnimatedCascades: 0,
+      },
+      game: {
+        currentGrid: [[1]],
+        isInFreeSpins: false,
+        spin: jest.fn().mockResolvedValue({
+          grid: [[9]],
+          cascades: [],
+          initialWins: new Set(),
+          winPositions: new Set(),
+          totalWin: 0,
+          bonusMode: null,
+          scatterCount: 0,
+          scatterPositions: [],
+          bonusFeatures: {
+            rainbowTriggered: true,
+            rainbowPositions: [{ x: 0, y: 0 }],
+            bonusEventTimeline: [],
+          },
+        }),
+        finalizeSpinVisualState: jest.fn(),
+      },
+      renderer: {
+        animateSpinStart: jest.fn().mockResolvedValue(),
+        animateSpinTransition: jest.fn().mockResolvedValue(),
+        setPersistentConnectionHighlights: jest.fn(),
+        render: jest.fn(),
+        animateWin: jest.fn().mockResolvedValue(),
+        animateScatterTrigger: jest.fn().mockResolvedValue(),
+        clearBonusVisuals: jest.fn(),
+        setBonusVisuals: jest.fn(),
+        animateRainbowActivationFocus: jest.fn().mockResolvedValue(),
+      },
+      soundManager: {
+        playSpinStart: jest.fn(),
+        playCascade: jest.fn(),
+        playRainbow: jest.fn(),
+        playCloverMultiply: jest.fn(),
+        playCollectorCollect: jest.fn(),
+        playCollectorPop: jest.fn(),
+        playCoinReveal: jest.fn(),
+        playWin: jest.fn(),
+        playBigWin: jest.fn(),
+      },
+      backend: null,
+      _updateBonusSpinProgress: jest.fn(),
+      _delay: jest.fn().mockResolvedValue(),
+      _syncBonusVisuals: jest.fn(),
+      _getCollectorSummary: jest.fn().mockReturnValue(""),
+      _getEligibleScatterTriggerPositions:
+        GameController.prototype._getEligibleScatterTriggerPositions,
+      _roundCredits: GameController.prototype._roundCredits,
+      _updateBalance: jest.fn(),
+      _updateTotalWinDisplay: jest.fn(),
+      _updateLastWinDisplay: jest.fn(),
+      _showResult: jest.fn(),
+      _hideResult: jest.fn(),
+      _setCharacter: jest.fn(),
+      _formatCredits: (value) => String(value),
+    };
+
+    await GameController.prototype._playSingleSpin.call(controller, {
+      betAmount: 2,
+      isFreeSpin: false,
+      freeSpinIndex: 0,
+    });
+
+    expect(controller.renderer.setBonusVisuals).toHaveBeenCalledWith({
+      rainbowTriggered: true,
+      rainbowPositions: [{ x: 0, y: 0 }],
+      bonusEventTimeline: [],
+    });
+    expect(controller.soundManager.playRainbow).toHaveBeenCalledTimes(1);
+    expect(controller.renderer.animateRainbowActivationFocus).toHaveBeenCalledWith(
+      1,
+    );
+  });
+
   it("uses the bonus scatter trigger animation for bought bonuses", async () => {
     const controller = {
       totalSpins: 0,

@@ -340,8 +340,7 @@ export class LuckyScapeSlot extends BaseSlot {
       scatterCount: scatterResult.count,
       scatterPositions: scatterResult.positions,
       bonusFeatures: {
-        rainbowTriggered: this.rainbowTriggered,
-        bonusEventTimeline: this.bonusEventTimeline,
+        ...this.getBonusFeatureDisplay(),
         debugHighlightPositions: this._getDebugHighlightPositions(),
       },
     };

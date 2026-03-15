@@ -172,6 +172,32 @@ describe("LuckyScapeSlot golden square cleanup timing", () => {
   });
 });
 
+describe("LuckyScapeSlot spin bonus feature payload", () => {
+  it("includes rainbow positions for base-game activation visuals", async () => {
+    const slot = new LuckyScapeSlot();
+
+    slot._generateRandomGrid = () => [
+      [1, 1, 1, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1],
+      [1, 1, 9, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1],
+    ];
+    slot._getSymbolWeightsForCurrentSpin = () => [{ id: 1, weight: 1 }];
+    slot.goldenSquares = new Set(["2,2"]);
+    slot._prepareSpinGoldenSquareState = () => {};
+    slot._trackGoldenSquaresFromWins = () => {};
+    slot.detector.findWins = () => ({ clusters: [] });
+    slot.detector.findScatters = () => ({ count: 0, positions: [] });
+    slot._runGoldenSquareChainRounds = () => 0;
+
+    const result = await slot.spin(null, 1);
+
+    expect(result.bonusFeatures.rainbowTriggered).toBe(true);
+    expect(result.bonusFeatures.rainbowPositions).toEqual([{ x: 2, y: 2 }]);
+  });
+});
+
 describe("LuckyScapeSlot super-cascade removal integration", () => {
   it("resolves simultaneous symbol connections as separate cascade steps", async () => {
     const slot = new LuckyScapeSlot();
