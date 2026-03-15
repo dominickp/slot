@@ -540,9 +540,9 @@ describe("GameController bonus balance settlement", () => {
       bonusEventTimeline: [],
     });
     expect(controller.soundManager.playRainbow).toHaveBeenCalledTimes(1);
-    expect(controller.renderer.animateRainbowActivationFocus).toHaveBeenCalledWith(
-      1,
-    );
+    expect(
+      controller.renderer.animateRainbowActivationFocus,
+    ).toHaveBeenCalledWith(1);
   });
 
   it("uses the bonus scatter trigger animation for bought bonuses", async () => {
