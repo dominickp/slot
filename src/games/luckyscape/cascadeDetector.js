@@ -200,7 +200,7 @@ export class CascadeDetector {
   }
 
   /**
-  * Main entry point: Find all winning clusters in a grid
+   * Main entry point: Find all winning clusters in a grid
    *
    * @param {number[][]} grid - 5x5 grid of symbol IDs
    * @returns {Object} {
@@ -289,7 +289,7 @@ export class CascadeDetector {
   }
 
   /**
-  * Flood-fill a regular-symbol cluster, allowing adjacent wilds to count.
+   * Flood-fill a regular-symbol cluster, allowing adjacent wilds to count.
    *
    * @private
    * @param {number[][]} grid - Game grid
@@ -337,7 +337,10 @@ export class CascadeDetector {
           continue;
         }
 
-        const matches = this._matchesRegularClusterSymbol(symbolId, neighborSymbol);
+        const matches = this._matchesRegularClusterSymbol(
+          symbolId,
+          neighborSymbol,
+        );
 
         if (matches) {
           explored.add(nPosKey);
@@ -459,7 +462,10 @@ export class CascadeDetector {
       return cluster.symbolId;
     }
 
-    return this._getHighestPayingSymbolInCluster(cluster?.positions || [], grid);
+    return this._getHighestPayingSymbolInCluster(
+      cluster?.positions || [],
+      grid,
+    );
   }
 
   _getHighestPayingSymbolInCluster(positions, grid) {

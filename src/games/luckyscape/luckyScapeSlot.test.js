@@ -407,7 +407,9 @@ describe("LuckyScapeSlot debug spin guarantees", () => {
     const firstSymbols = firstWin.clusters[0].positions.map(
       ({ x, y }) => slot.currentGrid[y][x],
     );
-    const firstRegularCount = firstSymbols.filter((symbol) => symbol === 1).length;
+    const firstRegularCount = firstSymbols.filter(
+      (symbol) => symbol === 1,
+    ).length;
     const firstWildCount = firstSymbols.filter((symbol) => symbol === 6).length;
 
     slot.currentGrid = [[0]];
@@ -417,8 +419,12 @@ describe("LuckyScapeSlot debug spin guarantees", () => {
     const secondSymbols = secondWin.clusters[0].positions.map(
       ({ x, y }) => slot.currentGrid[y][x],
     );
-    const secondRegularCount = secondSymbols.filter((symbol) => symbol === 1).length;
-    const secondWildCount = secondSymbols.filter((symbol) => symbol === 6).length;
+    const secondRegularCount = secondSymbols.filter(
+      (symbol) => symbol === 1,
+    ).length;
+    const secondWildCount = secondSymbols.filter(
+      (symbol) => symbol === 6,
+    ).length;
 
     slot.currentGrid = [[0]];
     slot._applyDebugSpinGuarantees();
@@ -430,7 +436,9 @@ describe("LuckyScapeSlot debug spin guarantees", () => {
     const thirdSymbols = thirdWin.clusters[0].positions.map(
       ({ x, y }) => slot.currentGrid[y][x],
     );
-    const thirdRegularCount = thirdSymbols.filter((symbol) => symbol === 1).length;
+    const thirdRegularCount = thirdSymbols.filter(
+      (symbol) => symbol === 1,
+    ).length;
     const thirdWildCount = thirdSymbols.filter((symbol) => symbol === 6).length;
 
     expect(firstWin.clusters).toHaveLength(1);

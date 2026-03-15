@@ -17,15 +17,15 @@ There is a test in this repo that runs a few modes 10K times and reports the fol
 Starting isolated benchmarks (10000 runs each)...
 Mode         | Runs  | Cost/Run | RTP     | Hit Rate (>0) | Profit Rate (>Cost) | Avg Win | Max Win  | Nat. Bonus Freq
 -------------+-------+----------+---------+---------------+---------------------+---------+----------+----------------
-Base Game    | 10000 | 1.00     | 139.50% | 21.71%        | 8.35%               | 1.39    | 1483.20  | 1 in 108       
-LEPRECHAUN   | 10000 | 100.00   | 103.20% | 89.83%        | 26.63%              | 103.20  | 10151.50 | N/A
-GLITTER_GOLD | 10000 | 250.00   | 103.89% | 95.47%        | 24.69%              | 259.73  | 11093.40 | N/A
+Base Game    | 10000 | 1.00     | 108.36% | 24.06%        | 5.28%               | 1.08    | 714.60   | 1 in 128       
+LEPRECHAUN   | 10000 | 100.00   | 114.89% | 91.65%        | 28.60%              | 114.89  | 10006.80 | N/A
+GLITTER_GOLD | 10000 | 250.00   | 117.07% | 96.88%        | 27.10%              | 292.68  | 20002.20 | N/A
 
 Base Game Scatter Frequency                                                                                                                        
-Outcome    | Hits | Frequency | Odds    
------------+------+-----------+---------                                                                                                           
-3 Scatters | 81   | 0.81%     | 1 in 123
-4 Scatters | 12   | 0.12%     | 1 in 833
+Outcome    | Hits | Frequency | Odds     
+-----------+------+-----------+----------                                                                                                          
+3 Scatters | 75   | 0.75%     | 1 in 133
+4 Scatters | 3    | 0.03%     | 1 in 3333
 5 Scatters | 0    | 0.00%     | Never
 ```
 

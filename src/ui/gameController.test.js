@@ -613,7 +613,7 @@ describe("GameController bonus balance settlement", () => {
 
     GameController.prototype._updateBonusSpinProgress.call(controller);
 
-    expect(controller.ui.bonusSpinProgress.textContent).toBe("12/12 spins");
+    expect(controller.ui.bonusSpinProgress.textContent).toBe("12/12");
     expect(hiddenClasses.has("hidden")).toBe(false);
   });
 
@@ -631,7 +631,7 @@ describe("GameController bonus balance settlement", () => {
           },
         },
         bonusSpinProgress: {
-          textContent: "12/12 spins",
+          textContent: "12/12",
         },
       },
     };

@@ -1713,7 +1713,7 @@ export class GameController {
       Math.max(1, Number(this.displayedFreeSpinNumber || completed || 1)),
     );
 
-    this.ui.bonusSpinProgress.textContent = `${this._formatCount(current)}/${this._formatCount(total)} spins`;
+    this.ui.bonusSpinProgress.textContent = `${this._formatCount(current)}/${this._formatCount(total)}`;
     this.ui.bonusSpinStat.classList.remove("hidden");
   }
 
